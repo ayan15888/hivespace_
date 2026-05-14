@@ -1,0 +1,14 @@
+.gradle/
+build/
+bin/
+out/
+.idea/
+.vscode/
+.git/
+gradlew.bat
+Dockerfile
+docker-compose.yml
+README.md
+Schema.txt
+entity.sql
+render.yaml

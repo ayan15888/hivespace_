@@ -1,0 +1,59 @@
+# Use the modern docker-compose syntax
+services:
+  # ☕ HiveSpace Backend Application
+  backend:
+    build: .
+    container_name: hivespace_backend
+    restart: unless-stopped
+    ports:
+      - "8088:8080"
+    environment:
+      # Use Neon.tech string here for testing!
+      DATABASE_URL: jdbc:postgresql://ep-orange-sunset-am84peh2-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require
+      DB_USERNAME: neondb_owner
+      DB_PASSWORD: npg_E8eazUXNnv5R
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+
+  # 🐘 PostgreSQL Database (REDUNDANT: Using Neon.tech DB)
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: hivespace_postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: hivespace_db
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: password
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - hivespace_pg_data:/var/lib/postgresql/data
+  #     - ./init:/docker-entrypoint-initdb.d
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres -d hivespace_db"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # 📊 pgAdmin (REDUNDANT: Using Neon.tech DB)
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: hivespace_pgadmin
+  #   restart: unless-stopped
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@hivespace.com
+  #     PGADMIN_DEFAULT_PASSWORD: admin
+  #   ports:
+  #     - "5050:80"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   volumes:
+  #     - hivespace_pgadmin_data:/var/lib/pgadmin
+
+# volumes:
+#   hivespace_pg_data:
+#     driver: local
+#   hivespace_pgadmin_data:
+#     driver: local

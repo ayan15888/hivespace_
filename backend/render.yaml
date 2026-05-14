@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: hivespace-backend
+    env: docker
+    region: oregon # This is the best region for free tier
+    plan: free     # Make sure this is 'free'
+    # No buildCommand/startCommand needed for Docker environment
+    envVars:
+      - key: DATABASE_URL
+        sync: false # 📍 Put your Supabase JDBC String here in the Render Dashboard!
+      - key: DB_USERNAME
+        sync: false # 📍 Put 'postgres' here in the Render Dashboard!
+      - key: DB_PASSWORD
+        sync: false # 📍 Put your Supabase Password here in the Render Dashboard!

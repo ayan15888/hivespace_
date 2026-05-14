@@ -1,0 +1,57 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.2'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.project'
+version = '0.0.1-SNAPSHOT'
+description = 'hiveSpace'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+
+    /* -------------------- WEB -------------------- */
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    /* -------------------- JPA -------------------- */
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    /* -------------------- SECURITY -------------------- */
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    /* -------------------- VALIDATION (IMPORTANT) -------------------- */
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    /* -------------------- DATABASE -------------------- */
+    runtimeOnly 'org.postgresql:postgresql'
+    // runtimeOnly 'mysql:mysql-connector-j'
+
+    /* -------------------- LOMBOK -------------------- */
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    /* -------------------- TESTING -------------------- */
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+
+    /* -------------------- JWT -------------------- */
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+    implementation 'io.github.cdimascio:dotenv-java:3.0.0'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

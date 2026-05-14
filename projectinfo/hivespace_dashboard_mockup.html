@@ -1,0 +1,395 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.app{display:flex;height:780px;background:var(--color-background-tertiary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);overflow:hidden;font-size:13px}
+.sidebar{width:220px;flex-shrink:0;background:var(--color-background-primary);border-right:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;padding:0}
+.sb-top{padding:14px 14px 10px}
+.sb-org{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--border-radius-md);cursor:pointer;background:var(--color-background-secondary)}
+.sb-org:hover{background:var(--color-background-tertiary)}
+.org-avatar{width:26px;height:26px;border-radius:6px;background:#534AB7;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:#EEEDFE;flex-shrink:0}
+.org-name{font-size:13px;font-weight:500;color:var(--color-text-primary);flex:1}
+.chevron{width:14px;height:14px;color:var(--color-text-tertiary)}
+.sb-section{padding:4px 14px;margin-top:8px}
+.sb-label{font-size:11px;color:var(--color-text-tertiary);font-weight:500;letter-spacing:0.05em;text-transform:uppercase;padding:0 4px;margin-bottom:4px}
+.sb-item{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:var(--border-radius-md);cursor:pointer;color:var(--color-text-secondary)}
+.sb-item:hover{background:var(--color-background-secondary);color:var(--color-text-primary)}
+.sb-item.active{background:var(--color-background-secondary);color:var(--color-text-primary);font-weight:500}
+.sb-icon{width:14px;height:14px;flex-shrink:0;opacity:0.7}
+.sb-badge{margin-left:auto;background:var(--color-background-danger);color:var(--color-text-danger);font-size:10px;padding:1px 5px;border-radius:8px;font-weight:500}
+.sb-badge-gray{margin-left:auto;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;padding:1px 5px;border-radius:8px}
+.ws-pill{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:var(--border-radius-md);cursor:pointer;color:var(--color-text-secondary);font-size:12px}
+.ws-pill:hover{background:var(--color-background-secondary)}
+.ws-pill.active{color:var(--color-text-primary);font-weight:500}
+.ws-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sb-divider{height:0.5px;background:var(--color-border-tertiary);margin:8px 14px}
+.sb-bottom{padding:10px 14px;margin-top:auto;border-top:0.5px solid var(--color-border-tertiary)}
+.user-row{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 4px;border-radius:var(--border-radius-md)}
+.user-row:hover{background:var(--color-background-secondary)}
+.avatar-sm{width:26px;height:26px;border-radius:50%;background:var(--color-background-info);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--color-text-info);flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:48px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.tb-title{font-size:14px;font-weight:500;color:var(--color-text-primary);flex:1}
+.tb-search{display:flex;align-items:center;gap:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:5px 10px;width:200px}
+.tb-search span{font-size:12px;color:var(--color-text-tertiary)}
+.tb-btn{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:5px 12px;font-size:12px;color:var(--color-text-primary);cursor:pointer;font-weight:500}
+.tb-btn:hover{background:var(--color-background-tertiary)}
+.tb-btn.primary{background:#534AB7;color:#EEEDFE;border-color:#534AB7}
+.tb-btn.primary:hover{background:#3C3489}
+.notif-btn{width:30px;height:30px;border-radius:var(--border-radius-md);background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.notif-dot{width:7px;height:7px;border-radius:50%;background:var(--color-text-danger);position:absolute;top:5px;right:5px}
+.content{flex:1;overflow-y:auto;padding:20px}
+.metrics-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}
+.metric-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:12px 14px}
+.metric-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:5px}
+.metric-val{font-size:22px;font-weight:500;color:var(--color-text-primary)}
+.metric-sub{font-size:11px;color:var(--color-text-success);margin-top:2px}
+.metric-sub.warn{color:var(--color-text-warning)}
+.two-col{display:grid;grid-template-columns:1fr 320px;gap:14px;margin-bottom:14px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.card-title{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.card-link{font-size:12px;color:var(--color-text-info);cursor:pointer}
+.kanban-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px}
+.k-col-head{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.05em;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.k-count{background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;padding:1px 5px;border-radius:8px}
+.task-card{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:8px 10px;margin-bottom:6px;cursor:pointer}
+.task-card:hover{border-color:var(--color-border-secondary)}
+.task-title{font-size:12px;color:var(--color-text-primary);margin-bottom:5px;font-weight:500}
+.task-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.tag{font-size:10px;padding:2px 6px;border-radius:8px;font-weight:500}
+.tag-bug{background:#FCEBEB;color:#A32D2D}
+.tag-feat{background:#E1F5EE;color:#0F6E56}
+.tag-ux{background:#EEEDFE;color:#534AB7}
+.tag-doc{background:#FAEEDA;color:#854F0B}
+.prio-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.prio-high{background:#E24B4A}
+.prio-med{background:#EF9F27}
+.prio-low{background:#97C459}
+.assignee-chip{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;margin-left:auto;flex-shrink:0}
+.activity-list{padding:10px 14px}
+.act-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.act-item:last-child{border-bottom:none}
+.act-av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;flex-shrink:0}
+.act-body{flex:1}
+.act-text{font-size:12px;color:var(--color-text-primary);line-height:1.4}
+.act-text strong{font-weight:500}
+.act-time{font-size:11px;color:var(--color-text-tertiary);margin-top:1px}
+.bottom-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sprint-bar-row{display:flex;align-items:center;gap:8px;padding:6px 14px}
+.sprint-name{font-size:12px;color:var(--color-text-primary);width:90px;flex-shrink:0}
+.bar-track{flex:1;height:6px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px}
+.sprint-pct{font-size:11px;color:var(--color-text-secondary);width:30px;text-align:right;flex-shrink:0}
+.member-row{display:flex;align-items:center;gap:9px;padding:7px 14px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.member-row:last-child{border-bottom:none}
+.member-name{font-size:12px;color:var(--color-text-primary);font-weight:500;flex:1}
+.member-tasks{font-size:11px;color:var(--color-text-secondary)}
+.online-dot{width:7px;height:7px;border-radius:50%}
+</style>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sb-top">
+      <div class="sb-org">
+        <div class="org-avatar">HS</div>
+        <span class="org-name">HiveSpace</span>
+        <svg class="chevron" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-item active">
+        <svg class="sb-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+        Overview
+      </div>
+      <div class="sb-item">
+        <svg class="sb-icon" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        My tasks
+        <span class="sb-badge">5</span>
+      </div>
+      <div class="sb-item">
+        <svg class="sb-icon" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h8M2 12h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Inbox
+        <span class="sb-badge">3</span>
+      </div>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <div class="sb-section">
+      <div class="sb-label">Workspaces</div>
+      <div class="ws-pill active">
+        <div class="ws-dot" style="background:#534AB7"></div>
+        Engineering
+      </div>
+      <div class="ws-pill">
+        <div class="ws-dot" style="background:#1D9E75"></div>
+        Design
+      </div>
+      <div class="ws-pill">
+        <div class="ws-dot" style="background:#D85A30"></div>
+        Marketing
+      </div>
+      <div class="sb-item" style="margin-top:2px;font-size:12px">
+        <svg class="sb-icon" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Add workspace
+      </div>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <div class="sb-section">
+      <div class="sb-label">Projects</div>
+      <div class="ws-pill active">
+        <div class="ws-dot" style="background:#378ADD"></div>
+        HiveSpace v2
+      </div>
+      <div class="ws-pill">
+        <div class="ws-dot" style="background:#EF9F27"></div>
+        Auth redesign
+      </div>
+      <div class="ws-pill">
+        <div class="ws-dot" style="background:#D4537E"></div>
+        API gateway
+      </div>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <div class="sb-section">
+      <div class="sb-label">Channels</div>
+      <div class="sb-item">
+        <svg class="sb-icon" viewBox="0 0 16 16" fill="none"><path d="M2 4c0-1.1.9-2 2-2h8a2 2 0 012 2v6a2 2 0 01-2 2H9l-3 2v-2H4a2 2 0 01-2-2V4z" stroke="currentColor" stroke-width="1.3"/></svg>
+        #general
+        <span class="sb-badge-gray">24</span>
+      </div>
+      <div class="sb-item">
+        <svg class="sb-icon" viewBox="0 0 16 16" fill="none"><path d="M2 4c0-1.1.9-2 2-2h8a2 2 0 012 2v6a2 2 0 01-2 2H9l-3 2v-2H4a2 2 0 01-2-2V4z" stroke="currentColor" stroke-width="1.3"/></svg>
+        #engineering
+        <span class="sb-badge">2</span>
+      </div>
+      <div class="sb-item">
+        <svg class="sb-icon" viewBox="0 0 16 16" fill="none"><path d="M2 4c0-1.1.9-2 2-2h8a2 2 0 012 2v6a2 2 0 01-2 2H9l-3 2v-2H4a2 2 0 01-2-2V4z" stroke="currentColor" stroke-width="1.3"/></svg>
+        #releases
+      </div>
+    </div>
+
+    <div class="sb-bottom">
+      <div class="user-row">
+        <div class="avatar-sm">AK</div>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:500;color:var(--color-text-primary)">Ayan K.</div>
+          <div style="font-size:11px;color:var(--color-text-tertiary)">Admin</div>
+        </div>
+        <div class="online-dot" style="background:var(--color-text-success)"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="tb-title">Overview — Engineering</div>
+      <div class="tb-search">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 10.5L13 13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <span>Search tasks, messages...</span>
+      </div>
+      <div class="notif-btn">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.5a4.5 4.5 0 00-4.5 4.5v3l-1 1.5h11l-1-1.5V6A4.5 4.5 0 008 1.5z" stroke="currentColor" stroke-width="1.3"/><path d="M6.5 13a1.5 1.5 0 003 0" stroke="currentColor" stroke-width="1.3"/></svg>
+        <div class="notif-dot"></div>
+      </div>
+      <button class="tb-btn primary">+ New task</button>
+    </div>
+
+    <div class="content">
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-label">Open tasks</div>
+          <div class="metric-val">24</div>
+          <div class="metric-sub warn">+4 since yesterday</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Closed this week</div>
+          <div class="metric-val">11</div>
+          <div class="metric-sub">+3 vs last week</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Sprint progress</div>
+          <div class="metric-val">68%</div>
+          <div class="metric-sub">Sprint 4 · 3 days left</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Overdue</div>
+          <div class="metric-val" style="color:var(--color-text-danger)">3</div>
+          <div class="metric-sub warn">Needs attention</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">HiveSpace v2 — kanban</span>
+            <span class="card-link">Open full board</span>
+          </div>
+          <div class="kanban-cols">
+            <div>
+              <div class="k-col-head">To do <span class="k-count">8</span></div>
+              <div class="task-card">
+                <div class="task-title">Set up WebSocket server</div>
+                <div class="task-meta"><span class="prio-dot prio-high"></span><span class="tag tag-feat">feature</span><div class="assignee-chip" style="background:#E6F1FB;color:#185FA5">AK</div></div>
+              </div>
+              <div class="task-card">
+                <div class="task-title">Design invite email template</div>
+                <div class="task-meta"><span class="prio-dot prio-med"></span><span class="tag tag-ux">design</span><div class="assignee-chip" style="background:#FBEAF0;color:#993556">SR</div></div>
+              </div>
+              <div class="task-card">
+                <div class="task-title">Write migration script for v2 schema</div>
+                <div class="task-meta"><span class="prio-dot prio-low"></span><span class="tag tag-doc">docs</span><div class="assignee-chip" style="background:#E1F5EE;color:#0F6E56">MN</div></div>
+              </div>
+            </div>
+            <div>
+              <div class="k-col-head">In progress <span class="k-count">5</span></div>
+              <div class="task-card" style="border-left:2px solid #378ADD;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0">
+                <div class="task-title">Kanban drag-and-drop implementation</div>
+                <div class="task-meta"><span class="prio-dot prio-high"></span><span class="tag tag-feat">feature</span><div class="assignee-chip" style="background:#E6F1FB;color:#185FA5">AK</div></div>
+              </div>
+              <div class="task-card" style="border-left:2px solid #EF9F27;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0">
+                <div class="task-title">Fix 401 token refresh loop</div>
+                <div class="task-meta"><span class="prio-dot prio-high"></span><span class="tag tag-bug">bug</span><div class="assignee-chip" style="background:#FAEEDA;color:#854F0B">RJ</div></div>
+              </div>
+            </div>
+            <div>
+              <div class="k-col-head">Done <span class="k-count">11</span></div>
+              <div class="task-card" style="opacity:0.6">
+                <div class="task-title">Auth register + login endpoints</div>
+                <div class="task-meta"><span class="prio-dot prio-med"></span><span class="tag tag-feat">feature</span><div class="assignee-chip" style="background:#E6F1FB;color:#185FA5">AK</div></div>
+              </div>
+              <div class="task-card" style="opacity:0.6">
+                <div class="task-title">Tenant creation API</div>
+                <div class="task-meta"><span class="prio-dot prio-med"></span><span class="tag tag-feat">feature</span><div class="assignee-chip" style="background:#E1F5EE;color:#0F6E56">MN</div></div>
+              </div>
+              <div class="task-card" style="opacity:0.6">
+                <div class="task-title">Landing page deployment</div>
+                <div class="task-meta"><span class="prio-dot prio-low"></span><span class="tag tag-doc">docs</span><div class="assignee-chip" style="background:#FBEAF0;color:#993556">SR</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Activity feed</span>
+            <span class="card-link">View all</span>
+          </div>
+          <div class="activity-list">
+            <div class="act-item">
+              <div class="act-av" style="background:#E6F1FB;color:#185FA5">AK</div>
+              <div class="act-body">
+                <div class="act-text"><strong>Ayan</strong> moved <strong>Kanban drag-and-drop</strong> to In Progress</div>
+                <div class="act-time">2 min ago</div>
+              </div>
+            </div>
+            <div class="act-item">
+              <div class="act-av" style="background:#FAEEDA;color:#854F0B">RJ</div>
+              <div class="act-body">
+                <div class="act-text"><strong>Raj</strong> commented on <strong>Fix 401 token refresh loop</strong></div>
+                <div class="act-time">18 min ago</div>
+              </div>
+            </div>
+            <div class="act-item">
+              <div class="act-av" style="background:#E1F5EE;color:#0F6E56">MN</div>
+              <div class="act-body">
+                <div class="act-text"><strong>Meera</strong> closed <strong>Tenant creation API</strong></div>
+                <div class="act-time">1 hr ago</div>
+              </div>
+            </div>
+            <div class="act-item">
+              <div class="act-av" style="background:#FBEAF0;color:#993556">SR</div>
+              <div class="act-body">
+                <div class="act-text"><strong>Sara</strong> created task <strong>Design invite email template</strong></div>
+                <div class="act-time">2 hr ago</div>
+              </div>
+            </div>
+            <div class="act-item">
+              <div class="act-av" style="background:#E6F1FB;color:#185FA5">AK</div>
+              <div class="act-body">
+                <div class="act-text"><strong>Ayan</strong> assigned <strong>Set up WebSocket server</strong> to themselves</div>
+                <div class="act-time">3 hr ago</div>
+              </div>
+            </div>
+            <div class="act-item">
+              <div class="act-av" style="background:#FAEEDA;color:#854F0B">RJ</div>
+              <div class="act-body">
+                <div class="act-text"><strong>Raj</strong> posted in <strong>#engineering</strong> — "PR ready for review"</div>
+                <div class="act-time">4 hr ago</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-row">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Sprint progress</span>
+            <span class="card-link">Sprint board</span>
+          </div>
+          <div style="padding:8px 0 4px">
+            <div class="sprint-bar-row">
+              <span class="sprint-name" style="font-size:11px;color:var(--color-text-secondary)">Sprint 4</span>
+              <div class="bar-track"><div class="bar-fill" style="width:68%;background:#534AB7"></div></div>
+              <span class="sprint-pct">68%</span>
+            </div>
+            <div class="sprint-bar-row">
+              <span class="sprint-name" style="font-size:11px;color:var(--color-text-secondary);font-weight:500">Feature</span>
+              <div class="bar-track"><div class="bar-fill" style="width:55%;background:#378ADD"></div></div>
+              <span class="sprint-pct">55%</span>
+            </div>
+            <div class="sprint-bar-row">
+              <span class="sprint-name" style="font-size:11px;color:var(--color-text-secondary)">Bug fixes</span>
+              <div class="bar-track"><div class="bar-fill" style="width:80%;background:#E24B4A"></div></div>
+              <span class="sprint-pct">80%</span>
+            </div>
+            <div class="sprint-bar-row">
+              <span class="sprint-name" style="font-size:11px;color:var(--color-text-secondary)">Design</span>
+              <div class="bar-track"><div class="bar-fill" style="width:40%;background:#D4537E"></div></div>
+              <span class="sprint-pct">40%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Team workload</span>
+            <span class="card-link">Manage members</span>
+          </div>
+          <div>
+            <div class="member-row">
+              <div class="act-av" style="background:#E6F1FB;color:#185FA5">AK</div>
+              <div class="member-name">Ayan K.</div>
+              <div class="member-tasks">7 tasks</div>
+              <div class="online-dot" style="background:var(--color-text-success);margin-left:8px"></div>
+            </div>
+            <div class="member-row">
+              <div class="act-av" style="background:#FAEEDA;color:#854F0B">RJ</div>
+              <div class="member-name">Raj J.</div>
+              <div class="member-tasks">5 tasks</div>
+              <div class="online-dot" style="background:var(--color-text-success);margin-left:8px"></div>
+            </div>
+            <div class="member-row">
+              <div class="act-av" style="background:#E1F5EE;color:#0F6E56">MN</div>
+              <div class="member-name">Meera N.</div>
+              <div class="member-tasks">4 tasks</div>
+              <div class="online-dot" style="background:var(--color-text-warning);margin-left:8px"></div>
+            </div>
+            <div class="member-row">
+              <div class="act-av" style="background:#FBEAF0;color:#993556">SR</div>
+              <div class="member-name">Sara R.</div>
+              <div class="member-tasks">3 tasks</div>
+              <div class="online-dot" style="background:var(--color-border-secondary);margin-left:8px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
