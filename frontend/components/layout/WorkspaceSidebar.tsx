@@ -72,14 +72,14 @@ export function WorkspaceSidebar() {
   const isProjectLead = true; // Use mock role for now
 
   return (
-    <aside className="fixed top-0 left-[56px] z-40 flex h-full w-[220px] flex-col bg-[#000000]">
+    <aside className="fixed top-0 left-[56px] z-40 flex h-full w-[220px] flex-col bg-hs-nav">
       
       {/* 1. WORKSPACE HEADER */}
       <Popover>
         <PopoverTrigger asChild>
           <div className="flex h-[48px] w-full cursor-pointer items-center justify-between px-4 hover:bg-zinc-800/50 transition-colors">
             <div className="flex flex-col justify-center">
-              <span className="text-sm font-medium text-[#E5E1E4] leading-tight">
+              <span className="text-sm font-medium text-hs-text leading-tight">
                 {activeWorkspace?.name || "Select Workspace"}
               </span>
               <span className="text-xs text-zinc-500 leading-tight">
@@ -89,7 +89,7 @@ export function WorkspaceSidebar() {
             <ChevronDown className="h-4 w-4 text-zinc-400" strokeWidth={1.5} />
           </div>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-[200px] ml-4 bg-[#000000]/95 backdrop-blur-xl border border-zinc-800 text-[#E5E1E4] p-1 rounded-md shadow-lg shadow-black/40">
+        <PopoverContent align="start" className="w-[200px] ml-4 bg-hs-nav/95 backdrop-blur-xl border border-zinc-800 text-hs-text p-1 rounded-md shadow-lg shadow-black/40">
           <div className="flex flex-col gap-1">
             {workspaces.map((workspace) => (
               <div 
@@ -160,7 +160,7 @@ export function WorkspaceSidebar() {
         {/* 2. + New Project Button */}
         <Button 
           variant="ghost" 
-          className="w-full justify-start text-xs text-zinc-400 hover:text-[#E5E1E4] hover:bg-zinc-800/50 h-8 px-2 rounded-md border border-zinc-700/15"
+          className="w-full justify-start text-xs text-zinc-400 hover:text-hs-text hover:bg-zinc-800/50 h-8 px-2 rounded-md border border-zinc-700/15"
           onClick={() => setIsCreateProjectModalOpen(true)}
         >
           <Plus strokeWidth={1.5} className="mr-2 h-3.5 w-3.5" />
