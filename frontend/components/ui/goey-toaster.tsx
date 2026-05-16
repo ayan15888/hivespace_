@@ -15,7 +15,15 @@ export type {
 } from "goey-toast"
 
 function GooeyToaster(props: GooeyToasterProps) {
-  return <GooeyToasterPrimitive position="bottom-right" {...props} />
+  return (
+    <GooeyToasterPrimitive
+      position="bottom-right"
+      theme="dark"
+      richColors
+      preset="snappy"
+      {...props}
+    />
+  )
 }
 
 export { GooeyToaster }
