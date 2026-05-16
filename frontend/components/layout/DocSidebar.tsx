@@ -89,7 +89,7 @@ export function DocSidebar() {
   const pages = activeProjectId === "team" ? TEAM_PAGES : SPRINT_PAGES;
 
   return (
-    <aside className="fixed top-0 left-[56px] z-40 flex h-full w-[260px] flex-col bg-[#1B1B1D]">
+    <aside className="fixed top-0 left-[56px] z-40 flex h-full w-[260px] flex-col bg-sidebar">
       
 |      {/* SCOPE SWITCHER */}
       <div className="p-4 pt-4">

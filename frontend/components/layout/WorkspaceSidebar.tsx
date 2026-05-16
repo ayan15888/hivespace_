@@ -72,7 +72,7 @@ export function WorkspaceSidebar() {
   const isProjectLead = true; // Use mock role for now
 
   return (
-    <aside className="fixed top-0 left-[56px] z-40 flex h-full w-[220px] flex-col bg-hs-nav">
+    <aside className="fixed top-0 left-[56px] z-40 flex h-full w-[220px] flex-col bg-sidebar">
       
       {/* 1. WORKSPACE HEADER */}
       <Popover>
@@ -89,7 +89,7 @@ export function WorkspaceSidebar() {
             <ChevronDown className="h-4 w-4 text-zinc-400" strokeWidth={1.5} />
           </div>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-[200px] ml-4 bg-hs-nav/95 backdrop-blur-xl border border-zinc-800 text-hs-text p-1 rounded-md shadow-lg shadow-black/40">
+        <PopoverContent align="start" className="w-[200px] ml-4 bg-sidebar/95 backdrop-blur-xl border border-zinc-800 text-foreground p-1 rounded-md shadow-lg shadow-black/40">
           <div className="flex flex-col gap-1">
             {workspaces.map((workspace) => (
               <div 
