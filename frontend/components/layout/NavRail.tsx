@@ -71,7 +71,7 @@ export function NavRail() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <aside className="fixed top-0 left-0 z-50 flex h-full w-[56px] flex-col items-center justify-between bg-[#1B1B1D] py-4">
+      <aside className="fixed top-0 left-0 z-50 flex h-full w-[56px] flex-col items-center justify-between bg-sidebar py-4">
         {/* Top Section */}
         <div className="flex w-full flex-col items-center gap-4 px-2">
           <DropdownMenu>

@@ -19,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="antialiased">
-      <body className={`${inter.className} bg-[#000000] tracking-tight`} suppressHydrationWarning>
+      <body className={`${inter.className} tracking-tight`} suppressHydrationWarning>
         <GooeyToaster />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
