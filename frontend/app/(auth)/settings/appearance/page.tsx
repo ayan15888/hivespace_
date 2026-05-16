@@ -96,7 +96,8 @@ export default function AppearanceSettings() {
           <ThemeCard 
             id="light" 
             label="Light" 
-            comingSoon
+            active={theme === "light"}
+            onClick={() => setTheme("light")}
           >
             <div className="absolute inset-0 bg-zinc-100 flex flex-col p-2 gap-1.5">
               <div className="h-1.5 w-8 bg-zinc-300 rounded-full" />
