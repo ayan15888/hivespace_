@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { createTask, TaskRequest } from "@/lib/api/tasks";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useProjects } from "@/hooks/useProjects";

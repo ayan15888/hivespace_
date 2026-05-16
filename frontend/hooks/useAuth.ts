@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { User } from "@/types/auth";
 import { getCurrentUser } from "@/lib/api/auth";
+import { gooeyToast } from "@/components/ui/goey-toaster";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -37,6 +38,7 @@ export function useAuth() {
     localStorage.removeItem("token");
     document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     setUser(null);
+    gooeyToast.success("Logged out successfully");
     window.location.href = "/signin";
   };
 
