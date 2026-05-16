@@ -16,7 +16,7 @@ import { Loader2 } from "lucide-react";
 import { createWorkspace } from "@/lib/api/workspaces";
 import { useOrgStore } from "@/store/orgStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 
 interface CreateWorkspaceModalProps {
   isOpen: boolean;

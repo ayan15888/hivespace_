@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -32,12 +33,16 @@ export default function SignInPage() {
       document.cookie = `token=${response.token}; path=/; max-age=86400; SameSite=Lax`;
 
       if (response.hasTenants) {
+        toast.success("Welcome back!");
         router.push("/dashboard");
       } else {
+        toast.success("Signed in successfully!");
         router.push("/onboarding");
       }
     } catch (err: unknown) {
-      setError((err as Error).message || "Invalid email or password");
+      const message = (err as Error).message || "Invalid email or password";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }

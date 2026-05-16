@@ -17,7 +17,7 @@ import { CTAButton } from "@/components/common/CTAButton"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/useAuth"
 import { updateProfile } from "@/lib/api/auth"
-import { toast } from "sonner"
+import { gooeyToast as toast } from "@/components/ui/goey-toaster"
 
 const WORKSPACES = [
   { name: "Engineering", org: "Hivespace", role: "Team Lead", color: "bg-blue-500", canLeave: false },

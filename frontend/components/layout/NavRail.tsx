@@ -29,7 +29,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { motion } from "framer-motion"
 import { useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { useOrgs } from "@/hooks/useOrgs"
@@ -72,20 +71,20 @@ export function NavRail() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <aside className="fixed top-0 left-0 z-50 flex h-full w-[56px] flex-col items-center justify-between bg-hs-base py-4">
+      <aside className="fixed top-0 left-0 z-50 flex h-full w-[56px] flex-col items-center justify-between bg-[#1B1B1D] py-4">
         {/* Top Section */}
         <div className="flex w-full flex-col items-center gap-4 px-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="outline-none h-9 w-9 flex items-center justify-center rounded-md hover:bg-zinc-800 transition-colors">
                 <Avatar className="h-[26px] w-[26px] rounded-md">
-                  <AvatarFallback className="rounded-md bg-transparent text-[#7C5CFC]">
-                    <Hexagon className="h-5 w-5 fill-[#7C5CFC]/20" strokeWidth={2.5} />
+                  <AvatarFallback className="rounded-md bg-[#7C5CFC] text-[#E5E1E4]">
+                    <Hexagon className="h-5 w-5 fill-white/20" strokeWidth={2.5} />
                   </AvatarFallback>
                 </Avatar>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="right" className="ml-2 bg-sidebar/95 backdrop-blur-xl border border-zinc-800 text-foreground rounded-md min-w-[200px]">
+            <DropdownMenuContent align="end" side="right" className="ml-2 bg-hs-nav/95 backdrop-blur-xl border border-zinc-800 text-hs-text rounded-md min-w-[200px]">
               <DropdownMenuLabel className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">Organizations</DropdownMenuLabel>
               
               {orgsLoading ? (
@@ -133,7 +132,7 @@ export function NavRail() {
               <Tooltip key={item.name}>
                 <TooltipTrigger asChild>
                   {item.soon ? (
-                    <div className="group flex h-12 w-full cursor-not-allowed items-center justify-center rounded-md opacity-50">
+                    <div className="group flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-md opacity-50">
                       <div className="relative flex items-center justify-center">
                         <Icon strokeWidth={1.5} className="h-[18px] w-[18px] text-zinc-600" />
                       </div>
@@ -141,28 +140,21 @@ export function NavRail() {
                   ) : (
                     <Link
                       href={item.href}
-                      className="group relative flex h-12 w-full items-center justify-center transition-colors"
+                      className={`group flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
+                        isActive ? "bg-[#7C5CFC]" : "hover:bg-zinc-800"
+                      }`}
                     >
-                      {/* MD3-style active indicator pill */}
-                      {isActive && (
-                        <motion.div
-                          layoutId="nav-active"
-                          className="absolute inset-x-2 h-8 rounded-full bg-[#7C5CFC]/20"
-                          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                        />
-                      )}
-                      
                       <div className="relative flex items-center justify-center">
                         <Icon
-                          strokeWidth={isActive ? 2.5 : 1.5}
-                          className={`h-[18px] w-[18px] transition-all duration-300 ${
+                          strokeWidth={1.5}
+                          className={`h-[18px] w-[18px] transition-colors ${
                             isActive
-                              ? "text-[#7C5CFC] scale-110"
-                              : "text-zinc-500 group-hover:text-zinc-300"
+                              ? "text-[#E5E1E4]"
+                              : "text-zinc-500 group-hover:text-zinc-400"
                           }`}
                         />
                         {item.badge && (
-                          <Badge className="absolute -top-1.5 -right-2 flex h-3 w-3 items-center justify-center rounded-full border-none bg-[#f95b4e] p-0 text-[8px] text-white">
+                          <Badge className="absolute -top-1.5 -right-2 flex h-3 w-3 items-center justify-center rounded-full border-none bg-[#f95b4e] p-0 text-[8px] text-white hover:bg-[#f95b4e]">
                             {item.badge}
                           </Badge>
                         )}
@@ -172,7 +164,7 @@ export function NavRail() {
                 </TooltipTrigger>
                 <TooltipContent
                   side="right"
-                  className="ml-2 border border-[#484555]/15 bg-background/70 text-foreground backdrop-blur-[20px] rounded-md"
+                  className="ml-2 border border-[#484555]/15 bg-hs-main/70 text-hs-text backdrop-blur-[20px] rounded-md"
                 >
                   <div className="flex items-center gap-2">
                     {item.name}
@@ -199,7 +191,7 @@ export function NavRail() {
                 href="/settings"
                 className={`group flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
                   pathname === "/settings" || pathname.startsWith("/settings/")
-                    ? "bg-hs-accent text-hs-text"
+                    ? "bg-[#7C5CFC] text-[#E5E1E4]"
                     : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400"
                 }`}
               >
@@ -208,7 +200,7 @@ export function NavRail() {
             </TooltipTrigger>
             <TooltipContent
               side="right"
-              className="ml-2 border border-[#484555]/15 bg-background/70 text-foreground backdrop-blur-[20px] rounded-md"
+              className="ml-2 border border-[#484555]/15 bg-hs-main/70 text-hs-text backdrop-blur-[20px] rounded-md"
             >
               Settings
             </TooltipContent>
@@ -227,7 +219,7 @@ export function NavRail() {
                 </Avatar>
               </Link>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="right" className="ml-2 bg-sidebar/95 backdrop-blur-xl border border-zinc-800 text-foreground rounded-md">
+            <DropdownMenuContent align="end" side="right" className="ml-2 bg-hs-nav/95 backdrop-blur-xl border border-zinc-800 text-hs-text rounded-md">
               <DropdownMenuLabel className="text-zinc-400">My Account</DropdownMenuLabel>
               <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer" asChild>
                 <Link href="/account/profile">Profile</Link>
