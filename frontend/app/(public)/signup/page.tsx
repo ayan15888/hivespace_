@@ -30,6 +30,7 @@ export default function SignUpPage() {
       });
 
       localStorage.setItem("token", response.token);
+      document.cookie = `token=${response.token}; path=/; max-age=86400; SameSite=Lax`;
       
       if (response.hasTenants) {
         router.push("/dashboard");
