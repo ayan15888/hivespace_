@@ -63,6 +63,13 @@ public class TaskService {
                 .collect(Collectors.toList());
     }
 
+    public List<TaskResponse> getAllTasks() {
+        return taskRepository.findAllByOrderByUpdatedAtDesc()
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     private TaskResponse mapToResponse(Task task) {
         TaskResponse response = TaskResponse.builder()
                 .id(task.getId())
@@ -74,6 +81,10 @@ public class TaskService {
                 .dueDate(task.getDueDate())
                 .points(task.getPoints())
                 .projectId(task.getProject().getId())
+                .projectName(task.getProject().getName())
+                .projectColor(task.getProject().getColor())
+                .createdAt(task.getCreatedAt())
+                .updatedAt(task.getUpdatedAt())
                 .build();
 
         if (task.getAssignee() != null) {

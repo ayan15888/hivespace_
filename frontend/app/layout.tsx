@@ -5,7 +5,10 @@ import { ThemeProvider } from "@/components/common/theme-provider"
 import React from "react"
 import { GooeyToaster } from "@/components/ui/goey-toaster"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-sans",
+})
 
 export const metadata: Metadata = {
   title: "HiveSpace",
@@ -19,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="antialiased">
-      <body className={`${inter.className} tracking-tight`} suppressHydrationWarning>
+      <body className={`${inter.variable} font-sans tracking-tight`} suppressHydrationWarning>
         <GooeyToaster />
         <ThemeProvider>{children}</ThemeProvider>
       </body>

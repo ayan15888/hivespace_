@@ -52,7 +52,7 @@ export default function SubscriptionPage() {
               <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Your current plan</span>
             </div>
             <div className="mt-4 flex items-baseline gap-1">
-              <span className="text-5xl font-bold text-[#E5E1E4] tracking-tighter">$8</span>
+              <span className="text-5xl font-bold text-[#E5E1E4] tracking-tight">$8</span>
               <span className="text-sm text-zinc-400">/user/month</span>
             </div>
             <div className="mt-4 space-y-1">

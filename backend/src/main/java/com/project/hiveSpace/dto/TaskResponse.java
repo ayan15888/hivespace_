@@ -18,7 +18,11 @@ public class TaskResponse {
     private Date dueDate;
     private Integer points;
     private UUID projectId;
+    private String projectName;
+    private String projectColor;
     private UUID assigneeId;
     private String assigneeName;
     private String assigneeInitials;
+    private Date createdAt;
+    private Date updatedAt;
 }

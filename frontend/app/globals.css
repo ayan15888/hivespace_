@@ -7,6 +7,7 @@
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: var(--font-sans);
+    --font-mono: var(--font-sans);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -58,23 +59,23 @@
 
 :root {
     --background: oklch(0.975 0.02 85);
-    --foreground: oklch(0.22 0.02 85);
+    --foreground: oklch(0.25 0.05 50);
     --card: oklch(0.985 0.015 85);
-    --card-foreground: oklch(0.22 0.02 85);
+    --card-foreground: oklch(0.25 0.05 50);
     --popover: oklch(0.985 0.015 85);
-    --popover-foreground: oklch(0.22 0.02 85);
-    --primary: oklch(0.22 0.02 85);
+    --popover-foreground: oklch(0.25 0.05 50);
+    --primary: oklch(0.25 0.05 50);
     --primary-foreground: oklch(0.975 0.02 85);
     --secondary: oklch(0.95 0.025 85);
-    --secondary-foreground: oklch(0.22 0.02 85);
+    --secondary-foreground: oklch(0.25 0.05 50);
     --muted: oklch(0.95 0.025 85);
-    --muted-foreground: oklch(0.45 0.02 85);
+    --muted-foreground: oklch(0.45 0.04 50);
     --accent: oklch(0.95 0.025 85);
-    --accent-foreground: oklch(0.22 0.02 85);
+    --accent-foreground: oklch(0.25 0.05 50);
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.91 0.02 85);
     --input: oklch(0.91 0.02 85);
-    --ring: oklch(0.7 0.03 85);
+    --ring: oklch(0.7 0.05 50);
     --chart-1: oklch(0.6 0.15 30);
     --chart-2: oklch(0.5 0.15 150);
     --chart-3: oklch(0.4 0.15 250);
@@ -82,13 +83,13 @@
     --chart-5: oklch(0.6 0.15 330);
     --radius: 0.625rem;
     --sidebar: oklch(0.96 0.035 85);
-    --sidebar-foreground: oklch(0.22 0.02 85);
-    --sidebar-primary: oklch(0.22 0.02 85);
+    --sidebar-foreground: oklch(0.25 0.05 50);
+    --sidebar-primary: oklch(0.25 0.05 50);
     --sidebar-primary-foreground: oklch(0.975 0.02 85);
     --sidebar-accent: oklch(0.94 0.04 85);
-    --sidebar-accent-foreground: oklch(0.22 0.02 85);
+    --sidebar-accent-foreground: oklch(0.25 0.05 50);
     --sidebar-border: oklch(0.91 0.03 85);
-    --sidebar-ring: oklch(0.7 0.04 85);
+    --sidebar-ring: oklch(0.7 0.04 50);
 
     /* Hivespace Light Theme Design System Mapping */
     --hs-base: var(--background);
@@ -212,10 +213,10 @@
     @apply border-border outline-ring/50;
     }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground tracking-tight;
     }
   html {
-    @apply font-sans;
+    @apply font-sans tracking-tight;
     }
 }
 

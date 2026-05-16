@@ -23,4 +23,5 @@ public class ProjectResponse {
     private UUID workspaceId;
     private Date createdAt;
     private Date updatedAt;
+    private String color;
 }

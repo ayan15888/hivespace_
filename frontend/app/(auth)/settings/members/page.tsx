@@ -217,7 +217,7 @@ export default function MembersSettings() {
 
               <div className="flex items-center gap-2 mt-3">
                 <div className="bg-zinc-800 rounded px-2 py-1 flex-1 min-w-0">
-                  <p className="font-mono text-[10px] text-zinc-400 truncate">
+                  <p className=" text-[10px] text-zinc-400 truncate">
                     {link.url}
                   </p>
                 </div>

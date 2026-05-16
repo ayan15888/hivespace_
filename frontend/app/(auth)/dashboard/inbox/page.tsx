@@ -182,13 +182,13 @@ export default function InboxPage() {
   });
 
   return (
-    <div className="flex h-full overflow-hidden bg-[#0E0E10]">
+    <div className="flex h-full overflow-hidden bg-background">
       {/* Inbox Sidebar */}
-      <aside className="w-[280px] flex flex-col bg-[#1B1B1D] border-r border-zinc-800/10 h-full">
+      <aside className="w-[280px] flex flex-col bg-hs-nav border-r border-border/10 h-full">
         <div className="p-4 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-semibold text-[#E5E1E4]">Inbox</h1>
-            <span className="text-xs text-zinc-500">4 unread</span>
+            <h1 className="text-lg font-semibold text-foreground">Inbox</h1>
+            <span className="text-xs text-muted-foreground">4 unread</span>
           </div>
           
           <div className="mt-4 flex items-center justify-between border-b border-zinc-800/50 -mx-4 px-4 overflow-x-auto scrollbar-none">
@@ -199,7 +199,7 @@ export default function InboxPage() {
                   onClick={() => setActiveTab(tab)}
                   className={cn(
                     "text-[10px] uppercase tracking-wider font-semibold px-3 py-2 transition-colors relative h-8 flex items-center",
-                    activeTab === tab ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+                    activeTab === tab ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {tab}
@@ -209,7 +209,7 @@ export default function InboxPage() {
                 </button>
               ))}
             </div>
-            <button className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors py-2 whitespace-nowrap ml-2">
+            <button className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors py-2 whitespace-nowrap ml-2">
               <CheckCheck className="h-3 w-3" />
               Mark all read
             </button>
@@ -224,9 +224,9 @@ export default function InboxPage() {
                 key={notification.id}
                 onClick={() => setSelectedNotification(notification)}
                 className={cn(
-                  "relative flex gap-3 px-4 py-3 cursor-pointer hover:bg-zinc-800/50 transition-colors min-h-[64px]",
-                  notification.unread ? "bg-zinc-800/30" : "bg-transparent",
-                  selectedNotification?.id === notification.id ? "bg-zinc-800/60" : ""
+                  "relative flex gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors min-h-[64px]",
+                  notification.unread ? "bg-muted/30" : "bg-transparent",
+                  selectedNotification?.id === notification.id ? "bg-muted/60" : ""
                 )}
               >
                 {notification.unread && (
@@ -243,21 +243,21 @@ export default function InboxPage() {
                 <div className="flex flex-col flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-xs font-medium text-[#E5E1E4] truncate">{notification.sender}</span>
-                      <span className="text-xs text-zinc-500 truncate whitespace-nowrap">{notification.action}</span>
+                      <span className="text-xs font-medium text-foreground truncate">{notification.sender}</span>
+                      <span className="text-xs text-muted-foreground truncate whitespace-nowrap">{notification.action}</span>
                     </div>
-                    <span className="text-[10px] text-zinc-600 shrink-0">{notification.time}</span>
+                    <span className="text-[10px] text-muted-foreground/60 shrink-0">{notification.time}</span>
                   </div>
-                  <p className="text-xs text-zinc-400 mt-0.5 truncate leading-tight">
+                  <p className="text-xs text-muted-foreground/80 mt-0.5 truncate leading-tight">
                     {notification.content}
                   </p>
                   {notification.project && (
                     <div className="mt-1.5 flex flex-wrap gap-1">
-                      <Badge className="bg-zinc-800 border-none text-zinc-500 hover:bg-zinc-800 text-[9px] px-1.5 py-0 rounded-sm">
+                      <Badge className="bg-muted border-none text-muted-foreground hover:bg-muted text-[9px] px-1.5 py-0 rounded-sm">
                         {notification.project}
                       </Badge>
                       {notification.workspace && (
-                        <span className="text-[9px] text-zinc-600 flex items-center before:content-['·'] before:mr-1 before:text-zinc-700">
+                        <span className="text-[9px] text-muted-foreground/60 flex items-center before:content-['·'] before:mr-1 before:text-border">
                           {notification.workspace}
                         </span>
                       )}
@@ -269,23 +269,23 @@ export default function InboxPage() {
           ) : (
             <div className="flex flex-col items-center justify-center h-48 px-10 text-center">
                <CheckCircle className="h-10 w-10 text-green-500/20 mb-3" strokeWidth={1.5} />
-               <p className="text-sm font-medium text-[#E5E1E4]">All caught up!</p>
-               <p className="text-xs text-zinc-500 mt-1">No unread notifications right now.</p>
+               <p className="text-sm font-medium text-foreground">All caught up!</p>
+               <p className="text-xs text-muted-foreground mt-1">No unread notifications right now.</p>
             </div>
           )}
         </div>
 
         {/* Bottom Preferences Link */}
-        <div className="p-4 mt-auto border-t border-zinc-800/50 bg-[#1B1B1D]">
-          <button className="flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors group">
-            <Settings className="h-3.5 w-3.5 text-zinc-600 group-hover:text-zinc-500" strokeWidth={1.5} />
+        <div className="p-4 mt-auto border-t border-border/50 bg-hs-nav">
+          <button className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group">
+            <Settings className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-muted-foreground" strokeWidth={1.5} />
             Notification preferences
           </button>
         </div>
       </aside>
 
       {/* Notification Detail Panel */}
-      <main className="flex-1 flex flex-col bg-[#201F21] overflow-hidden">
+      <main className="flex-1 flex flex-col bg-hs-main overflow-hidden">
         {selectedNotification ? (
           <>
             {/* Detail Header */}
@@ -299,19 +299,19 @@ export default function InboxPage() {
                     <selectedNotification.icon className={cn("h-5 w-5", selectedNotification.iconColor)} strokeWidth={1.5} />
                   </div>
                   <div>
-                    <h2 className="text-lg font-medium text-[#E5E1E4]">
+                    <h2 className="text-lg font-medium text-foreground">
                       {selectedNotification.id === 3 ? "PR #82 needs your review" : selectedNotification.content}
                     </h2>
-                    <p className="text-xs text-zinc-500 mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {selectedNotification.sender} {selectedNotification.action} · {selectedNotification.time}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="text-xs font-medium text-zinc-500 hover:text-zinc-300 px-3 py-1.5 transition-colors">
+                  <button className="text-xs font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 transition-colors">
                     Mark as read
                   </button>
-                  <button className="flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-zinc-300 px-3 py-1.5 transition-colors">
+                  <button className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 transition-colors">
                     <Archive className="h-4 w-4" />
                     Archive
                   </button>
@@ -324,11 +324,11 @@ export default function InboxPage() {
               {selectedNotification.id === 3 ? (
                 <div className="max-w-3xl">
                   {/* PR CARD */}
-                  <div className="bg-[#272629] border border-zinc-800/50 rounded-lg p-5">
+                  <div className="bg-hs-card border border-border/50 rounded-lg p-5">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         <GitPullRequest className="h-4 w-4 text-green-400" strokeWidth={1.5} />
-                        <span className="font-mono text-sm text-zinc-300 uppercase">PR #82</span>
+                        <span className=" text-sm text-foreground/80 uppercase">PR #82</span>
                         <Badge className="bg-green-500/10 border-green-500/20 text-green-400 text-[10px] font-bold rounded-sm px-1.5 py-0 border">
                            OPEN
                         </Badge>
@@ -336,14 +336,14 @@ export default function InboxPage() {
                       <MoreVertical className="h-4 w-4 text-zinc-600" />
                     </div>
 
-                    <h3 className="text-base font-medium text-[#E5E1E4] leading-tight">
+                    <h3 className="text-base font-medium text-foreground leading-tight">
                       Add STOMP WebSocket broadcast with Redis fallback
                     </h3>
                     
-                    <div className="mt-2 flex items-center gap-2 text-xs font-mono text-zinc-500">
+                    <div className="mt-2 flex items-center gap-2 text-xs  text-muted-foreground">
                       <span>acme-corp/backend</span>
                       <ChevronRight className="h-3 w-3" />
-                      <span className="text-zinc-400">feat/stomp-broadcast</span>
+                      <span className="text-muted-foreground/80">feat/stomp-broadcast</span>
                     </div>
 
                     <div className="mt-4 flex items-center gap-4 text-xs">
@@ -353,22 +353,22 @@ export default function InboxPage() {
                     </div>
 
                     {/* LINKED TASK */}
-                    <div className="bg-zinc-800 border border-zinc-700/50 rounded-md p-3 mt-4 flex items-center gap-3">
+                    <div className="bg-muted border border-border/50 rounded-md p-3 mt-4 flex items-center gap-3">
                       <div className="h-2 w-2 rounded-full bg-red-500" />
-                      <span className="font-mono text-xs text-zinc-500 shrink-0">HS-044</span>
-                      <span className="text-sm text-zinc-300 truncate">STOMP WebSocket chat broadcast</span>
-                      <Badge className="ml-auto bg-violet-500/10 border-violet-500/20 text-[#7C5CFC] text-[10px] font-semibold border rounded-sm">
+                      <span className=" text-xs text-muted-foreground shrink-0">HS-044</span>
+                      <span className="text-sm text-foreground/80 truncate">STOMP WebSocket chat broadcast</span>
+                      <Badge className="ml-auto bg-primary/10 border-primary/20 text-primary text-[10px] font-semibold border rounded-sm">
                         In Progress
                       </Badge>
                     </div>
 
                     {/* ACTION BUTTONS */}
                     <div className="mt-6 flex items-center gap-3">
-                      <Button variant="outline" className="h-9 gap-2 text-xs border-zinc-700 hover:bg-zinc-800 transition-colors">
+                      <Button variant="outline" className="h-9 gap-2 text-xs border-border hover:bg-muted transition-colors">
                         <ExternalLink className="h-3.5 w-3.5" />
                         View PR on GitHub
                       </Button>
-                      <Button variant="outline" className="h-9 gap-2 text-xs border-zinc-700 hover:bg-zinc-800 text-violet-400 hover:text-violet-300 transition-colors">
+                      <Button variant="outline" className="h-9 gap-2 text-xs border-border hover:bg-muted text-primary hover:text-primary/80 transition-colors">
                         <KanbanSquare className="h-3.5 w-3.5" />
                         Open linked task HS-044
                       </Button>
@@ -385,8 +385,8 @@ export default function InboxPage() {
                             <AvatarFallback className="bg-zinc-900 border border-zinc-800 text-xs text-zinc-500 rounded-md">RS</AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="text-xs font-medium text-[#E5E1E4]">Rahul S. <span className="text-zinc-500 font-normal ml-1">(you)</span></p>
-                            <p className="text-[10px] text-zinc-600 mt-0.5">Assigned 1h ago</p>
+                            <p className="text-xs font-medium text-foreground">Rahul S. <span className="text-muted-foreground font-normal ml-1">(you)</span></p>
+                            <p className="text-[10px] text-muted-foreground/60 mt-0.5">Assigned 1h ago</p>
                           </div>
                         </div>
                         <Badge className="bg-amber-500/10 border-amber-500/20 text-amber-500 text-[10px] font-semibold border rounded-sm">
@@ -396,11 +396,11 @@ export default function InboxPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8 rounded-md">
-                            <AvatarFallback className="bg-zinc-900 border border-zinc-800 text-xs text-zinc-500 rounded-md">DK</AvatarFallback>
+                            <AvatarFallback className="bg-hs-card border border-border text-xs text-muted-foreground rounded-md">DK</AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="text-xs font-medium text-[#E5E1E4]">David K.</p>
-                            <p className="text-[10px] text-zinc-600 mt-0.5">Approved Yesterday</p>
+                            <p className="text-xs font-medium text-foreground">David K.</p>
+                            <p className="text-[10px] text-muted-foreground/60 mt-0.5">Approved Yesterday</p>
                           </div>
                         </div>
                         <Badge className="bg-green-500/10 border-green-500/20 text-green-500 text-[10px] font-semibold border rounded-sm">
@@ -432,11 +432,11 @@ export default function InboxPage() {
                    <div className={cn("h-16 w-16 rounded-2xl flex items-center justify-center mb-6", selectedNotification.iconBg)}>
                      <selectedNotification.icon className={cn("h-8 w-8", selectedNotification.iconColor)} strokeWidth={1} />
                    </div>
-                   <h3 className="text-lg font-medium text-[#E5E1E4] mb-2">{selectedNotification.sender}</h3>
-                   <p className="text-sm text-zinc-400 leading-relaxed">
+                   <h3 className="text-lg font-medium text-foreground mb-2">{selectedNotification.sender}</h3>
+                   <p className="text-sm text-muted-foreground leading-relaxed">
                      {selectedNotification.content}
                    </p>
-                   <Button variant="outline" className="mt-8 gap-2 border-zinc-700 hover:bg-zinc-800">
+                   <Button variant="outline" className="mt-8 gap-2 border-border hover:bg-muted">
                       Open in Source
                       <ExternalLink className="h-4 w-4" />
                    </Button>
@@ -446,9 +446,9 @@ export default function InboxPage() {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-            <Inbox className="h-12 w-12 text-zinc-800 mb-4" strokeWidth={1} />
-            <h2 className="text-lg font-medium text-[#E5E1E4]">Select a notification</h2>
-            <p className="text-sm text-zinc-500 mt-1">Choose a notification from the list to see more details.</p>
+            <Inbox className="h-12 w-12 text-border mb-4" strokeWidth={1} />
+            <h2 className="text-lg font-medium text-foreground">Select a notification</h2>
+            <p className="text-sm text-muted-foreground mt-1">Choose a notification from the list to see more details.</p>
           </div>
         )}
       </main>

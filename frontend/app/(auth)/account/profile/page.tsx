@@ -196,7 +196,7 @@ export default function ProfilePage() {
               <div className={cn("h-6 w-6 rounded-sm shrink-0", workspace.color)} />
               <div className="ml-4 flex flex-col items-start">
                 <span className="text-sm font-medium text-[#E5E1E4]">{workspace.name}</span>
-                <span className="text-[10px] text-zinc-500 font-mono tracking-tight">{workspace.org}</span>
+                <span className="text-[10px] text-zinc-500  tracking-tight">{workspace.org}</span>
               </div>
               <Badge className="ml-4 bg-zinc-800 border-zinc-700 text-zinc-400 text-[10px] px-1.5 h-5 rounded-sm font-normal">
                 {workspace.role}

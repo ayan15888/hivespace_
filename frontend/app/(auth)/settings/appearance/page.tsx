@@ -27,7 +27,7 @@ function ThemeCard({ id, label, active, onClick, comingSoon, children }: ThemeCa
         active ? "border-hs-accent" : "border-transparent bg-[#272629]/50"
       )}
     >
-      <div className="w-full h-20 rounded-md mb-3 overflow-hidden relative border border-zinc-800">
+      <div className="w-full h-20 rounded-md mb-3 overflow-hidden relative border border-border">
         {children}
         {active && (
           <div className="absolute top-1 right-1 bg-hs-accent rounded-full p-0.5">
@@ -35,8 +35,8 @@ function ThemeCard({ id, label, active, onClick, comingSoon, children }: ThemeCa
           </div>
         )}
       </div>
-      <span className="text-xs font-medium text-zinc-300">{label}</span>
-      {comingSoon && <span className="text-[10px] text-zinc-600 mt-1">Coming soon</span>}
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {comingSoon && <span className="text-[10px] text-muted-foreground/60 mt-1">Coming soon</span>}
     </div>
   )
 }
@@ -57,13 +57,13 @@ export default function AppearanceSettings() {
   return (
     <div className="max-w-2xl px-8 py-6">
       <header className="mb-8">
-        <h1 className="text-xl font-semibold text-hs-text">Appearance</h1>
-        <p className="text-sm text-zinc-400 mt-1">Customize how Hivespace looks on your device</p>
+        <h1 className="text-xl font-semibold text-foreground">Appearance</h1>
+        <p className="text-sm text-muted-foreground mt-1">Customize how Hivespace looks on your device</p>
       </header>
 
       {/* THEME SECTION */}
       <section>
-        <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-4">
+        <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-4">
           THEME
         </h3>
         <div className="flex flex-wrap gap-4">
@@ -126,30 +126,30 @@ export default function AppearanceSettings() {
 
       {/* DENSITY SECTION */}
       <section className="mt-10">
-        <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-4">
+        <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-4">
           UI DENSITY
         </h3>
         <RadioGroup defaultValue="default">
           <div className="space-y-3">
-            <div className="flex items-center space-x-3 bg-hs-card p-3 rounded-lg border border-zinc-800/50 hover:bg-zinc-800/50 transition-colors cursor-pointer">
-              <RadioGroupItem value="compact" id="compact" className="text-hs-accent border-zinc-600" />
+            <div className="flex items-center space-x-3 bg-hs-card p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer">
+              <RadioGroupItem value="compact" id="compact" className="text-hs-accent border-muted-foreground/30" />
               <Label htmlFor="compact" className="flex flex-col cursor-pointer">
-                <span className="text-sm font-medium text-zinc-200">Compact</span>
-                <span className="text-xs text-zinc-500">Tighter spacing, more information on screen</span>
+                <span className="text-sm font-medium text-foreground">Compact</span>
+                <span className="text-xs text-muted-foreground">Tighter spacing, more information on screen</span>
               </Label>
             </div>
-            <div className="flex items-center space-x-3 bg-hs-card p-3 rounded-lg border border-hs-accent/30 hover:bg-zinc-800/50 transition-colors cursor-pointer">
+            <div className="flex items-center space-x-3 bg-hs-card p-3 rounded-lg border border-hs-accent/30 hover:bg-muted/50 transition-colors cursor-pointer">
               <RadioGroupItem value="default" id="default" className="text-hs-accent border-hs-accent" />
               <Label htmlFor="default" className="flex flex-col cursor-pointer">
-                <span className="text-sm font-medium text-zinc-200">Default</span>
-                <span className="text-xs text-zinc-500">Balanced spacing — recommended for most users</span>
+                <span className="text-sm font-medium text-foreground">Default</span>
+                <span className="text-xs text-muted-foreground">Balanced spacing — recommended for most users</span>
               </Label>
             </div>
-            <div className="flex items-center space-x-3 bg-hs-card p-3 rounded-lg border border-zinc-800/50 hover:bg-zinc-800/50 transition-colors cursor-pointer">
-              <RadioGroupItem value="comfortable" id="comfortable" className="text-hs-accent border-zinc-600" />
+            <div className="flex items-center space-x-3 bg-hs-card p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer">
+              <RadioGroupItem value="comfortable" id="comfortable" className="text-hs-accent border-muted-foreground/30" />
               <Label htmlFor="comfortable" className="flex flex-col cursor-pointer">
-                <span className="text-sm font-medium text-zinc-200">Comfortable</span>
-                <span className="text-xs text-zinc-500">More breathing room between interface elements</span>
+                <span className="text-sm font-medium text-foreground">Comfortable</span>
+                <span className="text-xs text-muted-foreground">More breathing room between interface elements</span>
               </Label>
             </div>
           </div>
@@ -159,7 +159,7 @@ export default function AppearanceSettings() {
       {/* FONT SIZE SECTION */}
       <section className="mt-10">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+          <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             FONT SIZE
           </h3>
           <span className="text-[10px] font-bold text-hs-accent bg-hs-accent/10 px-1.5 py-0.5 rounded">
@@ -176,9 +176,9 @@ export default function AppearanceSettings() {
             className="[&_[role=slider]]:bg-hs-accent [&_[role=slider]]:border-hs-accent"
           />
         </div>
-        <div className="mt-6 p-4 rounded-lg bg-hs-card/30 border border-zinc-800/50">
+        <div className="mt-6 p-4 rounded-lg bg-hs-card/30 border border-border/50">
           <p 
-            className="text-zinc-300 leading-relaxed transition-all" 
+            className="text-foreground/80 leading-relaxed transition-all" 
             style={{ fontSize: `${fontSize[0]}px` }}
           >
             The quick brown fox jumps over the lazy dog. This is a preview of how text will appear in your workspace. You can adjust the font size to your preference for better readability.
