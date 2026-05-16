@@ -84,7 +84,7 @@ export function NavRail() {
                 </Avatar>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="right" className="ml-2 bg-hs-nav/95 backdrop-blur-xl border border-zinc-800 text-hs-text rounded-md min-w-[200px]">
+            <DropdownMenuContent align="end" side="right" className="ml-2 bg-sidebar/95 backdrop-blur-xl border border-zinc-800 text-foreground rounded-md min-w-[200px]">
               <DropdownMenuLabel className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">Organizations</DropdownMenuLabel>
               
               {orgsLoading ? (
@@ -164,7 +164,7 @@ export function NavRail() {
                 </TooltipTrigger>
                 <TooltipContent
                   side="right"
-                  className="ml-2 border border-[#484555]/15 bg-hs-main/70 text-hs-text backdrop-blur-[20px] rounded-md"
+                  className="ml-2 border border-[#484555]/15 bg-background/70 text-foreground backdrop-blur-[20px] rounded-md"
                 >
                   <div className="flex items-center gap-2">
                     {item.name}
@@ -200,7 +200,7 @@ export function NavRail() {
             </TooltipTrigger>
             <TooltipContent
               side="right"
-              className="ml-2 border border-[#484555]/15 bg-hs-main/70 text-hs-text backdrop-blur-[20px] rounded-md"
+              className="ml-2 border border-[#484555]/15 bg-background/70 text-foreground backdrop-blur-[20px] rounded-md"
             >
               Settings
             </TooltipContent>
@@ -219,7 +219,7 @@ export function NavRail() {
                 </Avatar>
               </Link>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="right" className="ml-2 bg-hs-nav/95 backdrop-blur-xl border border-zinc-800 text-hs-text rounded-md">
+            <DropdownMenuContent align="end" side="right" className="ml-2 bg-sidebar/95 backdrop-blur-xl border border-zinc-800 text-foreground rounded-md">
               <DropdownMenuLabel className="text-zinc-400">My Account</DropdownMenuLabel>
               <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer" asChild>
                 <Link href="/account/profile">Profile</Link>
