@@ -33,7 +33,7 @@ import { motion } from "framer-motion"
 import { useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { useOrgs } from "@/hooks/useOrgs"
-import { useOrg } from "@/store/orgStore"
+import { useOrgStore } from "@/store/orgStore"
 import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
 
@@ -42,7 +42,7 @@ export function NavRail() {
   const router = useRouter()
   const { user, logout } = useAuth()
   const { orgs, loading: orgsLoading } = useOrgs()
-  const { activeOrg, setActiveOrg } = useOrg()
+  const { activeOrg, setActiveOrg } = useOrgStore()
 
   useEffect(() => {
     if (!orgsLoading && orgs.length > 0 && !activeOrg) {

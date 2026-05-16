@@ -31,7 +31,7 @@ import {
 
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/hooks/useAuth";
-import { useOrg } from "@/store/orgStore";
+import { useOrgStore } from "@/store/orgStore";
 
 const pendingInvites = [
   { email: "dev@acme.com", role: "Member", expires: "48h" },
@@ -59,7 +59,7 @@ import { InviteModal } from "@/components/common/InviteModal"
 export default function MembersSettings() {
   const { members, loading } = useMembers();
   const { user } = useAuth();
-  const { activeOrg } = useOrg();
+  const { activeOrg } = useOrgStore();
   return (
     <div className="max-w-4xl px-8 py-6">
       <header className="mb-6">

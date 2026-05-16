@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { ProjectResponse, getProjectsByWorkspace } from "@/lib/api/projects";
-import { useWorkspace } from "@/store/workspaceStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
 export function useProjects() {
-  const { activeWorkspace } = useWorkspace();
+  const activeWorkspace = useWorkspaceStore((state) => state.activeWorkspace);
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

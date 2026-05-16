@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { WorkspaceResponse, getWorkspacesByTenant } from "@/lib/api/workspaces";
-import { useOrg } from "@/store/orgStore";
+import { useOrgStore } from "@/store/orgStore";
 
 export function useWorkspaces() {
-  const { activeOrg } = useOrg();
+  const activeOrg = useOrgStore((state) => state.activeOrg);
   const [workspaces, setWorkspaces] = useState<WorkspaceResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

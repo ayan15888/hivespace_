@@ -14,8 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { createWorkspace } from "@/lib/api/workspaces";
-import { useOrg } from "@/store/orgStore";
-import { useWorkspace } from "@/store/workspaceStore";
+import { useOrgStore } from "@/store/orgStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import { toast } from "sonner";
 
 interface CreateWorkspaceModalProps {
@@ -25,8 +25,8 @@ interface CreateWorkspaceModalProps {
 }
 
 export function CreateWorkspaceModal({ isOpen, onClose, onSuccess }: CreateWorkspaceModalProps) {
-  const { activeOrg } = useOrg();
-  const { setActiveWorkspace } = useWorkspace();
+  const { activeOrg } = useOrgStore();
+  const { setActiveWorkspace } = useWorkspaceStore();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [loading, setLoading] = useState(false);

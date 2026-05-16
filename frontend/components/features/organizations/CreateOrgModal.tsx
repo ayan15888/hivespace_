@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Globe } from "lucide-react";
 import { createOrganization } from "@/lib/api/orgs";
-import { useOrg } from "@/store/orgStore";
+import { useOrgStore } from "@/store/orgStore";
 
 interface CreateOrgModalProps {
   isOpen: boolean;
@@ -23,7 +23,7 @@ interface CreateOrgModalProps {
 }
 
 export function CreateOrgModal({ isOpen, onClose }: CreateOrgModalProps) {
-  const { setActiveOrg } = useOrg();
+  const { setActiveOrg } = useOrgStore();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");

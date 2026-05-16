@@ -25,9 +25,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOrgs } from "@/hooks/useOrgs";
-import { useOrg } from "@/store/orgStore";
+import { useOrgStore } from "@/store/orgStore";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
-import { useWorkspace } from "@/store/workspaceStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import { useProjects } from "@/hooks/useProjects";
 import { useTeams } from "@/hooks/useTeams";
 
@@ -48,10 +48,10 @@ export function WorkspaceSidebar() {
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
   
   const { orgs } = useOrgs();
-  const { activeOrg, setActiveOrg } = useOrg();
+  const { activeOrg, setActiveOrg } = useOrgStore();
   
   const { workspaces } = useWorkspaces();
-  const { activeWorkspace, setActiveWorkspace } = useWorkspace();
+  const { activeWorkspace, setActiveWorkspace } = useWorkspaceStore();
   const { projects, loading: projectsLoading } = useProjects();
   const { teams } = useTeams();
 

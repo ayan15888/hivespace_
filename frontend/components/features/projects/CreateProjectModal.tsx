@@ -18,7 +18,7 @@ import { createProject } from "@/lib/api/projects";
 import { toast } from "sonner";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useWorkspace } from "@/store/workspaceStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import { PROJECT_COLORS } from "@/lib/constants/colors";
 
 interface CreateProjectModalProps {
@@ -29,7 +29,7 @@ interface CreateProjectModalProps {
 
 
 export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
-  const { activeWorkspace } = useWorkspace();
+  const { activeWorkspace } = useWorkspaceStore();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [selectedColor, setSelectedColor] = useState(PROJECT_COLORS[1]);

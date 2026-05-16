@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { getOrganizationMembers, MemberResponse } from "@/lib/api/orgs";
-import { useOrg } from "@/store/orgStore";
+import { useOrgStore } from "@/store/orgStore";
 
 export function useMembers() {
-  const { activeOrg } = useOrg();
+  const activeOrg = useOrgStore((state) => state.activeOrg);
   const [members, setMembers] = useState<MemberResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
