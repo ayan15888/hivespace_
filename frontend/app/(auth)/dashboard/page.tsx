@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { CreateTaskModal } from "@/components/features/tasks/CreateTaskModal";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -27,7 +27,7 @@ import { useProjects } from "@/hooks/useProjects";
 import { cn } from "@/lib/utils";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const { user, loading } = useAuth();
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const router = useRouter();
@@ -414,5 +414,17 @@ export default function DashboardPage() {
         onClose={() => setIsTaskModalOpen(false)} 
       />
     </>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center bg-hs-base">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-hs-accent border-t-transparent" />
+      </div>
+    }>
+      <DashboardPageContent />
+    </Suspense>
   );
 }

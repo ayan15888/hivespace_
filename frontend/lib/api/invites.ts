@@ -1,12 +1,16 @@
-import { api } from './client';
+import { apiFetch } from './client';
 import { InviteRequest, InviteResponse, JoinRequest } from '@/types/invite';
 
 export async function generateInvite(data: InviteRequest): Promise<InviteResponse> {
-    const res = await api.post<InviteResponse>('/i/generate', data);
-    return res.data;
+    return apiFetch('/api/i/generate', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
 }
 
 export async function joinInvite(data: JoinRequest): Promise<string> {
-    const res = await api.post<string>('/i/join', data);
-    return res.data;
+    return apiFetch('/api/i/join', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
 }
