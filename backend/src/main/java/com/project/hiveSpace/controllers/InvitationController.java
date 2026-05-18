@@ -21,6 +21,11 @@ public class InvitationController {
         return ResponseEntity.ok(invitationService.createInvite(request));
     }
 
+    @GetMapping("/{token}")
+    public ResponseEntity<InviteResponse> getInvite(@PathVariable String token) {
+        return ResponseEntity.ok(invitationService.getInvite(token));
+    }
+
     @PostMapping("/join")
     public ResponseEntity<String> acceptInvite(@Valid @RequestBody JoinRequest request) {
         invitationService.acceptInvite(request);

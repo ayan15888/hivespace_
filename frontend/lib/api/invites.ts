@@ -14,3 +14,8 @@ export async function joinInvite(data: JoinRequest): Promise<string> {
         body: JSON.stringify(data),
     });
 }
+
+export async function getInviteDetails(token: string): Promise<InviteResponse> {
+    return apiFetch(`/api/i/${token}`);
+}
+

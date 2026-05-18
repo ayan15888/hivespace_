@@ -231,6 +231,24 @@ public class InvitationService {
         invitationRepository.save(invitation);
     }
 
+    @Transactional
+    public InviteResponse getInvite(String token) {
+        Invitation invitation = invitationRepository.findByToken(token)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired invitation link"));
+
+        if (!"ACTIVE".equalsIgnoreCase(invitation.getStatus())) {
+            throw new IllegalArgumentException("This invitation is no longer active");
+        }
+
+        if (invitation.getExpiresAt().before(new Date())) {
+            invitation.setStatus("EXPIRED");
+            invitationRepository.save(invitation);
+            throw new IllegalArgumentException("This invitation link has expired");
+        }
+
+        return mapToResponse(invitation);
+    }
+
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         if (principal instanceof User) {

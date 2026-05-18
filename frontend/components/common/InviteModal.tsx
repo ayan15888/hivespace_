@@ -30,6 +30,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CTAButton } from "@/components/common/CTAButton"
 import { cn } from "@/lib/utils"
+import { useOrgStore } from "@/store/orgStore"
+import { useWorkspaceStore } from "@/store/workspaceStore"
+import { generateInvite } from "@/lib/api/invites"
+import { InviteResponse } from "@/types/invite"
+import { gooeyToast as toast } from "@/components/ui/goey-toaster"
 
 interface InviteModalProps {
   trigger: React.ReactNode
@@ -37,6 +42,9 @@ interface InviteModalProps {
 
 export function InviteModal({ trigger }: InviteModalProps) {
   const [open, setOpen] = React.useState(false)
+  const { activeOrg } = useOrgStore()
+  const { activeWorkspace } = useWorkspaceStore()
+  
   const [step, setStep] = React.useState<"form" | "success">("form")
   const [emails, setEmails] = React.useState<string[]>([])
   const [emailInput, setEmailInput] = React.useState("")
@@ -44,6 +52,10 @@ export function InviteModal({ trigger }: InviteModalProps) {
   const [message, setMessage] = React.useState("")
   const [workspaces, setWorkspaces] = React.useState(["Engineering"])
   const [teams, setTeams] = React.useState<string[]>([])
+  
+  const [loading, setLoading] = React.useState(false)
+  const [generatedInvite, setGeneratedInvite] = React.useState<InviteResponse | null>(null)
+  const [shareableInvite, setShareableInvite] = React.useState<{ token: string, pin: string } | null>(null)
 
   const addEmail = (e?: React.KeyboardEvent) => {
     if (e && e.key !== 'Enter') return
@@ -60,8 +72,45 @@ export function InviteModal({ trigger }: InviteModalProps) {
     setEmails(emails.filter(e => e !== email))
   }
 
-  const handleSend = () => {
-    setStep("success")
+  const handleSend = async () => {
+    if (!activeOrg) {
+      toast.error("No active organization found");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const backendRole = role === "Member" ? "MEMBER" :
+                          role === "Workspace Admin" ? "ADMIN" :
+                          role === "Team Lead" ? "LEAD" :
+                          role === "Project Lead" ? "LEAD" :
+                          role === "Viewer" ? "VIEWER" :
+                          role === "Billing Admin" ? "ADMIN" : "MEMBER";
+
+      const response = await generateInvite({
+        tenantId: activeOrg.id,
+        workspaceId: activeWorkspace?.id,
+        role: backendRole,
+        maxUses: Math.max(1, emails.length),
+      });
+
+      setGeneratedInvite(response);
+
+      if (emails.length > 0) {
+        const inviteUrl = `${window.location.origin}/invite/${response.token}`;
+        const subject = `Invitation to join ${activeOrg.name} on HiveSpace`;
+        const body = `Hi there,\n\nYou have been invited to join the ${activeOrg.name} organization on HiveSpace as a ${role}.\n\nClick this link to accept the invitation:\n${inviteUrl}\n\nFor security, please use the following PIN to complete the join process:\nPIN: ${response.pin}\n\n${message ? `Personal message from sender:\n"${message}"\n\n` : ""}Looking forward to collaborating with you!\n\nBest regards,\nThe HiveSpace Team`;
+
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(emails.join(','))}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.open(gmailUrl, "_blank");
+      }
+
+      setStep("success");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send invites");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const handleReset = () => {
@@ -72,7 +121,27 @@ export function InviteModal({ trigger }: InviteModalProps) {
     setMessage("")
     setWorkspaces(["Engineering"])
     setTeams([])
+    setGeneratedInvite(null)
   }
+
+  const handleGenerateShareable = async () => {
+    if (!activeOrg) return;
+    try {
+      const response = await generateInvite({
+        tenantId: activeOrg.id,
+        workspaceId: activeWorkspace?.id,
+        role: "MEMBER",
+        maxUses: 100
+      });
+      setShareableInvite({ token: response.token, pin: response.pin });
+      
+      const link = `${window.location.origin}/invite/${response.token}`;
+      navigator.clipboard.writeText(`Invite Link: ${link}\nSecurity PIN: ${response.pin}`);
+      toast.success("Link and PIN copied!");
+    } catch (err: any) {
+      toast.error("Failed to generate link");
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -121,18 +190,21 @@ export function InviteModal({ trigger }: InviteModalProps) {
                   </label>
                   <div className="bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 flex items-center gap-2">
                     <span className="font-mono text-[10px] text-zinc-400 flex-1 truncate">
-                      hivespace.io/invite/abc123xyz
+                      {shareableInvite ? `${window.location.origin}/invite/${shareableInvite.token}` : "Click to generate a link..."}
                     </span>
-                    <button className="text-[10px] font-bold text-[#7C5CFC] uppercase tracking-wider hover:opacity-80 transition-opacity">
-                      Copy
+                    <button 
+                      onClick={handleGenerateShareable}
+                      className="text-[10px] font-bold text-[#7C5CFC] uppercase tracking-wider hover:opacity-80 transition-opacity"
+                    >
+                      {shareableInvite ? "Copy Link & PIN" : "Generate"}
                     </button>
                     <div className="w-px h-4 bg-zinc-800 mx-1" />
-                    <button className="text-zinc-500 hover:text-zinc-300 transition-colors">
+                    <button onClick={handleGenerateShareable} className="text-zinc-500 hover:text-zinc-300 transition-colors">
                       <RefreshCw className="h-3 w-3" />
                     </button>
                   </div>
                   <p className="text-[10px] text-zinc-600 mt-2 italic">
-                    Link expires in 72 hours · Role: Member
+                    {shareableInvite ? `Security PIN: ${shareableInvite.pin}` : "Link expires in 7 days · Role: Member"}
                   </p>
                 </div>
               </section>
@@ -256,14 +328,14 @@ export function InviteModal({ trigger }: InviteModalProps) {
                 )}
                 <CTAButton 
                   onClick={handleSend}
-                  disabled={emails.length === 0}
+                  disabled={emails.length === 0 || loading}
                   className={cn(
                     "flex items-center gap-2",
-                    emails.length === 0 && "opacity-50 grayscale cursor-not-allowed"
+                    (emails.length === 0 || loading) && "opacity-50 grayscale cursor-not-allowed"
                   )}
                 >
                   <Mail className="h-3.5 w-3.5" />
-                  {emails.length === 0 ? "Send Invite Link" : "Send Invites"}
+                  {loading ? "Sending..." : emails.length === 0 ? "Send Invite Link" : "Send Invites"}
                 </CTAButton>
               </div>
             </footer>
@@ -280,6 +352,48 @@ export function InviteModal({ trigger }: InviteModalProps) {
 
             <div className="w-full mt-8 space-y-2">
                <h3 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest text-left mb-3">PENDING INVITES</h3>
+               
+               {generatedInvite && (
+                 <div className="w-full bg-zinc-900 border border-zinc-800 rounded-md p-4 space-y-4 mb-6 text-left">
+                   <div>
+                     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1">Generated Invite Link</span>
+                     <div className="flex items-center gap-2 bg-zinc-800 rounded px-2.5 py-1.5 border border-zinc-700">
+                       <span className="font-mono text-xs text-zinc-300 flex-1 truncate select-all">
+                         {window.location.origin}/invite/{generatedInvite.token}
+                       </span>
+                       <button 
+                         onClick={() => {
+                           navigator.clipboard.writeText(`${window.location.origin}/invite/${generatedInvite.token}`);
+                           toast.success("Link copied!");
+                         }} 
+                         className="text-xs text-[#7C5CFC] font-bold hover:underline"
+                       >
+                         Copy
+                       </button>
+                     </div>
+                   </div>
+
+                   <div>
+                     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1">Security PIN</span>
+                     <div className="flex items-center gap-2 bg-zinc-800 rounded px-2.5 py-1.5 border border-zinc-700">
+                       <span className="font-mono text-sm text-amber-400 font-bold flex-1 tracking-wider select-all">
+                         {generatedInvite.pin}
+                       </span>
+                       <button 
+                         onClick={() => {
+                           navigator.clipboard.writeText(generatedInvite.pin);
+                           toast.success("PIN copied!");
+                         }} 
+                         className="text-xs text-[#7C5CFC] font-bold hover:underline"
+                       >
+                         Copy
+                       </button>
+                     </div>
+                     <p className="text-[10px] text-zinc-500 mt-1">Provide this security PIN to the invitees so they can join.</p>
+                   </div>
+                 </div>
+               )}
+
                {emails.map(email => (
                  <div key={email} className="bg-zinc-900/50 border border-zinc-800 rounded-md p-3 flex items-center gap-3">
                    <div className="h-8 w-8 rounded bg-zinc-800 flex items-center justify-center">
