@@ -19,6 +19,7 @@ import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useWorkspaceStore } from "@/store/workspaceStore";
+import { useProjectStore } from "@/store/projectStore";
 import { PROJECT_COLORS } from "@/lib/constants/colors";
 
 interface CreateProjectModalProps {
@@ -30,6 +31,7 @@ interface CreateProjectModalProps {
 
 export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
   const { activeWorkspace } = useWorkspaceStore();
+  const addProject = useProjectStore(state => state.addProject);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [selectedColor, setSelectedColor] = useState(PROJECT_COLORS[1]);
@@ -47,7 +49,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
 
     setLoading(true);
     try {
-      await createProject(activeWorkspace.id, {
+      const newProject = await createProject(activeWorkspace.id, {
         name,
         description: "", 
         status: "ACTIVE",
@@ -57,9 +59,12 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
       });
       
       toast.success("Project created successfully");
+      
+      // Update global store
+      addProject(newProject);
+      
       if (onSuccess) onSuccess();
       onClose();
-      window.location.reload();
     } catch (err: unknown) {
       toast.error((err as Error).message || "Failed to create project");
     } finally {
@@ -71,7 +76,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
     <Dialog open={isOpen} onOpenChange={onClose}>
       <AnimatePresence>
         {isOpen && (
-          <DialogContent className="sm:max-w-[425px] bg-[#201F21] border-zinc-800 text-[#E5E1E4] overflow-hidden p-0">
+          <DialogContent className="sm:max-w-[425px] bg-hs-main border-border/50 text-foreground overflow-hidden p-0 rounded-[28px]">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -85,39 +90,39 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
               
               <div className="p-6">
                 <DialogHeader className="mb-4">
-                  <DialogTitle className="text-xl">Create Project</DialogTitle>
-                  <DialogDescription className="text-zinc-400">
-                    Add a new project to <span className="text-zinc-300 font-medium">{activeWorkspace?.name}</span>.
+                  <DialogTitle className="text-xl font-semibold tracking-tight text-foreground">Create Project</DialogTitle>
+                  <DialogDescription className="text-muted-foreground text-xs">
+                    Add a new project to <span className="text-foreground font-medium">{activeWorkspace?.name}</span>.
                   </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="p-name">Name</Label>
+                    <Label htmlFor="p-name" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Name</Label>
                     <Input 
                       id="p-name" 
                       placeholder="Mobile App, Website Redesign, etc." 
                       value={name}
                       onChange={handleNameChange}
                       required
-                      className="bg-zinc-900 border-zinc-800 focus:ring-1 focus:ring-offset-0 focus:ring-zinc-700"
+                      className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground"
                     />
                   </div>
-
+ 
                   <div className="space-y-2">
-                    <Label htmlFor="p-slug">Slug</Label>
+                    <Label htmlFor="p-slug" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Slug</Label>
                     <Input 
                       id="p-slug" 
                       placeholder="mobile-app" 
                       value={slug}
                       onChange={(e) => setSlug(e.target.value)}
                       required
-                      className="bg-zinc-900 border-zinc-800 focus:ring-1 focus:ring-offset-0 focus:ring-zinc-700"
+                      className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Theme Color</Label>
+                    <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Theme Color</Label>
                     <div className="flex gap-2.5 pt-1">
                       {PROJECT_COLORS.map((c) => (
                         <motion.div 
@@ -139,13 +144,13 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                   </div>
 
                   <DialogFooter className="pt-6">
-                    <Button type="button" variant="ghost" onClick={onClose} className="text-zinc-400 hover:text-white">
+                    <Button type="button" variant="ghost" onClick={onClose} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted">
                       Cancel
                     </Button>
                     <Button 
                       type="submit" 
                       disabled={loading || !name} 
-                      className="text-white font-semibold transition-all"
+                      className="text-white font-semibold transition-all rounded-xl px-8"
                       style={{ backgroundColor: selectedColor.hex }}
                     >
                       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Project"}

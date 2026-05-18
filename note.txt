@@ -1,0 +1,168 @@
+-- CURENNTLY RUNNIG SCHEMA OF THE SUPABASE
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.employees (
+  id uuid NOT NULL,
+  created_at timestamp without time zone NOT NULL,
+  role character varying NOT NULL,
+  updated_at timestamp without time zone NOT NULL,
+  username character varying NOT NULL,
+  team_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  CONSTRAINT employees_pkey PRIMARY KEY (id),
+  CONSTRAINT fka5cxjw6yuqlbp0np1g51o03gf FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT fk69x3vjuy1t5p18a5llb8h2fjx FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT fkaaqjinch674kt31qfu9xh647 FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
+);
+CREATE TABLE public.invitation_attempts (
+  id uuid NOT NULL,
+  attempted_at timestamp without time zone NOT NULL,
+  ip_address character varying NOT NULL,
+  success boolean NOT NULL,
+  invitation_id uuid NOT NULL,
+  CONSTRAINT invitation_attempts_pkey PRIMARY KEY (id),
+  CONSTRAINT fk8jlto36rbtdy1ppr8qr6grmtc FOREIGN KEY (invitation_id) REFERENCES public.invitations(id)
+);
+CREATE TABLE public.invitations (
+  id uuid NOT NULL,
+  created_at timestamp without time zone NOT NULL,
+  expires_at timestamp without time zone NOT NULL,
+  status character varying NOT NULL,
+  inviter_id uuid NOT NULL,
+  team_id uuid,
+  current_uses integer NOT NULL,
+  max_uses integer NOT NULL,
+  pin_hash character varying NOT NULL,
+  role character varying NOT NULL,
+  token character varying NOT NULL UNIQUE,
+  tenant_id uuid NOT NULL,
+  workspace_id uuid,
+  CONSTRAINT invitations_pkey PRIMARY KEY (id),
+  CONSTRAINT fkc93ihvftpd11j547qgc9fobmc FOREIGN KEY (inviter_id) REFERENCES public.users(id),
+  CONSTRAINT fk1m1usbedadl51q5ea4vic07nv FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT fkbehq1wkxsi4nw68dyhokf1bb7 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
+  CONSTRAINT fkdd4kkri07xpy5gk5nacfpcal4 FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
+);
+CREATE TABLE public.project_members (
+  id uuid NOT NULL,
+  joined_at timestamp without time zone NOT NULL,
+  role character varying NOT NULL,
+  project_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  CONSTRAINT project_members_pkey PRIMARY KEY (id),
+  CONSTRAINT fkdki1sp2homqsdcvqm9yrix31g FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT fkgul2el0qjk5lsvig3wgajwm77 FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.projects (
+  id uuid NOT NULL,
+  created_at timestamp without time zone NOT NULL,
+  description character varying,
+  members_count integer NOT NULL,
+  name character varying NOT NULL,
+  status character varying NOT NULL,
+  teams_count integer NOT NULL,
+  updated_at timestamp without time zone NOT NULL,
+  workspace_id uuid NOT NULL,
+  color character varying,
+  CONSTRAINT projects_pkey PRIMARY KEY (id),
+  CONSTRAINT fkpc7qv7bnsq7dm17g0tb0a60of FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
+);
+CREATE TABLE public.tasks (
+  id uuid NOT NULL,
+  created_at timestamp without time zone NOT NULL,
+  description text,
+  due_date timestamp without time zone,
+  labels character varying,
+  points integer,
+  priority character varying NOT NULL,
+  status character varying NOT NULL,
+  title character varying NOT NULL,
+  updated_at timestamp without time zone NOT NULL,
+  assignee_id uuid,
+  project_id uuid NOT NULL,
+  CONSTRAINT tasks_pkey PRIMARY KEY (id),
+  CONSTRAINT fkekr1dgiqktpyoip3qmp6lxsit FOREIGN KEY (assignee_id) REFERENCES public.users(id),
+  CONSTRAINT fksfhn82y57i3k9uxww1s007acc FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);
+CREATE TABLE public.team_members (
+  id uuid NOT NULL,
+  joined_at timestamp without time zone NOT NULL,
+  role character varying NOT NULL,
+  team_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  CONSTRAINT team_members_pkey PRIMARY KEY (id),
+  CONSTRAINT fktgca08el3ofisywcf11f0f76t FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT fkee8x7x5026imwmma9kndkxs36 FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.teams (
+  id uuid NOT NULL,
+  created_at timestamp without time zone NOT NULL,
+  description character varying,
+  members_count integer NOT NULL,
+  name character varying NOT NULL,
+  updated_at timestamp without time zone NOT NULL,
+  project_id uuid NOT NULL,
+  CONSTRAINT teams_pkey PRIMARY KEY (id),
+  CONSTRAINT fk7so1u4r6rpxrqeyxekfwklt5l FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);
+CREATE TABLE public.tenant_members (
+  id uuid NOT NULL,
+  joined_at timestamp without time zone NOT NULL,
+  role character varying NOT NULL,
+  tenant_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  CONSTRAINT tenant_members_pkey PRIMARY KEY (id),
+  CONSTRAINT fk71qi2hqyj87qdh6x9u1wy006i FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
+  CONSTRAINT fk2dub08obx422mpd04l86raghe FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.tenants (
+  id uuid NOT NULL,
+  active boolean NOT NULL,
+  description character varying,
+  members_count integer NOT NULL,
+  name character varying NOT NULL UNIQUE,
+  owner_email character varying NOT NULL,
+  plan character varying NOT NULL CHECK (plan::text = ANY (ARRAY['FREE'::character varying, 'PRO'::character varying, 'ENTERPRISE'::character varying]::text[])),
+  slug character varying NOT NULL UNIQUE,
+  workspaces_count integer NOT NULL,
+  CONSTRAINT tenants_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.users (
+  id uuid NOT NULL,
+  active boolean NOT NULL,
+  avatar_url character varying,
+  email character varying NOT NULL UNIQUE,
+  github_id bigint,
+  password character varying NOT NULL,
+  username character varying NOT NULL,
+  tenant_id uuid,
+  bio text,
+  full_name character varying,
+  job_title character varying,
+  CONSTRAINT users_pkey PRIMARY KEY (id),
+  CONSTRAINT fk21hn1a5ja1tve7ae02fnn4cld FOREIGN KEY (tenant_id) REFERENCES public.tenants(id)
+);
+CREATE TABLE public.workspace_members (
+  id uuid NOT NULL,
+  joined_at timestamp without time zone NOT NULL,
+  role character varying NOT NULL,
+  user_id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  CONSTRAINT workspace_members_pkey PRIMARY KEY (id),
+  CONSTRAINT fk6vtnpc3eexk504u61uepn40p1 FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT fkw9hq87n3rvq2c4j47qo78i5r FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
+);
+CREATE TABLE public.workspaces (
+  id uuid NOT NULL,
+  created_at timestamp without time zone NOT NULL,
+  description character varying,
+  members_count integer NOT NULL,
+  name character varying NOT NULL,
+  plan character varying NOT NULL,
+  updated_at timestamp without time zone NOT NULL,
+  tenant_id uuid NOT NULL,
+  CONSTRAINT workspaces_pkey PRIMARY KEY (id),
+  CONSTRAINT fk6v30hhfbh8p2l8j0faybqvf7e FOREIGN KEY (tenant_id) REFERENCES public.tenants(id)
+);

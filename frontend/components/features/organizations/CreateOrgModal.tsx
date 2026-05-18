@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Globe } from "lucide-react";
 import { createOrganization } from "@/lib/api/orgs";
 import { useOrgStore } from "@/store/orgStore";
+import { useAuthStore } from "@/store/authStore";
 
 interface CreateOrgModalProps {
   isOpen: boolean;
@@ -50,6 +51,13 @@ export function CreateOrgModal({ isOpen, onClose }: CreateOrgModalProps) {
       });
       
       setActiveOrg(response);
+
+      // Update local hasTenants state to true so Next/Zustand doesn't bounce to onboarding
+      const { user, setUser } = useAuthStore.getState();
+      if (user) {
+        setUser({ ...user, hasTenants: true });
+      }
+
       // Refresh to update hasTenants state and redirect to dashboard
       window.location.href = "/dashboard";
     } catch (err: unknown) {

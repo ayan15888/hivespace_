@@ -26,6 +26,7 @@ import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useProjects } from "@/hooks/useProjects";
+import { useTaskStore } from "@/store/taskStore";
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -37,12 +38,14 @@ interface CreateTaskModalProps {
 
 export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, onSuccess, defaultStatus }: CreateTaskModalProps) {
   const { projects } = useProjects();
+  const addTask = useTaskStore(state => state.addTask);
   const [loading, setLoading] = useState(false);
   const [projectId, setProjectId] = useState(initialProjectId || "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState(defaultStatus || "Todo");
   const [priority, setPriority] = useState("normal");
+  const [dueDate, setDueDate] = useState("");
 
   // Reset fields when modal opens or initialProjectId changes
   useEffect(() => {
@@ -69,14 +72,20 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
         description,
         status,
         priority,
+        dueDate: dueDate || undefined,
       };
 
-      await createTask(projectId, taskData);
+      const newTask = await createTask(projectId, taskData);
       toast.success("Task created successfully");
+      
+      // Update global store
+      addTask(newTask);
+      
       setTitle("");
       setDescription("");
       setStatus(defaultStatus || "Todo");
       setPriority("normal");
+      setDueDate("");
       onSuccess?.();
       onClose();
     } catch (error) {
@@ -91,7 +100,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <AnimatePresence>
         {isOpen && (
-          <DialogContent className="sm:max-w-[425px] bg-[#1C1B1F] border-zinc-800/50 text-[#E5E1E4] rounded-[28px] overflow-hidden p-0">
+          <DialogContent className="sm:max-w-[425px] bg-hs-main border-border/50 text-foreground rounded-[28px] overflow-hidden p-0">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -99,8 +108,8 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
             >
               <form onSubmit={handleSubmit}>
                 <DialogHeader className="p-6 pb-0">
-                  <DialogTitle className="text-xl font-semibold tracking-tight text-white">New Task</DialogTitle>
-                  <DialogDescription className="text-zinc-500 text-xs">
+                  <DialogTitle className="text-xl font-semibold tracking-tight text-foreground">New Task</DialogTitle>
+                  <DialogDescription className="text-muted-foreground text-xs">
                     Create a new task for this project.
                   </DialogDescription>
                 </DialogHeader>
@@ -122,35 +131,35 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                     </div>
                   )}
                   <div className="grid gap-2">
-                    <Label htmlFor="title" className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Title</Label>
+                    <Label htmlFor="title" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Title</Label>
                     <Input
                       id="title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="What needs to be done?"
-                      className="bg-[#000000]/30 border-zinc-800/50 focus:border-violet-500/50 focus:ring-0 rounded-xl"
+                      className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground"
                       disabled={loading}
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="description" className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Description</Label>
+                    <Label htmlFor="description" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Description</Label>
                     <Textarea
                       id="description"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Add more details..."
-                      className="bg-[#000000]/30 border-zinc-800/50 focus:border-violet-500/50 focus:ring-0 rounded-xl min-h-[100px] resize-none"
+                      className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl min-h-[100px] resize-none text-foreground"
                       disabled={loading}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Status</Label>
+                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Status</Label>
                       <Select value={status} onValueChange={setStatus} disabled={loading}>
-                        <SelectTrigger className="bg-[#000000]/30 border-zinc-800/50 focus:ring-0 rounded-xl">
+                        <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#1C1B1F] border-zinc-800 text-[#E5E1E4]">
+                        <SelectContent className="bg-hs-main border-border text-foreground">
                           <SelectItem value="Backlog">Backlog</SelectItem>
                           <SelectItem value="Todo">Todo</SelectItem>
                           <SelectItem value="In Progress">In Progress</SelectItem>
@@ -160,18 +169,29 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                       </Select>
                     </div>
                     <div className="grid gap-2">
-                      <Label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Priority</Label>
+                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Priority</Label>
                       <Select value={priority} onValueChange={setPriority} disabled={loading}>
-                        <SelectTrigger className="bg-[#000000]/30 border-zinc-800/50 focus:ring-0 rounded-xl">
+                        <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
                           <SelectValue placeholder="Select priority" />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#1C1B1F] border-zinc-800 text-[#E5E1E4]">
+                        <SelectContent className="bg-hs-main border-border text-foreground">
                           <SelectItem value="normal">Normal</SelectItem>
                           <SelectItem value="high">High</SelectItem>
                           <SelectItem value="urgent">Urgent</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="dueDate" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Due Date</Label>
+                    <Input
+                      id="dueDate"
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground [color-scheme:dark]"
+                      disabled={loading}
+                    />
                   </div>
                 </div>
 
@@ -180,14 +200,14 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                     type="button"
                     variant="ghost"
                     onClick={onClose}
-                    className="rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800"
+                    className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted"
                     disabled={loading}
                   >
                     Cancel
                   </Button>
                   <Button 
                     type="submit" 
-                    className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl px-8"
+                    className="bg-primary hover:opacity-90 text-primary-foreground rounded-xl px-8"
                     disabled={loading}
                   >
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Task"}

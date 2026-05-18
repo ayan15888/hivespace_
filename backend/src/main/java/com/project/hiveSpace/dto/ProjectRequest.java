@@ -25,4 +25,6 @@ public class ProjectRequest {
 
     @NotNull(message = "Workspace ID is required")
     private UUID workspaceId;
+
+    private String color;
 }

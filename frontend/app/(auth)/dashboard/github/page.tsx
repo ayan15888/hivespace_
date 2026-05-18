@@ -76,14 +76,14 @@ export default function GitHubPage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#201F21] overflow-hidden">
+    <div className="flex flex-col h-full bg-hs-main overflow-hidden">
       {/* Top Bar */}
-      <header className="sticky top-0 z-30 h-11 flex items-center justify-between px-4 bg-[#0E0E10]/80 backdrop-blur-sm border-b border-zinc-800/50 flex-shrink-0">
+      <header className="sticky top-0 z-30 h-11 flex items-center justify-between px-4 bg-background/80 backdrop-blur-sm border-b border-border/50 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <GitGraph className="h-4 w-4 text-zinc-400" strokeWidth={1.5} />
-          <span className="text-sm font-medium text-[#E5E1E4]">GitHub</span>
-          <div className="h-4 w-px bg-zinc-700 mx-1" />
-          <span className="text-xs text-zinc-400">Engineering workspace</span>
+          <GitGraph className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+          <span className="text-sm font-medium text-foreground">GitHub</span>
+          <div className="h-4 w-px bg-border/50 mx-1" />
+          <span className="text-xs text-muted-foreground">Engineering workspace</span>
         </div>
         <button className="h-7 px-3 flex items-center gap-2 rounded-md bg-[linear-gradient(145deg,#CABEFF,#947DFF)] text-black text-[10px] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity">
           <GitBranch className="h-3 w-3" strokeWidth={2} />
@@ -95,8 +95,8 @@ export default function GitHubPage() {
         {/* Connection Success Banner */}
         <div className="bg-green-500/10 border border-green-500/20 rounded-lg mx-6 mt-4 px-4 py-2 flex items-center gap-3">
           <CheckCircle className="h-3.5 w-3.5 text-green-400" strokeWidth={2} />
-          <div className="text-sm text-zinc-300">
-            Connected to <span className="font-medium text-[#E5E1E4]">acme-corp</span> GitHub organisation
+          <div className="text-sm text-muted-foreground">
+            Connected to <span className="font-medium text-foreground">acme-corp</span> GitHub organisation
           </div>
           <div className="ml-auto flex items-center gap-4">
             <span className="text-[10px] text-zinc-500">Synced 2 minutes ago</span>
@@ -116,16 +116,16 @@ export default function GitHubPage() {
               <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Linked Repositories</h2>
               <div className="grid grid-cols-1 gap-3">
                 {REPOS.map(repo => (
-                  <div key={repo.id} className="bg-[#272629] border border-zinc-800/50 rounded-lg p-4 hover:border-zinc-700 transition-colors group">
+                  <div key={repo.id} className="bg-hs-card border border-border/50 rounded-lg p-4 hover:border-border/80 transition-colors group">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <GitFork className="h-3.5 w-3.5 text-zinc-400" strokeWidth={1.5} />
-                        <span className="text-sm font-medium text-[#E5E1E4] font-mono">{repo.name}</span>
-                        <span className="bg-zinc-800 rounded-sm text-[10px] text-zinc-400 px-1.5 py-0.5 ml-1">
+                        <GitFork className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+                        <span className="text-sm font-medium text-foreground ">{repo.name}</span>
+                        <span className="bg-muted rounded-sm text-[10px] text-muted-foreground px-1.5 py-0.5 ml-1">
                           {repo.branch}
                         </span>
                       </div>
-                      <Badge variant="outline" className="bg-[#7C5CFC]/10 border-[#7C5CFC]/20 text-[#7C5CFC] text-[10px] font-medium rounded-sm px-2 py-0">
+                      <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary text-[10px] font-medium rounded-sm px-2 py-0">
                         {repo.linkedProject}
                       </Badge>
                     </div>
@@ -145,8 +145,8 @@ export default function GitHubPage() {
                       </div>
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-zinc-800/50 flex items-center justify-between">
-                      <span className="text-[10px] text-zinc-500 italic">Last push: {repo.lastPush}</span>
+                    <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground italic">Last push: {repo.lastPush}</span>
                       <button className="text-[10px] font-medium text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
                         Unlink
                       </button>
@@ -170,7 +170,7 @@ export default function GitHubPage() {
                       key={filter}
                       className={cn(
                         "px-2.5 py-1 text-[10px] font-medium rounded-md transition-colors",
-                        i === 1 ? "bg-zinc-700 text-[#E5E1E4]" : "text-zinc-500 hover:text-zinc-300"
+                        i === 1 ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
                       {filter}
@@ -181,31 +181,31 @@ export default function GitHubPage() {
 
               <div className="space-y-2">
                 {PRs.map(pr => (
-                  <div key={pr.id} className="bg-[#272629] border border-zinc-800/50 rounded-md p-3 hover:border-zinc-700 transition-colors cursor-pointer group">
+                  <div key={pr.id} className="bg-hs-card border border-border/50 rounded-md p-3 hover:border-border transition-colors cursor-pointer group">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         {pr.status === 'open' ? (
                           <GitPullRequest className="h-4 w-4 text-green-400" strokeWidth={1.5} />
                         ) : pr.status === 'merged' ? (
-                          <GitMerge className="h-4 w-4 text-[#7C5CFC]" strokeWidth={1.5} />
+                          <GitMerge className="h-4 w-4 text-primary" strokeWidth={1.5} />
                         ) : (
                           <GitPullRequestClosed className="h-4 w-4 text-red-400" strokeWidth={1.5} />
                         )}
-                        <span className="text-[10px] font-mono text-zinc-500 shrink-0">PR #{pr.id}</span>
-                        <h3 className="text-sm text-[#E5E1E4] font-medium truncate max-w-[400px]">{pr.title}</h3>
+                        <span className="text-[10px]  text-muted-foreground shrink-0">PR #{pr.id}</span>
+                        <h3 className="text-sm text-foreground font-medium truncate max-w-[400px]">{pr.title}</h3>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="bg-zinc-800 text-[10px] font-mono text-zinc-400 px-1.5 py-0.5 rounded-sm border border-zinc-700/50">
+                        <div className="bg-muted text-[10px]  text-muted-foreground px-1.5 py-0.5 rounded-sm border border-border/50">
                           {pr.task}
                         </div>
                         <Avatar className="h-6 w-6 rounded-md">
-                          <AvatarFallback className="bg-zinc-800 text-[10px] text-zinc-400 rounded-md">{pr.author}</AvatarFallback>
+                          <AvatarFallback className="bg-muted text-[10px] text-muted-foreground rounded-md">{pr.author}</AvatarFallback>
                         </Avatar>
-                        <span className="text-[10px] text-zinc-500 ml-1">{pr.time}</span>
+                        <span className="text-[10px] text-muted-foreground ml-1">{pr.time}</span>
                       </div>
                     </div>
                     <div className="pl-[28px] mt-1 flex items-center gap-2 text-[10px] text-zinc-500">
-                      <span className="font-mono">{pr.repo}</span>
+                      <span className="">{pr.repo}</span>
                       <span className="h-0.5 w-0.5 rounded-full bg-zinc-700" />
                       <span className="text-zinc-400">{pr.branch}</span>
                     </div>
@@ -221,10 +221,10 @@ export default function GitHubPage() {
                 {COMMITS.map(commit => (
                   <div key={commit.hash} className="group h-10 flex items-center gap-4 px-2 hover:bg-zinc-800/40 rounded-md transition-colors cursor-default">
                     <GitCommit className="h-3.5 w-3.5 text-zinc-600 group-hover:text-zinc-500" strokeWidth={1.5} />
-                    <span className="w-14 shrink-0 font-mono text-[10px] text-zinc-600">{commit.hash}</span>
+                    <span className="w-14 shrink-0  text-[10px] text-zinc-600">{commit.hash}</span>
                     <span className="flex-1 text-sm text-zinc-400 truncate group-hover:text-zinc-200">{commit.message}</span>
                     {commit.task && (
-                      <span className="font-mono text-[10px] text-zinc-600 group-hover:text-zinc-500">{commit.task}</span>
+                      <span className=" text-[10px] text-zinc-600 group-hover:text-zinc-500">{commit.task}</span>
                     )}
                     <Avatar className="h-5 w-5 rounded-md">
                       <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-500 rounded-md">{commit.author}</AvatarFallback>
@@ -237,7 +237,7 @@ export default function GitHubPage() {
           </div>
 
           {/* Right Column */}
-          <div className="space-y-8 border-l border-zinc-800/50 pl-6 h-fit sticky top-[60px]">
+          <div className="space-y-8 border-l border-border/50 pl-6 h-fit sticky top-[60px]">
             
             {/* Activity Feed */}
             <section>
@@ -277,14 +277,14 @@ export default function GitHubPage() {
                       <Circle className="h-3.5 w-3.5 text-green-400 mt-0.5" strokeWidth={2} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-[10px] text-zinc-500 shrink-0">#{issue.number}</span>
+                          <span className=" text-[10px] text-zinc-500 shrink-0">#{issue.number}</span>
                           <h4 className="text-xs text-zinc-300 truncate">{issue.title}</h4>
                         </div>
                         <div className="flex items-center justify-between">
                           {issue.task ? (
                             <div className="flex items-center gap-2">
-                              <span className="font-mono text-[10px] text-zinc-500">{issue.task}</span>
-                              <span className="text-[9px] text-zinc-600 uppercase font-bold tracking-tighter bg-zinc-800 px-1 rounded-sm">{issue.status}</span>
+                              <span className=" text-[10px] text-zinc-500">{issue.task}</span>
+                              <span className="text-[9px] text-zinc-600 uppercase font-bold tracking-tight bg-zinc-800 px-1 rounded-sm">{issue.status}</span>
                             </div>
                           ) : (
                             <button className="text-[10px] font-medium text-[#7C5CFC] hover:text-[#947DFF] transition-colors">
@@ -332,12 +332,12 @@ export default function GitHubPage() {
 
 function EmptyState({ onConnect }: { onConnect: () => void }) {
   return (
-    <div className="h-full flex flex-col items-center justify-center p-8 bg-[#201F21]">
+    <div className="h-full flex flex-col items-center justify-center p-8 bg-hs-main">
       <div className="flex flex-col items-center max-w-sm text-center">
-        <div className="w-16 h-16 rounded-2xl bg-zinc-800/50 flex items-center justify-center mb-6 border border-zinc-700/30 shadow-2xl shadow-black/20">
-          <GitGraph className="h-8 w-8 text-zinc-600" strokeWidth={1} />
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-6 border border-border/30 shadow-2xl shadow-black/20">
+          <GitGraph className="h-8 w-8 text-muted-foreground" strokeWidth={1} />
         </div>
-        <h1 className="text-lg font-medium text-[#E5E1E4] mb-2 tracking-tight">Connect your GitHub organisation</h1>
+        <h1 className="text-lg font-medium text-foreground mb-2 tracking-tight">Connect your GitHub organisation</h1>
         <p className="text-sm text-zinc-500 mb-8 leading-relaxed">
           Link repositories to projects, sync issues and PRs, and automate task workflows with the Hivespace engine.
         </p>

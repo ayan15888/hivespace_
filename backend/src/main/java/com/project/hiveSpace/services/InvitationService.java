@@ -7,11 +7,13 @@ import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.Random;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -22,113 +24,231 @@ public class InvitationService {
     private final ProjectRepository projectRepository;
     private final WorkspaceRepository workspaceRepository;
     private final TenantRepository tenantRepository;
-    private final EmployeeRepository employeeRepository;
+    private final UserRepository userRepository;
+    
+    private final TenantMemberRepository tenantMemberRepository;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final TeamMemberRepository teamMemberRepository;
+    private final InvitationAttemptRepository invitationAttemptRepository;
+    
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public InviteResponse createInvite(InviteRequest request) {
         User currentUser = getCurrentUser();
-        Team team = teamRepository.findById(request.getTeamId())
-                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
         
-        Workspace workspace = team.getProject().getWorkspace();
+        Tenant tenant = tenantRepository.findById(request.getTenantId())
+                .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
-        // Security Check: Is the inviter a manager of THIS workspace?
-        Employee inviterEmployee = employeeRepository.findByUserIdAndWorkspaceId(currentUser.getId(), workspace.getId())
-                .orElseThrow(() -> new IllegalArgumentException("You are not a manager of this workspace"));
+        // Security Check: Is the inviter an OWNER or ADMIN of this organization?
+        TenantMember inviterMember = tenantMemberRepository.findByTenantIdAndUserId(tenant.getId(), currentUser.getId())
+                .orElse(null);
+                
+        // Backward-compatible ownership check
+        boolean isOwner = tenant.getOwnerEmail().equalsIgnoreCase(currentUser.getEmail());
+        boolean isAuthorized = isOwner || (inviterMember != null &&
+                ("OWNER".equalsIgnoreCase(inviterMember.getRole())
+                        || "ADMIN".equalsIgnoreCase(inviterMember.getRole())
+                        || "BILLING_ADMIN".equalsIgnoreCase(inviterMember.getRole())));
 
-        if (!"MANAGER".equalsIgnoreCase(inviterEmployee.getRole()) && !"OWNER".equalsIgnoreCase(inviterEmployee.getRole())) {
-            throw new IllegalArgumentException("Only managers or owners can invite members");
+        if (!isAuthorized) {
+            throw new SecurityException("Only organization owners or administrators can create invitations");
         }
 
-        String code = generateSecureCode();
-        
+        Workspace workspace = null;
+        if (request.getWorkspaceId() != null) {
+            workspace = workspaceRepository.findById(request.getWorkspaceId())
+                    .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        }
+
+        Team team = null;
+        if (request.getTeamId() != null) {
+            team = teamRepository.findById(request.getTeamId())
+                    .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+        }
+
+        // Generate or verify the PIN
+        String rawPin = request.getPin();
+        if (rawPin == null || rawPin.trim().isEmpty()) {
+            rawPin = generateSecurePin();
+        }
+
+        String token = generateSecureToken();
+        String pinHash = passwordEncoder.encode(rawPin);
+        Date expiresAt = new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 7); // 7 days expiry
+
         Invitation invitation = Invitation.builder()
-                .code(code)
+                .token(token)
+                .pinHash(pinHash)
+                .tenant(tenant)
+                .workspace(workspace)
                 .team(team)
                 .inviter(currentUser)
-                .recipientUsername(request.getRecipientUsername())
-                .status("PENDING")
-                .expiresAt(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 7)) // 7 days
+                .role(request.getRole() != null ? request.getRole() : "MEMBER")
+                .maxUses(request.getMaxUses() != null ? request.getMaxUses() : 1)
+                .currentUses(0)
+                .status("ACTIVE")
+                .expiresAt(expiresAt)
                 .createdAt(new Date())
                 .build();
 
         Invitation saved = invitationRepository.save(invitation);
-        return mapToResponse(saved);
+        
+        InviteResponse response = mapToResponse(saved);
+        // We include the raw plain PIN only upon successful creation so the inviter can copy it
+        response.setPin(rawPin);
+        return response;
     }
 
     @Transactional
     public void acceptInvite(JoinRequest request) {
         User currentUser = getCurrentUser();
-        Invitation invitation = invitationRepository.findByCode(request.getInviteCode())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid invite code"));
+        
+        Invitation invitation = invitationRepository.findByToken(request.getToken())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired invitation link"));
 
-        if (!"PENDING".equalsIgnoreCase(invitation.getStatus())) {
-            throw new IllegalArgumentException("Invitation is no longer active");
+        // 1. Check expiration/exhaustion status
+        if (!"ACTIVE".equalsIgnoreCase(invitation.getStatus())) {
+            throw new IllegalArgumentException("This invitation is no longer active");
         }
 
         if (invitation.getExpiresAt().before(new Date())) {
             invitation.setStatus("EXPIRED");
             invitationRepository.save(invitation);
-            throw new IllegalArgumentException("Invitation has expired");
+            throw new IllegalArgumentException("This invitation link has expired");
         }
 
-        if (!invitation.getRecipientUsername().equals(currentUser.getUsername().replace(currentUser.getEmail(), currentUser.getUsername()))) {
-             // In the User model, getUsername() returns email. This is tricky.
-             // But the User entity has a username field. Let's use the field directly.
-        }
-        
-        // Use the field directly from User entity
-        if (!invitation.getRecipientUsername().equals(currentUser.getUsername())) {
-             // Wait, looking at User.java: 56: public String getUsername() { return email; }
-             // But line 32: private String username;
-             // So I should check against the username field.
-             if (!invitation.getRecipientUsername().equals(currentUser.getUsername())) { // This works because Lombok @Getter
-                  // throw new IllegalArgumentException("This invitation is destined for another user");
-             }
-        }
-        
-        // Double check matching logic
-        if (!invitation.getRecipientUsername().equalsIgnoreCase(currentUser.getUsername())) {
-            throw new IllegalArgumentException("This invitation is for a different username: " + invitation.getRecipientUsername());
+        if (invitation.getCurrentUses() >= invitation.getMaxUses()) {
+            invitation.setStatus("EXHAUSTED");
+            invitationRepository.save(invitation);
+            throw new IllegalArgumentException("This invitation has reached its maximum usage limit");
         }
 
-        Team team = invitation.getTeam();
-        Project project = team.getProject();
-        Workspace workspace = project.getWorkspace();
-        Tenant tenant = workspace.getTenant();
+        // 2. PIN Rate Limiting Check (Invitation Security)
+        // Count failed attempts on this invite within the last 15 minutes
+        Date fifteenMinutesAgo = new Date(System.currentTimeMillis() - 15 * 60 * 1000);
+        long failedAttempts = invitationAttemptRepository
+                .countByInvitationIdAndAttemptedAtAfterAndSuccessFalse(invitation.getId(), fifteenMinutesAgo);
 
-        // Check if already an employee
-        if (employeeRepository.existsByUserAndTeam(currentUser, team)) {
-            throw new IllegalArgumentException("You are already a member of this team");
+        if (failedAttempts >= 5) {
+            invitation.setStatus("REVOKED");
+            invitationRepository.save(invitation);
+            throw new IllegalArgumentException("This invitation has been locked due to too many failed PIN attempts");
         }
 
-        // Create Employee
-        Employee employee = Employee.builder()
-                .user(currentUser)
-                .team(team)
-                .workspace(workspace)
-                .username(currentUser.getUsername())
-                .role("MEMBER")
-                .createdAt(new Date())
-                .updatedAt(new Date())
+        // 3. Verify PIN
+        boolean pinMatches = passwordEncoder.matches(request.getPin(), invitation.getPinHash());
+
+        // Track attempt in the database
+        InvitationAttempt attempt = InvitationAttempt.builder()
+                .invitation(invitation)
+                .ipAddress("127.0.0.1") // Fallback / mock ip tracking
+                .attemptedAt(new Date())
+                .success(pinMatches)
                 .build();
+        invitationAttemptRepository.save(attempt);
 
-        employeeRepository.save(employee);
+        if (!pinMatches) {
+            throw new IllegalArgumentException("Invalid security PIN. " + (4 - failedAttempts) + " attempts remaining.");
+        }
 
-        // Update counts
-        team.setMembersCount(team.getMembersCount() + 1);
-        project.setMembersCount(project.getMembersCount() + 1);
-        workspace.setMembersCount(workspace.getMembersCount() + 1);
-        tenant.setMembersCount(tenant.getMembersCount() + 1);
+        // 4. Enroll User Hierarchically into Memberships
+        Tenant tenant = invitation.getTenant();
+        Workspace workspace = invitation.getWorkspace();
+        Team team = invitation.getTeam();
+        
+        // --- 1. Join Tenant ---
+        if (!tenantMemberRepository.existsByTenantAndUser(tenant, currentUser)) {
+            TenantMember tenantMember = TenantMember.builder()
+                    .tenant(tenant)
+                    .user(currentUser)
+                    .role(invitation.getRole())
+                    .joinedAt(new Date())
+                    .build();
+            tenantMemberRepository.save(tenantMember);
+            
+            tenant.setMembersCount(tenant.getMembersCount() + 1);
+            tenantRepository.save(tenant);
+        }
 
-        teamRepository.save(team);
-        projectRepository.save(project);
-        workspaceRepository.save(workspace);
-        tenantRepository.save(tenant);
+        // Dynamically associate user with their active tenant context if not set
+        if (currentUser.getTenant() == null) {
+            currentUser.setTenant(tenant);
+            userRepository.save(currentUser);
+        }
 
-        // Update invitation status
-        invitation.setStatus("ACCEPTED");
+        // --- 2. Join Workspace (if specified) ---
+        if (workspace != null && !workspaceMemberRepository.existsByWorkspaceAndUser(workspace, currentUser)) {
+            WorkspaceMember workspaceMember = WorkspaceMember.builder()
+                    .workspace(workspace)
+                    .user(currentUser)
+                    .role("MEMBER")
+                    .joinedAt(new Date())
+                    .build();
+            workspaceMemberRepository.save(workspaceMember);
+
+            workspace.setMembersCount(workspace.getMembersCount() + 1);
+            workspaceRepository.save(workspace);
+        }
+
+        // --- 3. Join Project and Team (if team is specified) ---
+        if (team != null) {
+            Project project = team.getProject();
+            
+            // Join Project
+            if (!projectMemberRepository.existsByProjectAndUser(project, currentUser)) {
+                ProjectMember projectMember = ProjectMember.builder()
+                        .project(project)
+                        .user(currentUser)
+                        .role("MEMBER")
+                        .joinedAt(new Date())
+                        .build();
+                projectMemberRepository.save(projectMember);
+                
+                project.setMembersCount(project.getMembersCount() + 1);
+                projectRepository.save(project);
+            }
+
+            // Join Team
+            if (!teamMemberRepository.existsByTeamAndUser(team, currentUser)) {
+                TeamMember teamMember = TeamMember.builder()
+                        .team(team)
+                        .user(currentUser)
+                        .role("MEMBER")
+                        .joinedAt(new Date())
+                        .build();
+                teamMemberRepository.save(teamMember);
+
+                team.setMembersCount(team.getMembersCount() + 1);
+                teamRepository.save(team);
+            }
+        }
+
+        // 5. Increment Use Counter
+        invitation.setCurrentUses(invitation.getCurrentUses() + 1);
+        if (invitation.getCurrentUses() >= invitation.getMaxUses()) {
+            invitation.setStatus("EXHAUSTED");
+        }
         invitationRepository.save(invitation);
+    }
+
+    @Transactional
+    public InviteResponse getInvite(String token) {
+        Invitation invitation = invitationRepository.findByToken(token)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired invitation link"));
+
+        if (!"ACTIVE".equalsIgnoreCase(invitation.getStatus())) {
+            throw new IllegalArgumentException("This invitation is no longer active");
+        }
+
+        if (invitation.getExpiresAt().before(new Date())) {
+            invitation.setStatus("EXPIRED");
+            invitationRepository.save(invitation);
+            throw new IllegalArgumentException("This invitation link has expired");
+        }
+
+        return mapToResponse(invitation);
     }
 
     private User getCurrentUser() {
@@ -139,26 +259,29 @@ public class InvitationService {
         throw new IllegalStateException("User not authenticated");
     }
 
-    private String generateSecureCode() {
-        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        StringBuilder sb = new StringBuilder("INV-");
+    private String generateSecureToken() {
+        return UUID.randomUUID().toString().replace("-", "");
+    }
+
+    private String generateSecurePin() {
         Random random = new Random();
-        for (int i = 0; i < 8; i++) {
-            sb.append(chars.charAt(random.nextInt(chars.length())));
-            if (i == 3) sb.append("-");
-        }
-        return sb.toString();
+        return String.format("%06d", random.nextInt(1000000));
     }
 
     private InviteResponse mapToResponse(Invitation invite) {
         return InviteResponse.builder()
                 .id(invite.getId())
-                .code(invite.getCode())
-                .teamName(invite.getTeam().getName())
-                .projectName(invite.getTeam().getProject().getName())
-                .workspaceName(invite.getTeam().getProject().getWorkspace().getName())
-                .recipientUsername(invite.getRecipientUsername())
+                .token(invite.getToken())
+                .tenantId(invite.getTenant().getId())
+                .tenantName(invite.getTenant().getName())
+                .workspaceId(invite.getWorkspace() != null ? invite.getWorkspace().getId() : null)
+                .workspaceName(invite.getWorkspace() != null ? invite.getWorkspace().getName() : null)
+                .teamId(invite.getTeam() != null ? invite.getTeam().getId() : null)
+                .teamName(invite.getTeam() != null ? invite.getTeam().getName() : null)
                 .inviterUsername(invite.getInviter().getUsername())
+                .role(invite.getRole())
+                .maxUses(invite.getMaxUses())
+                .currentUses(invite.getCurrentUses())
                 .status(invite.getStatus())
                 .expiresAt(invite.getExpiresAt())
                 .createdAt(invite.getCreatedAt())

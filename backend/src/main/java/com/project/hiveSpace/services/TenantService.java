@@ -21,6 +21,7 @@ public class TenantService {
 
     private final TenantRepository tenantRepository;
     private final com.project.hiveSpace.repository.UserRepository userRepository;
+    private final com.project.hiveSpace.repository.TenantMemberRepository tenantMemberRepository;
 
     @Transactional
     public TenantResponse createTenant(TenantRequest request) {
@@ -45,6 +46,20 @@ public class TenantService {
                 .build();
 
         Tenant savedTenant = tenantRepository.save(tenant);
+
+        // Create TenantMember representing owner role for this user
+        com.project.hiveSpace.models.TenantMember ownerMember = com.project.hiveSpace.models.TenantMember.builder()
+                .tenant(savedTenant)
+                .user(currentUser)
+                .role("OWNER")
+                .joinedAt(new java.util.Date())
+                .build();
+        tenantMemberRepository.save(ownerMember);
+
+        // Associate user with their newly created active tenant
+        currentUser.setTenant(savedTenant);
+        userRepository.save(currentUser);
+
         return mapToResponse(savedTenant);
     }
 

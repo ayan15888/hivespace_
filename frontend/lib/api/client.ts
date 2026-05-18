@@ -46,15 +46,19 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
       const data = JSON.parse(text) as { message?: string; error?: string };
       message = data.message || data.error;
     } catch {
-      /* Next proxy failures often return HTML or empty body with 5xx */
+      /* non-JSON body (e.g. HTML error page) */
+    }
+    // Fallback messages only when the backend didn't send one
+    if (!message && response.status === 401) {
+      message = "Not authenticated — please sign in again.";
     }
     if (!message && response.status === 403) {
       message =
-        "Forbidden — usually not signed in or the session token was not sent. Sign in again.";
+        "Forbidden — you don't have permission to perform this action.";
     }
     if (!message && response.status >= 500) {
       message =
-        "Cannot reach the Java API (5xx). Start Spring Boot on BACKEND_URL (default http://127.0.0.1:8080), or set NEXT_PUBLIC_API_URL to call the API directly.";
+        "Cannot reach the server (5xx). Make sure Spring Boot is running on BACKEND_URL.";
     }
     throw new Error(message || `Request failed (${response.status})`);
   }

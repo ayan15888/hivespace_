@@ -28,6 +28,12 @@ public class HiveSpaceApplication {
 		return args -> {
 			try (Connection connection = dataSource.getConnection()) {
 				System.out.println("✅ SUPABASE CONNECTED: " + connection.getMetaData().getURL());
+				try (java.sql.Statement statement = connection.createStatement()) {
+					statement.execute("ALTER TABLE users DROP COLUMN IF EXISTS role");
+					System.out.println("🚀 DATABASE RESTRUCTURED: dropped 'role' column from 'users' table successfully.");
+				} catch (Exception ex) {
+					System.err.println("⚠️ Could not drop legacy role column: " + ex.getMessage());
+				}
 			} catch (Exception e) {
 				System.err.println("❌ SUPABASE CONNECTION FAILED: " + e.getMessage());
 			}

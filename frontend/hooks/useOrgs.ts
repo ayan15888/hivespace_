@@ -1,47 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { OrgResponse, getMyOrganizations } from "@/lib/api/orgs";
+import { useEffect, useCallback } from "react";
+import { useOrgStore } from "@/store/orgStore";
 import { useAuth } from "./useAuth";
 
 export function useOrgs() {
   const { user } = useAuth();
-  const [orgs, setOrgs] = useState<OrgResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { orgs, loading, error, fetchOrgs } = useOrgStore();
+
+  const refreshOrgs = useCallback(async () => {
+    if (!user) return;
+    await fetchOrgs();
+  }, [user, fetchOrgs]);
 
   useEffect(() => {
-    async function fetchOrgs() {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const data = await getMyOrganizations();
-        setOrgs(data);
-      } catch (err: unknown) {
-        setError((err as Error).message || "Failed to fetch organizations");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchOrgs();
-  }, [user]);
+    refreshOrgs();
+  }, [refreshOrgs]);
 
   return {
     orgs,
     loading,
     error,
-    refreshOrgs: async () => {
-      setLoading(true);
-      try {
-        const data = await getMyOrganizations();
-        setOrgs(data);
-      } finally {
-        setLoading(false);
-      }
-    }
+    refreshOrgs
   };
 }

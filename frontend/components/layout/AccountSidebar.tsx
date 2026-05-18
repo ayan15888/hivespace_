@@ -33,7 +33,7 @@ export function AccountSidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="fixed left-[56px] top-0 h-full w-[240px] bg-[#1B1B1D] px-3 py-4 flex flex-col">
+    <aside className="fixed left-[56px] top-0 h-full w-[240px] bg-sidebar px-3 py-4 flex flex-col">
       <div className="px-3 mb-4">
         <h2 className="text-sm font-semibold text-[#E5E1E4]">Account Settings</h2>
       </div>

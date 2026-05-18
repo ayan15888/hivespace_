@@ -39,9 +39,9 @@ public class User implements UserDetails {
         @Column(nullable = false)
         private String password;
 
-        @Enumerated(EnumType.STRING)
-        @Column(nullable = false)
-        private Role role;
+        @Transient
+        @Builder.Default
+        private Role role = Role.USER;
 
         @Column(name = "github_id")
         private Long githubId;

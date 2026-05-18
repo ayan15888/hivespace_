@@ -47,4 +47,7 @@ public class Project {
 
     @Column(name = "updated_at", nullable = false)
     private Date updatedAt;
+
+    @Column(name = "color")
+    private String color;
 }
