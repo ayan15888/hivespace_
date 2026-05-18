@@ -30,4 +30,17 @@ public class TeamController {
     public ResponseEntity<List<TeamResponse>> getTeamsByProject(@PathVariable UUID projectId) {
         return ResponseEntity.ok(teamService.getTeamsByProject(projectId));
     }
+
+    @PutMapping("/{teamId}")
+    public ResponseEntity<TeamResponse> updateTeam(
+            @PathVariable UUID teamId,
+            @Valid @RequestBody TeamRequest request) {
+        return ResponseEntity.ok(teamService.updateTeam(teamId, request));
+    }
+
+    @DeleteMapping("/{teamId}")
+    public ResponseEntity<Void> deleteTeam(@PathVariable UUID teamId) {
+        teamService.deleteTeam(teamId);
+        return ResponseEntity.noContent().build();
+    }
 }

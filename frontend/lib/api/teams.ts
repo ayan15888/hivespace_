@@ -25,3 +25,52 @@ export async function createTeam(projectId: string, data: Partial<TeamRequest>):
 export async function getTeamsByProject(projectId: string): Promise<TeamResponse[]> {
   return apiFetch(`/api/p/${projectId}/teams`);
 }
+
+export async function deleteTeam(projectId: string, teamId: string): Promise<void> {
+  return apiFetch(`/api/p/${projectId}/teams/${teamId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function updateTeam(projectId: string, teamId: string, data: Partial<TeamRequest>): Promise<TeamResponse> {
+  return apiFetch(`/api/p/${projectId}/teams/${teamId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export interface TeamMemberResponse {
+  id: string;
+  teamId: string;
+  userId: string;
+  username: string;
+  email: string;
+  fullName: string;
+  avatarUrl: string;
+  role: string;
+  joinedAt: string;
+}
+
+export async function getTeamMembers(teamId: string): Promise<TeamMemberResponse[]> {
+  return apiFetch(`/api/teams/${teamId}/members`);
+}
+
+export async function addTeamMember(teamId: string, userId: string, role?: string): Promise<TeamMemberResponse> {
+  return apiFetch(`/api/teams/${teamId}/members`, {
+    method: "POST",
+    body: JSON.stringify({ userId, role }),
+  });
+}
+
+export async function updateTeamMemberRole(teamId: string, userId: string, role: string): Promise<TeamMemberResponse> {
+  return apiFetch(`/api/teams/${teamId}/members/${userId}/role?role=${encodeURIComponent(role)}`, {
+    method: "PUT",
+  });
+}
+
+export async function removeTeamMember(teamId: string, userId: string): Promise<void> {
+  return apiFetch(`/api/teams/${teamId}/members/${userId}`, {
+    method: "DELETE",
+  });
+}
+

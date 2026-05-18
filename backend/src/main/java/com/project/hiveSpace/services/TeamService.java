@@ -50,6 +50,33 @@ public class TeamService {
         return mapToResponse(savedTeam);
     }
 
+    @Transactional
+    public TeamResponse updateTeam(UUID teamId, TeamRequest request) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+
+        team.setName(request.getName());
+        team.setDescription(request.getDescription());
+        team.setUpdatedAt(new Date());
+
+        Team saved = teamRepository.save(team);
+        return mapToResponse(saved);
+    }
+
+    @Transactional
+    public void deleteTeam(UUID teamId) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+
+        Project project = team.getProject();
+        teamRepository.delete(team);
+
+        if (project.getTeamsCount() > 0) {
+            project.setTeamsCount(project.getTeamsCount() - 1);
+            projectRepository.save(project);
+        }
+    }
+
     public List<TeamResponse> getTeamsByProject(UUID projectId) {
         if (!projectRepository.existsById(projectId)) {
             throw new IllegalArgumentException("Project not found");

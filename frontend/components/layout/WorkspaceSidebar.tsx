@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { CreateOrgModal } from "@/components/features/organizations/CreateOrgModal";
 import { CreateWorkspaceModal } from "@/components/features/workspaces/CreateWorkspaceModal";
 import { CreateProjectModal } from "@/components/features/projects/CreateProjectModal";
+import { CreateTeamModal } from "@/components/features/teams/CreateTeamModal";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,6 +47,7 @@ export function WorkspaceSidebar() {
   const [isCreateWorkspaceModalOpen, setIsCreateWorkspaceModalOpen] = useState(false);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
+  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   
   const { orgs } = useOrgs();
   const { activeOrg, setActiveOrg } = useOrgStore();
@@ -282,7 +284,19 @@ export function WorkspaceSidebar() {
 
         {/* 4. TEAMS */}
         <div className="flex flex-col">
-          <span className="px-2 mb-2 text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Teams</span>
+          <div className="flex items-center justify-between px-2 mb-2">
+            <span className="text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Teams</span>
+            {activeProjectId && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-4 w-4 text-zinc-500 hover:text-zinc-300"
+                onClick={() => setIsCreateTeamOpen(true)}
+              >
+                <Plus className="h-3 w-3" strokeWidth={1.5} />
+              </Button>
+            )}
+          </div>
           
           <div className="flex flex-col gap-0.5">
             {teams.length > 0 ? teams.map(team => {
@@ -386,6 +400,14 @@ export function WorkspaceSidebar() {
         isOpen={isCreateOrgModalOpen}
         onClose={() => setIsCreateOrgModalOpen(false)}
       />
+
+      {activeProjectId && (
+        <CreateTeamModal 
+          isOpen={isCreateTeamOpen} 
+          projectId={activeProjectId}
+          onClose={() => setIsCreateTeamOpen(false)}
+        />
+      )}
     </aside>
   );
 }
