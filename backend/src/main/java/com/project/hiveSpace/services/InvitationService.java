@@ -47,11 +47,13 @@ public class InvitationService {
                 
         // Backward-compatible ownership check
         boolean isOwner = tenant.getOwnerEmail().equalsIgnoreCase(currentUser.getEmail());
-        boolean isAuthorized = isOwner || (inviterMember != null && 
-                ("OWNER".equalsIgnoreCase(inviterMember.getRole()) || "ADMIN".equalsIgnoreCase(inviterMember.getRole())));
+        boolean isAuthorized = isOwner || (inviterMember != null &&
+                ("OWNER".equalsIgnoreCase(inviterMember.getRole())
+                        || "ADMIN".equalsIgnoreCase(inviterMember.getRole())
+                        || "BILLING_ADMIN".equalsIgnoreCase(inviterMember.getRole())));
 
         if (!isAuthorized) {
-            throw new IllegalArgumentException("Only organization owners or administrators can create invitations");
+            throw new SecurityException("Only organization owners or administrators can create invitations");
         }
 
         Workspace workspace = null;

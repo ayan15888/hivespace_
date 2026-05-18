@@ -6,9 +6,6 @@ import {
   RefreshCw, 
   Mail, 
   CheckCircle, 
-  Plus, 
-  Copy,
-  ChevronDown
 } from "lucide-react"
 import { 
   Dialog, 
@@ -153,7 +150,7 @@ export function InviteModal({ trigger }: InviteModalProps) {
           <div className="flex flex-col">
             {/* Header */}
             <div className="p-6 pb-0 relative">
-              <h2 className="text-lg font-semibold text-[#E5E1E4]">Invite to Engineering</h2>
+              <DialogTitle className="text-lg font-semibold text-[#E5E1E4]">Invite to Engineering</DialogTitle>
               <p className="text-xs text-zinc-400 mt-1">
                 Invited users will join as org members first, then gain access to this workspace.
               </p>
@@ -345,7 +342,7 @@ export function InviteModal({ trigger }: InviteModalProps) {
             <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6">
               <CheckCircle className="h-10 w-10 text-emerald-500" strokeWidth={1.5} />
             </div>
-            <h2 className="text-xl font-semibold text-[#E5E1E4]">Invites sent!</h2>
+            <DialogTitle className="text-xl font-semibold text-[#E5E1E4]">Invites sent!</DialogTitle>
             <p className="text-sm text-zinc-400 mt-2 max-w-xs mx-auto">
               {emails.length} invite emails have been sent. They expire in 72 hours.
             </p>
