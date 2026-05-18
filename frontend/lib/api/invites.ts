@@ -8,7 +8,7 @@ export async function generateInvite(data: InviteRequest): Promise<InviteRespons
     });
 }
 
-export async function joinInvite(data: JoinRequest): Promise<string> {
+export async function joinInvite(data: JoinRequest): Promise<{ message: string }> {
     return apiFetch('/api/i/join', {
         method: 'POST',
         body: JSON.stringify(data),
