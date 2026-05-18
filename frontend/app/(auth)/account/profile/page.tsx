@@ -16,8 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { CTAButton } from "@/components/common/CTAButton"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/useAuth"
-import { updateProfile } from "@/lib/api/auth"
-import { gooeyToast as toast } from "@/components/ui/goey-toaster"
+import { useAuthStore } from "@/store/authStore"
 
 const WORKSPACES = [
   { name: "Engineering", org: "Hivespace", role: "Team Lead", color: "bg-blue-500", canLeave: false },
@@ -26,6 +25,7 @@ const WORKSPACES = [
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth()
+  const updateProfile = useAuthStore((state) => state.updateProfile)
   const [fullName, setFullName] = useState("")
   const [jobTitle, setJobTitle] = useState("")
   const [bio, setBio] = useState("")
@@ -47,10 +47,8 @@ export default function ProfilePage() {
         jobTitle,
         bio,
       })
-      toast.success("Profile updated successfully")
     } catch (error) {
       console.error("Failed to update profile:", error)
-      toast.error("Failed to update profile")
     } finally {
       setSaving(false)
     }

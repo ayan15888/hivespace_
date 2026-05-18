@@ -7,9 +7,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
+import { useAuthStore } from "@/store/authStore";
 
 export default function SignInPage() {
   const router = useRouter();
+  const login = useAuthStore((state) => state.login);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,8 +31,7 @@ export default function SignInPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      localStorage.setItem("token", response.token);
-      document.cookie = `token=${response.token}; path=/; max-age=86400; SameSite=Lax`;
+      login(response.token, response);
 
       if (response.hasTenants) {
         toast.success("Welcome back!");

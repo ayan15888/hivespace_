@@ -4,18 +4,19 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginWithGithub } from "@/lib/api/auth";
 import { Loader2 } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
 
 export default function GitHubCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const login = useAuthStore((state) => state.login);
   const [error, setError] = useState<string | null>(null);
 
   const handleGitHubLogin = useCallback(async (code: string) => {
     try {
       const response = await loginWithGithub(code);
       
-      // Store token
-      localStorage.setItem("token", response.token);
+      login(response.token, response);
       
       if (response.hasTenants) {
         router.push("/dashboard");
@@ -26,7 +27,7 @@ export default function GitHubCallbackPage() {
       const message = (err as Error).message || "Failed to authenticate with GitHub";
       queueMicrotask(() => setError(message));
     }
-  }, [router]);
+  }, [router, login]);
 
   useEffect(() => {
     const code = searchParams.get("code");
