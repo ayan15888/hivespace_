@@ -20,13 +20,13 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface CreateTeamModalProps {
   isOpen: boolean;
-  projectId: string;
+  workspaceId: string;
   themeColor?: string;
   onClose: () => void;
   onSuccess?: () => void;
 }
 
-export function CreateTeamModal({ isOpen, projectId, themeColor = "#7C5CFC", onClose, onSuccess }: CreateTeamModalProps) {
+export function CreateTeamModal({ isOpen, workspaceId, themeColor = "#7C5CFC", onClose, onSuccess }: CreateTeamModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,10 +37,10 @@ export function CreateTeamModal({ isOpen, projectId, themeColor = "#7C5CFC", onC
 
     setLoading(true);
     try {
-      await createTeam(projectId, {
+      await createTeam(workspaceId, {
         name: name.trim(),
         description: description.trim(),
-        projectId
+        workspaceId
       });
       
       toast.success("Team created successfully");
@@ -75,7 +75,7 @@ export function CreateTeamModal({ isOpen, projectId, themeColor = "#7C5CFC", onC
                 <DialogHeader className="mb-4">
                   <DialogTitle className="text-xl font-semibold tracking-tight text-[#E5E1E4]">Create Team</DialogTitle>
                   <DialogDescription className="text-zinc-500 text-xs">
-                    Create a specialized group within this project. Teams allow you to bundle members and tasks.
+                    Create a specialized group within this workspace. Teams allow you to bundle members and tasks.
                   </DialogDescription>
                 </DialogHeader>
 

@@ -3,7 +3,7 @@ import { apiFetch } from "./client";
 export interface TeamRequest {
   name: string;
   description?: string;
-  projectId: string;
+  workspaceId: string;
 }
 
 export interface TeamResponse {
@@ -11,31 +11,31 @@ export interface TeamResponse {
   name: string;
   description: string;
   membersCount: number;
-  projectId: string;
+  workspaceId: string;
   createdAt: string;
 }
 
-export async function createTeam(projectId: string, data: Partial<TeamRequest>): Promise<TeamResponse> {
-  return apiFetch(`/api/p/${projectId}/teams`, {
+export async function createTeam(workspaceId: string, data: Partial<TeamRequest>): Promise<TeamResponse> {
+  return apiFetch(`/api/workspaces/${workspaceId}/teams`, {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, workspaceId }),
   });
 }
 
-export async function getTeamsByProject(projectId: string): Promise<TeamResponse[]> {
-  return apiFetch(`/api/p/${projectId}/teams`);
+export async function getTeamsByWorkspace(workspaceId: string): Promise<TeamResponse[]> {
+  return apiFetch(`/api/workspaces/${workspaceId}/teams`);
 }
 
-export async function deleteTeam(projectId: string, teamId: string): Promise<void> {
-  return apiFetch(`/api/p/${projectId}/teams/${teamId}`, {
+export async function deleteTeam(workspaceId: string, teamId: string): Promise<void> {
+  return apiFetch(`/api/workspaces/${workspaceId}/teams/${teamId}`, {
     method: "DELETE",
   });
 }
 
-export async function updateTeam(projectId: string, teamId: string, data: Partial<TeamRequest>): Promise<TeamResponse> {
-  return apiFetch(`/api/p/${projectId}/teams/${teamId}`, {
+export async function updateTeam(workspaceId: string, teamId: string, data: Partial<TeamRequest>): Promise<TeamResponse> {
+  return apiFetch(`/api/workspaces/${workspaceId}/teams/${teamId}`, {
     method: "PUT",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, workspaceId }),
   });
 }
 

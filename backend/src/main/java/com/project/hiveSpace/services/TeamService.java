@@ -2,9 +2,9 @@ package com.project.hiveSpace.services;
 
 import com.project.hiveSpace.dto.TeamRequest;
 import com.project.hiveSpace.dto.TeamResponse;
-import com.project.hiveSpace.models.Project;
+import com.project.hiveSpace.models.Workspace;
 import com.project.hiveSpace.models.Team;
-import com.project.hiveSpace.repository.ProjectRepository;
+import com.project.hiveSpace.repository.WorkspaceRepository;
 import com.project.hiveSpace.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,32 +20,28 @@ import java.util.stream.Collectors;
 public class TeamService {
 
     private final TeamRepository teamRepository;
-    private final ProjectRepository projectRepository;
+    private final WorkspaceRepository workspaceRepository;
 
     @Transactional
     public TeamResponse createTeam(TeamRequest request) {
-        Project project = projectRepository.findById(request.getProjectId())
-                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+        Workspace workspace = workspaceRepository.findById(request.getWorkspaceId())
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
 
-        if (teamRepository.existsByNameAndProject(request.getName(), project)) {
+        if (teamRepository.existsByNameAndWorkspace(request.getName(), workspace)) {
             throw new IllegalArgumentException(
-                    "A team with the name '" + request.getName() + "' already exists in this project");
+                    "A team with the name '" + request.getName() + "' already exists in this workspace");
         }
 
         Team team = Team.builder()
                 .name(request.getName())
                 .description(request.getDescription())
-                .project(project)
+                .workspace(workspace)
                 .membersCount(0)
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
 
         Team savedTeam = teamRepository.save(team);
-
-        // Increment teams count on project
-        project.setTeamsCount(project.getTeamsCount() + 1);
-        projectRepository.save(project);
 
         return mapToResponse(savedTeam);
     }
@@ -68,21 +64,15 @@ public class TeamService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
-        Project project = team.getProject();
         teamRepository.delete(team);
-
-        if (project.getTeamsCount() > 0) {
-            project.setTeamsCount(project.getTeamsCount() - 1);
-            projectRepository.save(project);
-        }
     }
 
-    public List<TeamResponse> getTeamsByProject(UUID projectId) {
-        if (!projectRepository.existsById(projectId)) {
-            throw new IllegalArgumentException("Project not found");
+    public List<TeamResponse> getTeamsByWorkspace(UUID workspaceId) {
+        if (!workspaceRepository.existsById(workspaceId)) {
+            throw new IllegalArgumentException("Workspace not found");
         }
 
-        return teamRepository.findAllByProjectId(projectId)
+        return teamRepository.findByWorkspaceId(workspaceId)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -94,7 +84,7 @@ public class TeamService {
                 .name(team.getName())
                 .description(team.getDescription())
                 .membersCount(team.getMembersCount())
-                .projectId(team.getProject().getId())
+                .workspaceId(team.getWorkspace().getId())
                 .createdAt(team.getCreatedAt())
                 .updatedAt(team.getUpdatedAt())
                 .build();

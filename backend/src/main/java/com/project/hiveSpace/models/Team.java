@@ -8,7 +8,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "teams", uniqueConstraints = {
-        @UniqueConstraint(columnNames = { "name", "project_id" })
+        @UniqueConstraint(columnNames = { "name", "workspace_id" })
 })
 @Getter
 @Setter
@@ -32,8 +32,8 @@ public class Team {
     private int membersCount = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "project_id", nullable = false)
-    private Project project;
+    @JoinColumn(name = "workspace_id", nullable = false)
+    private Workspace workspace;
 
     @Column(name = "created_at", nullable = false)
     private Date createdAt;

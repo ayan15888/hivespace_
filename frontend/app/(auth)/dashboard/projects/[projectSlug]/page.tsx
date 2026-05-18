@@ -32,11 +32,8 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
-import { useTeams } from "@/hooks/useTeams";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
 import { useState, useEffect, useCallback } from "react";
-import { CreateTeamModal } from "@/components/features/teams/CreateTeamModal";
-import { ManageTeamSheet } from "@/components/features/teams/ManageTeamSheet";
 import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
 
 // --- MOCK DATA ---
@@ -69,9 +66,6 @@ export default function ProjectOverviewPage() {
 
   const currentProject = projects.find(p => p.slug === projectSlug || p.id === projectSlug);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
-  
-  const { teams, refresh: refreshTeams } = useTeams();
-  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
 
   const fetchProjectMembers = useCallback(async () => {
@@ -442,53 +436,7 @@ export default function ProjectOverviewPage() {
             </div>
           </section>
 
-          {/* Teams */}
-          <section className="flex flex-col">
-            <div className="flex items-center justify-between mb-4 px-2">
-              <h3 className="text-xs font-bold tracking-widest text-zinc-600 uppercase">Teams</h3>
-              <PlusCircle 
-                onClick={() => setIsCreateTeamOpen(true)}
-                className="h-4 w-4 text-zinc-500 hover:text-white cursor-pointer transition-colors" 
-                strokeWidth={1.5} 
-              />
-            </div>
-            <div className="flex flex-col gap-2.5">
-              {teams.length > 0 ? teams.map(team => (
-                <ManageTeamSheet
-                  key={team.id}
-                  teamId={team.id}
-                  projectId={currentProject?.id || ""}
-                  teamName={team.name}
-                  teamDescription={team.description}
-                  refresh={refreshTeams}
-                  trigger={
-                    <div className="bg-[#1C1B1F] p-4 rounded-[20px] border border-zinc-800/30 hover:bg-[#252429] transition-all cursor-pointer group">
-                       <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                              <div className="h-9 w-9 rounded-lg bg-background border border-border flex items-center justify-center text-muted-foreground group-hover:opacity-80 transition-colors" style={{ color: themeColor }}>
-                                <Users className="h-4 w-4" strokeWidth={1.5} />
-                              </div>
-                             <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-foreground">{team.name}</span>
-                                <span className="text-[10px] text-zinc-500">{team.membersCount} members</span>
-                             </div>
-                          </div>
-                          <div className="flex items-center">
-                             <div className="h-8 w-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] text-zinc-500 font-medium">
-                               {team.membersCount}
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                  }
-                />
-              )) : (
-                <div className="text-center p-6 border border-dashed border-zinc-800/80 rounded-[20px] text-zinc-500 text-xs">
-                   No teams found. Click the + icon to create one.
-                </div>
-              )}
-            </div>
-          </section>
+
 
           {/* Stakeholder Share */}
           <section className="flex flex-col bg-[#1C1B1F] rounded-[28px] border border-zinc-800/30 p-6 shadow-2xl shadow-black/40">
@@ -530,15 +478,7 @@ export default function ProjectOverviewPage() {
         </div>
       </div>
       
-      {currentProject && (
-        <CreateTeamModal 
-          isOpen={isCreateTeamOpen} 
-          projectId={currentProject.id} 
-          themeColor={themeColor}
-          onClose={() => setIsCreateTeamOpen(false)} 
-          onSuccess={refreshTeams} 
-        />
-      )}
+
     </ScrollArea>
   );
 }

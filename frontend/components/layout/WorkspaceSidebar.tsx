@@ -55,7 +55,11 @@ export function WorkspaceSidebar() {
   const { workspaces } = useWorkspaces();
   const { activeWorkspace, setActiveWorkspace } = useWorkspaceStore();
   const { projects, loading: projectsLoading } = useProjects();
-  const { teams } = useTeams();
+  const activeProject = projects.find(p => pathname.startsWith(`/dashboard/projects/${p.id}`) || (p.slug && pathname.startsWith(`/dashboard/projects/${p.slug}`)));
+  const activeProjectId = activeProject?.id || null;
+  
+  const expandedProjectId = manualExpandedId !== null ? manualExpandedId : activeProjectId;
+  const { teams } = useTeams(activeWorkspace?.id || undefined);
 
   // Auto-select first workspace if none active
   useEffect(() => {
@@ -63,9 +67,6 @@ export function WorkspaceSidebar() {
       setActiveWorkspace(workspaces[0]);
     }
   }, [workspaces, activeWorkspace, setActiveWorkspace]);
-
-  const activeProjectId = projects.find(p => pathname.startsWith(`/dashboard/projects/${p.id}`))?.id || null;
-  const expandedProjectId = manualExpandedId !== null ? manualExpandedId : activeProjectId;
 
   const toggleExpand = (projectId: string) => {
     setManualExpandedId(expandedProjectId === projectId ? "" : projectId);
@@ -286,7 +287,7 @@ export function WorkspaceSidebar() {
         <div className="flex flex-col">
           <div className="flex items-center justify-between px-2 mb-2">
             <span className="text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Teams</span>
-            {activeProjectId && (
+            {activeWorkspace?.id && (
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -401,10 +402,10 @@ export function WorkspaceSidebar() {
         onClose={() => setIsCreateOrgModalOpen(false)}
       />
 
-      {activeProjectId && (
+      {activeWorkspace?.id && (
         <CreateTeamModal 
           isOpen={isCreateTeamOpen} 
-          projectId={activeProjectId}
+          workspaceId={activeWorkspace.id}
           onClose={() => setIsCreateTeamOpen(false)}
         />
       )}

@@ -192,22 +192,22 @@ public class InvitationService {
             workspaceRepository.save(workspace);
         }
 
-        // --- 3. Join Project and Team (if team is specified) ---
+        // --- 3. Join Workspace and Team (if team is specified) ---
         if (team != null) {
-            Project project = team.getProject();
+            Workspace teamWorkspace = team.getWorkspace();
             
-            // Join Project
-            if (!projectMemberRepository.existsByProjectAndUser(project, currentUser)) {
-                ProjectMember projectMember = ProjectMember.builder()
-                        .project(project)
+            // Join Workspace
+            if (!workspaceMemberRepository.existsByWorkspaceAndUser(teamWorkspace, currentUser)) {
+                WorkspaceMember workspaceMember = WorkspaceMember.builder()
+                        .workspace(teamWorkspace)
                         .user(currentUser)
                         .role("MEMBER")
                         .joinedAt(new Date())
                         .build();
-                projectMemberRepository.save(projectMember);
+                workspaceMemberRepository.save(workspaceMember);
                 
-                project.setMembersCount(project.getMembersCount() + 1);
-                projectRepository.save(project);
+                teamWorkspace.setMembersCount(teamWorkspace.getMembersCount() + 1);
+                workspaceRepository.save(teamWorkspace);
             }
 
             // Join Team

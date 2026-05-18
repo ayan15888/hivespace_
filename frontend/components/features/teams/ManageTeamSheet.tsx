@@ -36,7 +36,7 @@ import { gooeyToast as toast } from "@/components/ui/goey-toaster"
 
 interface ManageTeamSheetProps {
   teamId: string
-  projectId: string
+  workspaceId: string
   teamName: string
   teamDescription: string
   trigger: React.ReactNode
@@ -45,7 +45,7 @@ interface ManageTeamSheetProps {
 
 export function ManageTeamSheet({ 
   teamId, 
-  projectId, 
+  workspaceId, 
   teamName: initialName, 
   teamDescription: initialDescription, 
   trigger, 
@@ -140,10 +140,10 @@ export function ManageTeamSheet({
     }
     setSaving(true)
     try {
-      await updateTeam(projectId, teamId, {
+      await updateTeam(workspaceId, teamId, {
         name: name.trim(),
         description: description.trim(),
-        projectId
+        workspaceId
       })
       toast.success("Team settings saved successfully")
       refresh()
@@ -159,7 +159,7 @@ export function ManageTeamSheet({
   const handleDeleteTeam = async () => {
     if (!confirm(`Are you sure you want to delete the team "${name}"?`)) return
     try {
-      await deleteTeam(projectId, teamId)
+      await deleteTeam(workspaceId, teamId)
       toast.success("Team deleted successfully")
       refresh()
       setOpen(false)

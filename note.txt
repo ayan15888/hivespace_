@@ -103,9 +103,11 @@ CREATE TABLE public.teams (
   members_count integer NOT NULL,
   name character varying NOT NULL,
   updated_at timestamp without time zone NOT NULL,
-  project_id uuid NOT NULL,
+  project_id uuid,
+  workspace_id uuid NOT NULL,
   CONSTRAINT teams_pkey PRIMARY KEY (id),
-  CONSTRAINT fk7so1u4r6rpxrqeyxekfwklt5l FOREIGN KEY (project_id) REFERENCES public.projects(id)
+  CONSTRAINT fk7so1u4r6rpxrqeyxekfwklt5l FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT teams_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
 );
 CREATE TABLE public.tenant_members (
   id uuid NOT NULL,
