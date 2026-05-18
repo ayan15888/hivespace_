@@ -9,5 +9,5 @@ import java.util.UUID;
 
 @Repository
 public interface InvitationRepository extends JpaRepository<Invitation, UUID> {
-    Optional<Invitation> findByCode(String code);
+    Optional<Invitation> findByToken(String token);
 }
