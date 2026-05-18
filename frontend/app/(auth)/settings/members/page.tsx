@@ -33,10 +33,7 @@ import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrgStore } from "@/store/orgStore";
 
-const pendingInvites = [
-  { email: "dev@acme.com", role: "Member", expires: "48h" },
-  { email: "pm@acme.com", role: "Project Lead", expires: "12h" },
-]
+const pendingInvites: Array<{ email: string; role: string; expires: string }> = []
 
 const inviteLinks = [
   { id: 1, role: "Member", used: 3, createdBy: "JD", status: "Active", url: "hivespace.io/invite/xK9mP2...", expires: "Apr 22, 2026", daysLeft: 3, maxUses: "Unlimited" },
@@ -158,24 +155,30 @@ export default function MembersSettings() {
           PENDING INVITES
         </h3>
         <div className="space-y-1">
-          {pendingInvites.map((invite) => (
-            <div key={invite.email} className="h-12 flex items-center gap-3 px-4 rounded-md hover:bg-zinc-800/20 group">
-              <div className="h-8 w-8 rounded-md bg-zinc-800 flex items-center justify-center">
-                <Mail className="h-4 w-4 text-zinc-500" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm text-zinc-300">{invite.email}</span>
-                <span className="text-[10px] text-zinc-500 mt-0.5">{invite.role}</span>
-              </div>
-              <div className="ml-auto flex items-center gap-4">
-                <span className="text-[10px] text-zinc-600">Expires in {invite.expires}</span>
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="text-[10px] text-zinc-400 hover:text-zinc-200 uppercase font-bold tracking-widest px-2 py-1">Resend</button>
-                  <button className="text-[10px] text-red-400/70 hover:text-red-400 uppercase font-bold tracking-widest px-2 py-1">Revoke</button>
+          {pendingInvites.length === 0 ? (
+            <div className="text-xs text-zinc-500 px-4 py-3 font-normal border border-dashed border-zinc-800/50 rounded-lg text-center">
+              No pending invitations.
+            </div>
+          ) : (
+            pendingInvites.map((invite) => (
+              <div key={invite.email} className="h-12 flex items-center gap-3 px-4 rounded-md hover:bg-zinc-800/20 group">
+                <div className="h-8 w-8 rounded-md bg-zinc-800 flex items-center justify-center">
+                  <Mail className="h-4 w-4 text-zinc-500" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm text-zinc-300">{invite.email}</span>
+                  <span className="text-[10px] text-zinc-500 mt-0.5">{invite.role}</span>
+                </div>
+                <div className="ml-auto flex items-center gap-4">
+                  <span className="text-[10px] text-zinc-600">Expires in {invite.expires}</span>
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button className="text-[10px] text-zinc-400 hover:text-zinc-200 uppercase font-bold tracking-widest px-2 py-1">Resend</button>
+                    <button className="text-[10px] text-red-400/70 hover:text-red-400 uppercase font-bold tracking-widest px-2 py-1">Revoke</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
