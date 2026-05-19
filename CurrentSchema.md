@@ -3,18 +3,18 @@
 -- Table order and constraints may not be valid for execution.
 
 CREATE TABLE public.employees (
-  id uuid NOT NULL,
-  created_at timestamp without time zone NOT NULL,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
   role character varying NOT NULL,
-  updated_at timestamp without time zone NOT NULL,
   username character varying NOT NULL,
   team_id uuid NOT NULL,
   user_id uuid NOT NULL,
   workspace_id uuid NOT NULL,
   CONSTRAINT employees_pkey PRIMARY KEY (id),
-  CONSTRAINT fka5cxjw6yuqlbp0np1g51o03gf FOREIGN KEY (team_id) REFERENCES public.teams(id),
-  CONSTRAINT fk69x3vjuy1t5p18a5llb8h2fjx FOREIGN KEY (user_id) REFERENCES public.users(id),
-  CONSTRAINT fkaaqjinch674kt31qfu9xh647 FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
+  CONSTRAINT employees_team_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT employees_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT employees_workspace_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
 );
 CREATE TABLE public.invitation_attempts (
   id uuid NOT NULL,
@@ -59,10 +59,8 @@ CREATE TABLE public.projects (
   id uuid NOT NULL,
   created_at timestamp without time zone NOT NULL,
   description character varying,
-  members_count integer NOT NULL,
   name character varying NOT NULL,
   status character varying NOT NULL,
-  teams_count integer NOT NULL,
   updated_at timestamp without time zone NOT NULL,
   workspace_id uuid NOT NULL,
   color character varying,
@@ -100,7 +98,6 @@ CREATE TABLE public.teams (
   id uuid NOT NULL,
   created_at timestamp without time zone NOT NULL,
   description character varying,
-  members_count integer NOT NULL,
   name character varying NOT NULL,
   updated_at timestamp without time zone NOT NULL,
   project_id uuid,
@@ -123,12 +120,10 @@ CREATE TABLE public.tenants (
   id uuid NOT NULL,
   active boolean NOT NULL,
   description character varying,
-  members_count integer NOT NULL,
   name character varying NOT NULL UNIQUE,
   owner_email character varying NOT NULL,
-  plan character varying NOT NULL CHECK (plan::text = ANY (ARRAY['FREE'::character varying, 'PRO'::character varying, 'ENTERPRISE'::character varying]::text[])),
+  plan character varying NOT NULL CHECK (plan::text = ANY (ARRAY['FREE'::character varying, 'PRO'::character varying, 'ULTIMATE'::character varying, 'ENTERPRISE'::character varying]::text[])),
   slug character varying NOT NULL UNIQUE,
-  workspaces_count integer NOT NULL,
   CONSTRAINT tenants_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.users (
@@ -160,7 +155,6 @@ CREATE TABLE public.workspaces (
   id uuid NOT NULL,
   created_at timestamp without time zone NOT NULL,
   description character varying,
-  members_count integer NOT NULL,
   name character varying NOT NULL,
   plan character varying NOT NULL,
   updated_at timestamp without time zone NOT NULL,
