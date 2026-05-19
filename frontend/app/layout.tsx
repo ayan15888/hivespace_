@@ -1,13 +1,14 @@
 import "./globals.css"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Plus_Jakarta_Sans } from "next/font/google"
 import { ThemeProvider } from "@/components/common/theme-provider"
 import React from "react"
 import { GooeyToaster } from "@/components/ui/goey-toaster"
 
-const inter = Inter({ 
+const plusJakartaSans = Plus_Jakarta_Sans({ 
   subsets: ["latin"],
   variable: "--font-sans",
+  weight: ["300", "400", "500", "600", "700", "800"],
 })
 
 export const metadata: Metadata = {
@@ -25,12 +26,12 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;1,400&family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className={`${inter.variable} font-sans tracking-tight`} suppressHydrationWarning>
+      <body className={`${plusJakartaSans.variable} font-sans tracking-tight`} suppressHydrationWarning>
         <GooeyToaster />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   )
 }
+

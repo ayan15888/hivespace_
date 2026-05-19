@@ -42,6 +42,7 @@ export default function InviteAcceptancePage() {
 
   const { isAuthenticated, user: authUser } = useAuth()
   const login = useAuthStore((state) => state.login)
+  const fetchUser = useAuthStore((state) => state.fetchUser)
 
   const [uiState, setUiState] = React.useState<UIState>("LOADING")
   const [inviteDetails, setInviteDetails] = React.useState<InviteResponse | null>(null)
@@ -155,6 +156,7 @@ export default function InviteAcceptancePage() {
       if (isAuthenticated) {
         // Logged-in user: directly attempt to join!
         await joinInvite({ token, pin: entered })
+        await fetchUser(true) // Refresh user data to update hasTenants
         toast.success("Successfully joined the workspace!")
         setUiState("SUCCESS")
       } else {
@@ -205,6 +207,7 @@ export default function InviteAcceptancePage() {
 
       // 3. Immediately claim invite workspace membership
       await joinInvite({ token, pin: storedPin })
+      await fetchUser(true) // Refresh user data to update hasTenants
       
       toast.success("Account created and successfully joined workspace!")
       setUiState("SUCCESS")
@@ -241,6 +244,7 @@ export default function InviteAcceptancePage() {
 
       // 3. Immediately claim invite workspace membership
       await joinInvite({ token, pin: storedPin })
+      await fetchUser(true) // Refresh user data to update hasTenants
 
       toast.success("Successfully logged in and joined workspace!")
       setUiState("SUCCESS")
