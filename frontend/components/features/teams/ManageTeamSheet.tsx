@@ -35,21 +35,21 @@ import { useWorkspaceStore } from "@/store/workspaceStore"
 import { gooeyToast as toast } from "@/components/ui/goey-toaster"
 
 interface ManageTeamSheetProps {
-  teamId: string
-  workspaceId: string
-  teamName: string
-  teamDescription: string
+  teamId?: string
+  projectId?: string
+  teamName?: string
+  teamDescription?: string
   trigger: React.ReactNode
-  refresh: () => void
+  refresh?: () => void
 }
 
 export function ManageTeamSheet({ 
   teamId, 
-  workspaceId, 
-  teamName: initialName, 
-  teamDescription: initialDescription, 
+  projectId, 
+  teamName: initialName = "", 
+  teamDescription: initialDescription = "", 
   trigger, 
-  refresh 
+  refresh = () => {} 
 }: ManageTeamSheetProps) {
   const { activeWorkspace } = useWorkspaceStore()
   const [open, setOpen] = useState(false)
@@ -63,7 +63,7 @@ export function ManageTeamSheet({
 
   // Fetch live team members and org members when the sheet opens
   const loadData = useCallback(async () => {
-    if (!open) return
+    if (!open || !teamId) return
     setLoading(true)
     try {
       const teamMembersList = await getTeamMembers(teamId)
@@ -94,6 +94,7 @@ export function ManageTeamSheet({
 
   // Add a user to the team
   const handleAddMember = async (userId: string) => {
+    if (!teamId) return
     setAddingMemberId(userId)
     try {
       const added = await addTeamMember(teamId, userId, "MEMBER")
@@ -109,6 +110,7 @@ export function ManageTeamSheet({
 
   // Remove a user from the team
   const handleRemoveMember = async (userId: string) => {
+    if (!teamId) return
     try {
       await removeTeamMember(teamId, userId)
       setMembers((prev) => prev.filter((m) => m.userId !== userId))
@@ -121,6 +123,7 @@ export function ManageTeamSheet({
 
   // Update a team member's role (Lead vs Member)
   const handleRoleChange = async (userId: string, newRole: string) => {
+    if (!teamId) return
     try {
       await updateTeamMemberRole(teamId, userId, newRole)
       setMembers((prev) =>
@@ -134,6 +137,7 @@ export function ManageTeamSheet({
 
   // Save changes (Team details: name & description)
   const handleSaveChanges = async () => {
+    if (!teamId || !projectId) return
     if (!name.trim()) {
       toast.error("Team name cannot be empty")
       return
@@ -157,6 +161,7 @@ export function ManageTeamSheet({
 
   // Delete the team cleanly
   const handleDeleteTeam = async () => {
+    if (!teamId || !projectId) return
     if (!confirm(`Are you sure you want to delete the team "${name}"?`)) return
     try {
       await deleteTeam(workspaceId, teamId)
