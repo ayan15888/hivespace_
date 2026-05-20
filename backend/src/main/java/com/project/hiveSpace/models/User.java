@@ -9,6 +9,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
+import java.util.Date;
 
 @Entity
 @Table(name = "users", uniqueConstraints = {
@@ -39,9 +40,8 @@ public class User implements UserDetails {
         @Column(nullable = false)
         private String password;
 
-        @Transient
-        @Builder.Default
-        private Role role = Role.USER;
+        @Column(name = "github_username")
+        private String githubUsername;
 
         @Column(name = "github_id")
         private Long githubId;
@@ -62,9 +62,15 @@ public class User implements UserDetails {
         @JoinColumn(name = "tenant_id")
         private Tenant tenant;
 
+        @Column(name = "created_at", nullable = false)
+        private Date createdAt;
+
+        @Column(name = "updated_at", nullable = false)
+        private Date updatedAt;
+
         @Override
         public Collection<? extends GrantedAuthority> getAuthorities() {
-                return List.of(new SimpleGrantedAuthority(role.name()));
+                return List.of(new SimpleGrantedAuthority("ROLE_USER"));
         }
 
         @Override

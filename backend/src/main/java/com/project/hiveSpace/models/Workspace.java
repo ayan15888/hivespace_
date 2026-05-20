@@ -27,8 +27,9 @@ public class Workspace {
     @Column(name = "description", nullable = true)
     private String description;
 
-    @Column(name = "plan", nullable = false)
-    private String plan;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private User createdBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id", nullable = false)

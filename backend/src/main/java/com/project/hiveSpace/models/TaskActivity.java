@@ -6,28 +6,34 @@ import java.util.Date;
 import java.util.UUID;
 
 @Entity
-@Table(name = "workspace_members")
+@Table(name = "task_activities")
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class WorkspaceMember {
+public class TaskActivity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "workspace_id", nullable = false)
-    private Workspace workspace;
+    @JoinColumn(name = "task_id", nullable = false)
+    private Task task;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     private User user;
 
     @Column(nullable = false)
-    private String role;
+    private String type;
 
-    @Column(name = "joined_at", nullable = false)
-    private Date joinedAt;
+    @Column(name = "old_value")
+    private String oldValue;
+
+    @Column(name = "new_value")
+    private String newValue;
+
+    @Column(name = "created_at", nullable = false)
+    private Date createdAt;
 }

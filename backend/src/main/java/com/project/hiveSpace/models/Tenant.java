@@ -48,4 +48,10 @@ public class Tenant {
     @Builder.Default
     @Column(name = "workspaces_count", nullable = false)
     private int workspacesCount = 0;
+
+    @Column(name = "created_at", nullable = false)
+    private java.util.Date createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private java.util.Date updatedAt;
 }
