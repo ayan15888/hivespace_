@@ -7,9 +7,7 @@ import java.util.Date;
 import java.util.UUID;
 
 @Entity
-@Table(name = "workspaces", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"name", "tenant_id"})
-})
+@Table(name = "workspaces")
 @Getter
 @Setter
 @AllArgsConstructor
@@ -38,8 +36,8 @@ public class Workspace {
     @Column(name = "created_at", nullable = false)
     private Date createdAt;
 
+    @Transient
     @Builder.Default
-    @Column(name = "members_count", nullable = false)
     private int membersCount = 0;
 
     @Column(name = "updated_at", nullable = false)

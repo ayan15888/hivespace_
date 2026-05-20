@@ -12,6 +12,5 @@ import java.util.UUID;
 @Repository
 public interface TaskRepository extends JpaRepository<Task, UUID> {
     List<Task> findAllByProject(Project project);
-    List<Task> findAllByAssigneeOrderByUpdatedAtDesc(User assignee);
     List<Task> findAllByOrderByUpdatedAtDesc();
 }

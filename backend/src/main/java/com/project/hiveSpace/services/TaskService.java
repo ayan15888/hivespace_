@@ -5,15 +5,18 @@ import com.project.hiveSpace.dto.TaskResponse;
 import com.project.hiveSpace.models.Project;
 import com.project.hiveSpace.models.Task;
 import com.project.hiveSpace.models.User;
+import com.project.hiveSpace.models.TaskAssignee;
 import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.TaskRepository;
 import com.project.hiveSpace.repository.UserRepository;
+import com.project.hiveSpace.repository.TaskAssigneeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -24,16 +27,12 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final TaskAssigneeRepository taskAssigneeRepository;
 
     @Transactional
     public TaskResponse createTask(UUID projectId, TaskRequest request) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
-
-        User assignee = null;
-        if (request.getAssigneeId() != null) {
-            assignee = userRepository.findById(request.getAssigneeId()).orElse(null);
-        }
 
         Task task = Task.builder()
                 .title(request.getTitle())
@@ -44,12 +43,25 @@ public class TaskService {
                 .dueDate(request.getDueDate())
                 .points(request.getPoints())
                 .project(project)
-                .assignee(assignee)
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
 
         Task savedTask = taskRepository.save(task);
+
+        if (request.getAssigneeId() != null) {
+            User assignee = userRepository.findById(request.getAssigneeId()).orElse(null);
+            if (assignee != null) {
+                TaskAssignee taskAssignee = TaskAssignee.builder()
+                        .task(savedTask)
+                        .user(assignee)
+                        .role("OWNER")
+                        .assignedAt(new Date())
+                        .build();
+                taskAssigneeRepository.save(taskAssignee);
+            }
+        }
+
         return mapToResponse(savedTask);
     }
 
@@ -87,13 +99,15 @@ public class TaskService {
                 .updatedAt(task.getUpdatedAt())
                 .build();
 
-        if (task.getAssignee() != null) {
-            response.setAssigneeId(task.getAssignee().getId());
-            response.setAssigneeName(task.getAssignee().getFullName());
+        Optional<TaskAssignee> assigneeOpt = taskAssigneeRepository.findFirstByTask(task);
+        if (assigneeOpt.isPresent()) {
+            User assigneeUser = assigneeOpt.get().getUser();
+            response.setAssigneeId(assigneeUser.getId());
+            response.setAssigneeName(assigneeUser.getFullName());
             
             // Basic initials logic from fullName
             String initials = "";
-            String fullName = task.getAssignee().getFullName();
+            String fullName = assigneeUser.getFullName();
             if (fullName != null && !fullName.isEmpty()) {
                 String[] parts = fullName.split("\\s+");
                 if (parts.length > 0 && !parts[0].isEmpty()) {

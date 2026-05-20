@@ -7,9 +7,7 @@ import java.util.Date;
 import java.util.UUID;
 
 @Entity
-@Table(name = "teams", uniqueConstraints = {
-        @UniqueConstraint(columnNames = { "name", "workspace_id" })
-})
+@Table(name = "teams")
 @Getter
 @Setter
 @AllArgsConstructor
@@ -27,8 +25,8 @@ public class Team {
     @Column(name = "description", nullable = true)
     private String description;
 
+    @Transient
     @Builder.Default
-    @Column(name = "members_count", nullable = false)
     private int membersCount = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)

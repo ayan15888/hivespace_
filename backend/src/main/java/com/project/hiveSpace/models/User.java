@@ -29,12 +29,12 @@ public class User implements UserDetails {
         @Column(nullable = false)
         private String email;
 
-        @Column(nullable = false)
+        @Column(nullable = false, unique = true)
         private String username;
 
         @Builder.Default
         @Column(nullable = false)
-        final Boolean active = true;
+        private Boolean active = true;
 
         @JsonIgnore
         @Column(nullable = false)
