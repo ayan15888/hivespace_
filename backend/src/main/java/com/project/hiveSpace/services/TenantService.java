@@ -128,7 +128,7 @@ public class TenantService {
                         user.getFullName() != null ? user.getFullName() : user.getUsername(),
                         user.getAvatarUrl(),
                         user.getJobTitle() != null ? user.getJobTitle() : "Member",
-                        user.getRole().name()
+                        "MEMBER"
                 ))
                 .collect(Collectors.toList());
     }

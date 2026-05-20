@@ -21,14 +21,12 @@ public class InvitationService {
 
     private final InvitationRepository invitationRepository;
     private final TeamRepository teamRepository;
-    private final ProjectRepository projectRepository;
     private final WorkspaceRepository workspaceRepository;
     private final TenantRepository tenantRepository;
     private final UserRepository userRepository;
     
     private final TenantMemberRepository tenantMemberRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
-    private final ProjectMemberRepository projectMemberRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final InvitationAttemptRepository invitationAttemptRepository;
     
