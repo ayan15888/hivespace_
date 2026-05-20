@@ -297,10 +297,14 @@ CREATE TABLE github_sync_log (
 CREATE TABLE shareable_links (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   token VARCHAR NOT NULL UNIQUE,
-  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  scope_type VARCHAR NOT NULL
+    CHECK (scope_type IN ('PROJECT', 'WORKSPACE', 'TEAM')),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
+  team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  scope JSONB,                        -- what's visible
-  password_hash VARCHAR,              -- optional protection
+  scope JSONB,
+  password_hash VARCHAR,
   expires_at TIMESTAMP,
   last_accessed_at TIMESTAMP,
   access_count INTEGER NOT NULL DEFAULT 0,
@@ -370,6 +374,10 @@ CREATE INDEX idx_tasks_created_by ON tasks(created_by);
 CREATE INDEX idx_task_assignees_task ON task_assignees(task_id);
 CREATE INDEX idx_task_assignees_user ON task_assignees(user_id);
 CREATE INDEX idx_invitations_token ON invitations(token);
+CREATE INDEX idx_shareable_links_token ON shareable_links(token);
+CREATE INDEX idx_shareable_links_project ON shareable_links(project_id);
+CREATE INDEX idx_shareable_links_workspace ON shareable_links(workspace_id);
+CREATE INDEX idx_shareable_links_team ON shareable_links(team_id);
 -- INDEXES 
 CREATE INDEX idx_workspace_members_user ON workspace_members(user_id);
 CREATE INDEX idx_workspace_members_workspace ON workspace_members(workspace_id);
