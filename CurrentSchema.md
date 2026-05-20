@@ -2,163 +2,185 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
-CREATE TABLE public.employees (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  created_at timestamp without time zone NOT NULL DEFAULT now(),
-  updated_at timestamp without time zone NOT NULL DEFAULT now(),
-  role character varying NOT NULL,
-  username character varying NOT NULL,
-  team_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  workspace_id uuid NOT NULL,
-  CONSTRAINT employees_pkey PRIMARY KEY (id),
-  CONSTRAINT employees_team_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
-  CONSTRAINT employees_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
-  CONSTRAINT employees_workspace_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
-);
 CREATE TABLE public.invitation_attempts (
-  id uuid NOT NULL,
-  attempted_at timestamp without time zone NOT NULL,
-  ip_address character varying NOT NULL,
-  success boolean NOT NULL,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   invitation_id uuid NOT NULL,
+  ip_address character varying NOT NULL,
+  attempted_at timestamp without time zone NOT NULL DEFAULT now(),
+  success boolean NOT NULL DEFAULT false,
   CONSTRAINT invitation_attempts_pkey PRIMARY KEY (id),
-  CONSTRAINT fk8jlto36rbtdy1ppr8qr6grmtc FOREIGN KEY (invitation_id) REFERENCES public.invitations(id)
+  CONSTRAINT invitation_attempts_invitation_id_fkey FOREIGN KEY (invitation_id) REFERENCES public.invitations(id)
 );
 CREATE TABLE public.invitations (
-  id uuid NOT NULL,
-  created_at timestamp without time zone NOT NULL,
-  expires_at timestamp without time zone NOT NULL,
-  status character varying NOT NULL,
-  inviter_id uuid NOT NULL,
-  team_id uuid,
-  current_uses integer NOT NULL,
-  max_uses integer NOT NULL,
-  pin_hash character varying NOT NULL,
-  role character varying NOT NULL,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   token character varying NOT NULL UNIQUE,
+  pin_hash character varying NOT NULL,
   tenant_id uuid NOT NULL,
   workspace_id uuid,
+  team_id uuid,
+  inviter_id uuid NOT NULL,
+  role character varying NOT NULL DEFAULT 'MEMBER'::character varying,
+  max_uses integer NOT NULL DEFAULT 1,
+  current_uses integer NOT NULL DEFAULT 0,
+  status character varying NOT NULL DEFAULT 'ACTIVE'::character varying CHECK (status::text = ANY (ARRAY['ACTIVE'::character varying, 'EXPIRED'::character varying, 'EXHAUSTED'::character varying, 'REVOKED'::character varying]::text[])),
+  expires_at timestamp without time zone NOT NULL,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT invitations_pkey PRIMARY KEY (id),
-  CONSTRAINT fkc93ihvftpd11j547qgc9fobmc FOREIGN KEY (inviter_id) REFERENCES public.users(id),
-  CONSTRAINT fk1m1usbedadl51q5ea4vic07nv FOREIGN KEY (team_id) REFERENCES public.teams(id),
-  CONSTRAINT fkbehq1wkxsi4nw68dyhokf1bb7 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
-  CONSTRAINT fkdd4kkri07xpy5gk5nacfpcal4 FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
+  CONSTRAINT invitations_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
+  CONSTRAINT invitations_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
+  CONSTRAINT invitations_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT invitations_inviter_id_fkey FOREIGN KEY (inviter_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.project_members (
-  id uuid NOT NULL,
-  joined_at timestamp without time zone NOT NULL,
-  role character varying NOT NULL,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   project_id uuid NOT NULL,
   user_id uuid NOT NULL,
+  role character varying NOT NULL DEFAULT 'MEMBER'::character varying CHECK (role::text = ANY (ARRAY['LEAD'::character varying, 'MEMBER'::character varying, 'VIEWER'::character varying]::text[])),
+  joined_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT project_members_pkey PRIMARY KEY (id),
-  CONSTRAINT fkdki1sp2homqsdcvqm9yrix31g FOREIGN KEY (project_id) REFERENCES public.projects(id),
-  CONSTRAINT fkgul2el0qjk5lsvig3wgajwm77 FOREIGN KEY (user_id) REFERENCES public.users(id)
+  CONSTRAINT project_members_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT project_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.projects (
-  id uuid NOT NULL,
-  created_at timestamp without time zone NOT NULL,
-  description character varying,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   name character varying NOT NULL,
-  status character varying NOT NULL,
-  updated_at timestamp without time zone NOT NULL,
-  workspace_id uuid NOT NULL,
+  description character varying,
+  status character varying NOT NULL DEFAULT 'ACTIVE'::character varying CHECK (status::text = ANY (ARRAY['ACTIVE'::character varying, 'ARCHIVED'::character varying, 'COMPLETED'::character varying]::text[])),
   color character varying,
+  workspace_id uuid NOT NULL,
+  created_by uuid,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT projects_pkey PRIMARY KEY (id),
-  CONSTRAINT fkpc7qv7bnsq7dm17g0tb0a60of FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
+  CONSTRAINT projects_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
+  CONSTRAINT projects_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.task_activities (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  task_id uuid NOT NULL,
+  user_id uuid,
+  type character varying NOT NULL,
+  old_value character varying,
+  new_value character varying,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT task_activities_pkey PRIMARY KEY (id),
+  CONSTRAINT task_activities_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.tasks(id),
+  CONSTRAINT task_activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.task_assignees (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  task_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  role character varying NOT NULL DEFAULT 'OWNER'::character varying CHECK (role::text = ANY (ARRAY['OWNER'::character varying, 'COLLABORATOR'::character varying, 'REVIEWER'::character varying]::text[])),
+  assigned_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT task_assignees_pkey PRIMARY KEY (id),
+  CONSTRAINT task_assignees_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.tasks(id),
+  CONSTRAINT task_assignees_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.tasks (
-  id uuid NOT NULL,
-  created_at timestamp without time zone NOT NULL,
-  description text,
-  due_date timestamp without time zone,
-  labels character varying,
-  points integer,
-  priority character varying NOT NULL,
-  status character varying NOT NULL,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   title character varying NOT NULL,
-  updated_at timestamp without time zone NOT NULL,
-  assignee_id uuid,
+  description text,
+  status character varying NOT NULL DEFAULT 'TODO'::character varying CHECK (status::text = ANY (ARRAY['TODO'::character varying, 'IN_PROGRESS'::character varying, 'IN_REVIEW'::character varying, 'DONE'::character varying, 'CANCELLED'::character varying]::text[])),
+  priority character varying NOT NULL DEFAULT 'MEDIUM'::character varying CHECK (priority::text = ANY (ARRAY['URGENT'::character varying, 'HIGH'::character varying, 'MEDIUM'::character varying, 'LOW'::character varying]::text[])),
+  due_date timestamp without time zone,
+  points integer,
+  labels character varying,
   project_id uuid NOT NULL,
+  team_id uuid,
+  created_by uuid,
+  parent_id uuid,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT tasks_pkey PRIMARY KEY (id),
-  CONSTRAINT fkekr1dgiqktpyoip3qmp6lxsit FOREIGN KEY (assignee_id) REFERENCES public.users(id),
-  CONSTRAINT fksfhn82y57i3k9uxww1s007acc FOREIGN KEY (project_id) REFERENCES public.projects(id)
+  CONSTRAINT tasks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT tasks_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT tasks_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+  CONSTRAINT tasks_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.tasks(id)
 );
 CREATE TABLE public.team_members (
-  id uuid NOT NULL,
-  joined_at timestamp without time zone NOT NULL,
-  role character varying NOT NULL,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   team_id uuid NOT NULL,
   user_id uuid NOT NULL,
+  role character varying NOT NULL DEFAULT 'MEMBER'::character varying CHECK (role::text = ANY (ARRAY['LEAD'::character varying, 'MEMBER'::character varying]::text[])),
+  joined_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT team_members_pkey PRIMARY KEY (id),
-  CONSTRAINT fktgca08el3ofisywcf11f0f76t FOREIGN KEY (team_id) REFERENCES public.teams(id),
-  CONSTRAINT fkee8x7x5026imwmma9kndkxs36 FOREIGN KEY (user_id) REFERENCES public.users(id)
+  CONSTRAINT team_members_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT team_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.teams (
-  id uuid NOT NULL,
-  created_at timestamp without time zone NOT NULL,
-  description character varying,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   name character varying NOT NULL,
-  updated_at timestamp without time zone NOT NULL,
-  project_id uuid,
+  description character varying,
   workspace_id uuid NOT NULL,
+  project_id uuid,
+  created_by uuid,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT teams_pkey PRIMARY KEY (id),
-  CONSTRAINT fk7so1u4r6rpxrqeyxekfwklt5l FOREIGN KEY (project_id) REFERENCES public.projects(id),
-  CONSTRAINT teams_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
+  CONSTRAINT teams_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
+  CONSTRAINT teams_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT teams_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );
 CREATE TABLE public.tenant_members (
-  id uuid NOT NULL,
-  joined_at timestamp without time zone NOT NULL,
-  role character varying NOT NULL,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL,
   user_id uuid NOT NULL,
+  role character varying NOT NULL DEFAULT 'MEMBER'::character varying CHECK (role::text = ANY (ARRAY['OWNER'::character varying, 'ADMIN'::character varying, 'BILLING_ADMIN'::character varying, 'MEMBER'::character varying]::text[])),
+  joined_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT tenant_members_pkey PRIMARY KEY (id),
-  CONSTRAINT fk71qi2hqyj87qdh6x9u1wy006i FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
-  CONSTRAINT fk2dub08obx422mpd04l86raghe FOREIGN KEY (user_id) REFERENCES public.users(id)
+  CONSTRAINT tenant_members_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
+  CONSTRAINT tenant_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.tenants (
-  id uuid NOT NULL,
-  active boolean NOT NULL,
-  description character varying,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   name character varying NOT NULL UNIQUE,
-  owner_email character varying NOT NULL,
-  plan character varying NOT NULL CHECK (plan::text = ANY (ARRAY['FREE'::character varying, 'PRO'::character varying, 'ULTIMATE'::character varying, 'ENTERPRISE'::character varying]::text[])),
   slug character varying NOT NULL UNIQUE,
+  description character varying,
+  owner_email character varying NOT NULL,
+  plan character varying NOT NULL DEFAULT 'FREE'::character varying CHECK (plan::text = ANY (ARRAY['FREE'::character varying, 'PRO'::character varying, 'ULTIMATE'::character varying, 'ENTERPRISE'::character varying]::text[])),
+  active boolean NOT NULL DEFAULT true,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT tenants_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.users (
-  id uuid NOT NULL,
-  active boolean NOT NULL,
-  avatar_url character varying,
-  email character varying NOT NULL UNIQUE,
-  github_id bigint,
-  password character varying NOT NULL,
-  username character varying NOT NULL,
-  tenant_id uuid,
-  bio text,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   full_name character varying,
+  username character varying NOT NULL UNIQUE,
+  email character varying NOT NULL UNIQUE,
+  password character varying NOT NULL,
+  avatar_url character varying,
+  bio text,
   job_title character varying,
+  github_id bigint,
+  github_username character varying,
+  active boolean NOT NULL DEFAULT true,
+  tenant_id uuid,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT users_pkey PRIMARY KEY (id),
-  CONSTRAINT fk21hn1a5ja1tve7ae02fnn4cld FOREIGN KEY (tenant_id) REFERENCES public.tenants(id)
+  CONSTRAINT users_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id)
 );
 CREATE TABLE public.workspace_members (
-  id uuid NOT NULL,
-  joined_at timestamp without time zone NOT NULL,
-  role character varying NOT NULL,
-  user_id uuid NOT NULL,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   workspace_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  role character varying NOT NULL DEFAULT 'MEMBER'::character varying CHECK (role::text = ANY (ARRAY['ADMIN'::character varying, 'MEMBER'::character varying, 'VIEWER'::character varying]::text[])),
+  joined_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT workspace_members_pkey PRIMARY KEY (id),
-  CONSTRAINT fk6vtnpc3eexk504u61uepn40p1 FOREIGN KEY (user_id) REFERENCES public.users(id),
-  CONSTRAINT fkw9hq87n3rvq2c4j47qo78i5r FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
+  CONSTRAINT workspace_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT workspace_members_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
 );
 CREATE TABLE public.workspaces (
-  id uuid NOT NULL,
-  created_at timestamp without time zone NOT NULL,
-  description character varying,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
   name character varying NOT NULL,
-  plan character varying NOT NULL,
-  updated_at timestamp without time zone NOT NULL,
+  description character varying,
   tenant_id uuid NOT NULL,
+  created_by uuid,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT workspaces_pkey PRIMARY KEY (id),
-  CONSTRAINT fk6v30hhfbh8p2l8j0faybqvf7e FOREIGN KEY (tenant_id) REFERENCES public.tenants(id)
+  CONSTRAINT workspaces_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
+  CONSTRAINT workspaces_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );

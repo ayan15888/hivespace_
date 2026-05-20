@@ -1,4 +1,4 @@
--- TENANTS (your "Organization" level)
+-- TENANTS
 CREATE TABLE tenants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR NOT NULL UNIQUE,
@@ -18,7 +18,7 @@ CREATE TABLE users (
   full_name VARCHAR,
   username VARCHAR NOT NULL UNIQUE,
   email VARCHAR NOT NULL UNIQUE,
-  password VARCHAR NOT NULL,          -- bcrypt hashed
+  password VARCHAR NOT NULL,
   avatar_url VARCHAR,
   bio TEXT,
   job_title VARCHAR,
@@ -29,7 +29,17 @@ CREATE TABLE users (
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
--- NOTE: No global role column. Roles are in membership tables.
+
+-- TENANT MEMBERS
+CREATE TABLE tenant_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role VARCHAR NOT NULL DEFAULT 'MEMBER'
+    CHECK (role IN ('OWNER', 'ADMIN', 'BILLING_ADMIN', 'MEMBER')),
+  joined_at TIMESTAMP NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, user_id)
+);
 
 -- WORKSPACES
 CREATE TABLE workspaces (
@@ -42,7 +52,7 @@ CREATE TABLE workspaces (
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
--- WORKSPACE MEMBERSHIPS (replaces your employees table for workspace level)
+-- WORKSPACE MEMBERS
 CREATE TABLE workspace_members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -51,17 +61,6 @@ CREATE TABLE workspace_members (
     CHECK (role IN ('ADMIN', 'MEMBER', 'VIEWER')),
   joined_at TIMESTAMP NOT NULL DEFAULT now(),
   UNIQUE (workspace_id, user_id)
-);
-
--- TENANT MEMBERSHIPS (org level roles)
-CREATE TABLE tenant_members (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role VARCHAR NOT NULL DEFAULT 'MEMBER'
-    CHECK (role IN ('OWNER', 'ADMIN', 'BILLING_ADMIN', 'MEMBER')),
-  joined_at TIMESTAMP NOT NULL DEFAULT now(),
-  UNIQUE (tenant_id, user_id)
 );
 
 -- PROJECTS
@@ -94,7 +93,8 @@ CREATE TABLE teams (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR NOT NULL,
   description VARCHAR,
-  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
@@ -109,33 +109,6 @@ CREATE TABLE team_members (
     CHECK (role IN ('LEAD', 'MEMBER')),
   joined_at TIMESTAMP NOT NULL DEFAULT now(),
   UNIQUE (team_id, user_id)
-);
-
--- INVITATIONS (updated for link + PIN system)
-CREATE TABLE invitations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  token VARCHAR NOT NULL UNIQUE,       -- secure random, shown in URL
-  pin_hash VARCHAR NOT NULL,           -- bcrypt hash of the PIN
-  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
-  team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
-  inviter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role VARCHAR NOT NULL DEFAULT 'MEMBER',
-  max_uses INTEGER NOT NULL DEFAULT 1,
-  current_uses INTEGER NOT NULL DEFAULT 0,
-  status VARCHAR NOT NULL DEFAULT 'ACTIVE'
-    CHECK (status IN ('ACTIVE', 'EXPIRED', 'EXHAUSTED', 'REVOKED')),
-  expires_at TIMESTAMP NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT now()
-);
-
--- PIN ATTEMPT TRACKING (for rate limiting brute force)
-CREATE TABLE invitation_attempts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  invitation_id UUID NOT NULL REFERENCES invitations(id) ON DELETE CASCADE,
-  ip_address VARCHAR NOT NULL,
-  attempted_at TIMESTAMP NOT NULL DEFAULT now(),
-  success BOOLEAN NOT NULL DEFAULT false
 );
 
 -- TASKS
@@ -153,12 +126,12 @@ CREATE TABLE tasks (
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  parent_id UUID REFERENCES tasks(id) ON DELETE CASCADE,  -- subtasks
+  parent_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
--- TASK ASSIGNEES (multi-assignee support)
+-- TASK ASSIGNEES
 CREATE TABLE task_assignees (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -169,15 +142,42 @@ CREATE TABLE task_assignees (
   UNIQUE (task_id, user_id)
 );
 
--- TASK ACTIVITY LOG
+-- TASK ACTIVITIES
 CREATE TABLE task_activities (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  type VARCHAR NOT NULL,   -- STATUS_CHANGED, ASSIGNED, COMMENTED, PR_LINKED etc
+  type VARCHAR NOT NULL,
   old_value VARCHAR,
   new_value VARCHAR,
   created_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+-- INVITATIONS
+CREATE TABLE invitations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  token VARCHAR NOT NULL UNIQUE,
+  pin_hash VARCHAR NOT NULL,
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
+  team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
+  inviter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role VARCHAR NOT NULL DEFAULT 'MEMBER',
+  max_uses INTEGER NOT NULL DEFAULT 1,
+  current_uses INTEGER NOT NULL DEFAULT 0,
+  status VARCHAR NOT NULL DEFAULT 'ACTIVE'
+    CHECK (status IN ('ACTIVE', 'EXPIRED', 'EXHAUSTED', 'REVOKED')),
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+-- INVITATION ATTEMPTS
+CREATE TABLE invitation_attempts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  invitation_id UUID NOT NULL REFERENCES invitations(id) ON DELETE CASCADE,
+  ip_address VARCHAR NOT NULL,
+  attempted_at TIMESTAMP NOT NULL DEFAULT now(),
+  success BOOLEAN NOT NULL DEFAULT false
 );
 
 -- CHANNELS
@@ -351,7 +351,26 @@ CREATE TABLE subscriptions (
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
--- INDEXES (add these — critical for performance)
+
+-- AT LAST STAGE WE WILL DO INDEXING ON ALL TABLES (add these — critical for performance)
+-- INDEXES
+CREATE INDEX idx_users_tenant ON users(tenant_id);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_tenant_members_user ON tenant_members(user_id);
+CREATE INDEX idx_workspace_members_user ON workspace_members(user_id);
+CREATE INDEX idx_workspace_members_workspace ON workspace_members(workspace_id);
+CREATE INDEX idx_project_members_user ON project_members(user_id);
+CREATE INDEX idx_project_members_project ON project_members(project_id);
+CREATE INDEX idx_team_members_user ON team_members(user_id);
+CREATE INDEX idx_team_members_team ON team_members(team_id);
+CREATE INDEX idx_teams_workspace ON teams(workspace_id);
+CREATE INDEX idx_tasks_project ON tasks(project_id);
+CREATE INDEX idx_tasks_status ON tasks(status);
+CREATE INDEX idx_tasks_created_by ON tasks(created_by);
+CREATE INDEX idx_task_assignees_task ON task_assignees(task_id);
+CREATE INDEX idx_task_assignees_user ON task_assignees(user_id);
+CREATE INDEX idx_invitations_token ON invitations(token);
+-- INDEXES 
 CREATE INDEX idx_workspace_members_user ON workspace_members(user_id);
 CREATE INDEX idx_workspace_members_workspace ON workspace_members(workspace_id);
 CREATE INDEX idx_team_members_user ON team_members(user_id);
