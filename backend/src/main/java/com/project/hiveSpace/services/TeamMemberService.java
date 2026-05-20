@@ -4,6 +4,7 @@ import com.project.hiveSpace.dto.TeamMemberRequest;
 import com.project.hiveSpace.dto.TeamMemberResponse;
 import com.project.hiveSpace.models.Team;
 import com.project.hiveSpace.models.TeamMember;
+import com.project.hiveSpace.models.TeamMemberRole;
 import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.repository.TeamRepository;
@@ -48,10 +49,7 @@ public class TeamMemberService {
             throw new IllegalArgumentException("User is already a member of this team");
         }
 
-        String role = request.getRole() != null ? request.getRole().toUpperCase() : "MEMBER";
-        if (!role.equals("LEAD") && !role.equals("MEMBER")) {
-            throw new IllegalArgumentException("Invalid role. Must be LEAD or MEMBER");
-        }
+        TeamMemberRole role = request.getRole() != null ? request.getRole() : TeamMemberRole.MEMBER;
 
         TeamMember teamMember = TeamMember.builder()
                 .team(team)
@@ -70,16 +68,11 @@ public class TeamMemberService {
     }
 
     @Transactional
-    public TeamMemberResponse updateMemberRole(UUID teamId, UUID userId, String role) {
+    public TeamMemberResponse updateMemberRole(UUID teamId, UUID userId, TeamMemberRole role) {
         TeamMember teamMember = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
 
-        String upperRole = role.toUpperCase();
-        if (!upperRole.equals("LEAD") && !upperRole.equals("MEMBER")) {
-            throw new IllegalArgumentException("Invalid role. Must be LEAD or MEMBER");
-        }
-
-        teamMember.setRole(upperRole);
+        teamMember.setRole(role);
         TeamMember updated = teamMemberRepository.save(teamMember);
         return mapToResponse(updated);
     }

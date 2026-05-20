@@ -31,7 +31,8 @@ public class TenantMember {
 
     @Builder.Default
     @Column(name = "role", nullable = false)
-    private String role = "MEMBER"; // OWNER, ADMIN, BILLING_ADMIN, MEMBER
+    @Enumerated(EnumType.STRING)
+    private TenantMemberRole role = TenantMemberRole.MEMBER;
 
     @Builder.Default
     @Temporal(TemporalType.TIMESTAMP)

@@ -1,5 +1,6 @@
 package com.project.hiveSpace.dto;
 
+import com.project.hiveSpace.models.InvitationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,7 +27,7 @@ public class InviteResponse {
     private String role;
     private int maxUses;
     private int currentUses;
-    private String status;
+    private InvitationStatus status;
     private Date expiresAt;
     private Date createdAt;
 }

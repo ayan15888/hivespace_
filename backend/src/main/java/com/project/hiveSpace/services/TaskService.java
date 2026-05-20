@@ -6,6 +6,7 @@ import com.project.hiveSpace.models.Project;
 import com.project.hiveSpace.models.Task;
 import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.models.TaskAssignee;
+import com.project.hiveSpace.models.TaskAssigneeRole;
 import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.TaskRepository;
 import com.project.hiveSpace.repository.UserRepository;
@@ -55,7 +56,7 @@ public class TaskService {
                 TaskAssignee taskAssignee = TaskAssignee.builder()
                         .task(savedTask)
                         .user(assignee)
-                        .role("OWNER")
+                        .role(TaskAssigneeRole.OWNER)
                         .assignedAt(new Date())
                         .build();
                 taskAssigneeRepository.save(taskAssignee);

@@ -56,8 +56,9 @@ public class Invitation {
     private int currentUses = 0;
 
     @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private String status = "ACTIVE"; // ACTIVE, EXPIRED, EXHAUSTED, REVOKED
+    private InvitationStatus status = InvitationStatus.ACTIVE;
 
     @Column(name = "expires_at", nullable = false)
     private Date expiresAt;

@@ -37,7 +37,7 @@ public class RbacService {
         if (user == null || tenantId == null) return false;
         
         return tenantMemberRepository.findByTenantIdAndUserId(tenantId, user.getId())
-                .map(member -> hasSufficientRole(member.getRole(), requiredRole))
+                .map(member -> hasSufficientRole(member.getRole().name(), requiredRole))
                 .orElse(false);
     }
     
@@ -55,7 +55,7 @@ public class RbacService {
         if (user == null || workspaceId == null) return false;
 
         return workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, user.getId())
-                .map(member -> hasSufficientRole(member.getRole(), requiredRole))
+                .map(member -> hasSufficientRole(member.getRole().name(), requiredRole))
                 .orElse(false);
     }
     
@@ -69,7 +69,7 @@ public class RbacService {
         if (user == null || projectId == null) return false;
 
         return projectMemberRepository.findByProjectIdAndUserId(projectId, user.getId())
-                .map(member -> hasSufficientRole(member.getRole(), requiredRole))
+                .map(member -> hasSufficientRole(member.getRole().name(), requiredRole))
                 .orElse(false);
     }
     
@@ -83,7 +83,7 @@ public class RbacService {
         if (user == null || teamId == null) return false;
 
         return teamMemberRepository.findByTeamIdAndUserId(teamId, user.getId())
-                .map(member -> hasSufficientRole(member.getRole(), requiredRole))
+                .map(member -> hasSufficientRole(member.getRole().name(), requiredRole))
                 .orElse(false);
     }
 

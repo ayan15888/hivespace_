@@ -1,5 +1,6 @@
 package com.project.hiveSpace.dto;
 
+import com.project.hiveSpace.models.TeamMemberRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,6 +21,6 @@ public class TeamMemberResponse {
     private String email;
     private String fullName;
     private String avatarUrl;
-    private String role;
+    private TeamMemberRole role;
     private Date joinedAt;
 }

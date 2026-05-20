@@ -26,13 +26,19 @@ public class Task {
     private String description;
 
     @Column(nullable = false)
-    private String status; // Backlog, Todo, In Progress, Review, Done
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private TaskStatus status = TaskStatus.TODO;
 
     @Column(nullable = false)
-    private String priority; // urgent, high, normal
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private TaskPriority priority = TaskPriority.MEDIUM;
 
     private String labels; // Comma separated for now
 
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "due_date")
     private Date dueDate;
 
     private Integer points;
@@ -53,9 +59,33 @@ public class Task {
     @JoinColumn(name = "parent_id")
     private Task parentTask;
 
+    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false)
     private Date createdAt;
 
+    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at", nullable = false)
     private Date updatedAt;
+
+    @PrePersist
+    void prePersist() {
+        Date now = new Date();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+        if (status == null) {
+            status = TaskStatus.TODO;
+        }
+        if (priority == null) {
+            priority = TaskPriority.MEDIUM;
+        }
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        updatedAt = new Date();
+    }
 }

@@ -26,7 +26,9 @@ public class Project {
     private String description;
 
     @Column(name = "status", nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private ProjectStatus status = ProjectStatus.ACTIVE;
 
     @Transient
     @Builder.Default
@@ -44,12 +46,33 @@ public class Project {
     @JoinColumn(name = "created_by")
     private User createdBy;
 
+    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false)
     private Date createdAt;
 
+    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at", nullable = false)
     private Date updatedAt;
 
     @Column(name = "color")
     private String color;
+
+    @PrePersist
+    void prePersist() {
+        Date now = new Date();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+        if (status == null) {
+            status = ProjectStatus.ACTIVE;
+        }
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        updatedAt = new Date();
+    }
 }

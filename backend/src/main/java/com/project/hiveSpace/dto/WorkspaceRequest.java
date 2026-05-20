@@ -18,9 +18,6 @@ public class WorkspaceRequest {
 
     private String description;
 
-    @NotBlank(message = "Plan is required")
-    private String plan;
-
     @NotNull(message = "Tenant ID is required")
     private UUID tenantId;
 }

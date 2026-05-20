@@ -40,15 +40,15 @@ public class InvitationService {
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
         // Security Check: Is the inviter an OWNER or ADMIN of this organization?
-        TenantMember inviterMember = tenantMemberRepository.findByTenantIdAndUserId(tenant.getId(), currentUser.getId())
+                TenantMember inviterMember = tenantMemberRepository.findByTenantIdAndUserId(tenant.getId(), currentUser.getId())
                 .orElse(null);
                 
         // Backward-compatible ownership check
         boolean isOwner = tenant.getOwnerEmail().equalsIgnoreCase(currentUser.getEmail());
         boolean isAuthorized = isOwner || (inviterMember != null &&
-                ("OWNER".equalsIgnoreCase(inviterMember.getRole())
-                        || "ADMIN".equalsIgnoreCase(inviterMember.getRole())
-                        || "BILLING_ADMIN".equalsIgnoreCase(inviterMember.getRole())));
+                (inviterMember.getRole() == TenantMemberRole.OWNER
+                        || inviterMember.getRole() == TenantMemberRole.ADMIN
+                        || inviterMember.getRole() == TenantMemberRole.BILLING_ADMIN));
 
         if (!isAuthorized) {
             throw new SecurityException("Only organization owners or administrators can create invitations");
@@ -86,7 +86,7 @@ public class InvitationService {
                 .role(request.getRole() != null ? request.getRole() : "MEMBER")
                 .maxUses(request.getMaxUses() != null ? request.getMaxUses() : 1)
                 .currentUses(0)
-                .status("ACTIVE")
+                .status(InvitationStatus.ACTIVE)
                 .expiresAt(expiresAt)
                 .createdAt(new Date())
                 .build();
@@ -107,18 +107,18 @@ public class InvitationService {
                 .orElseThrow(() -> new IllegalArgumentException("Invalid or expired invitation link"));
 
         // 1. Check expiration/exhaustion status
-        if (!"ACTIVE".equalsIgnoreCase(invitation.getStatus())) {
+        if (invitation.getStatus() != InvitationStatus.ACTIVE) {
             throw new IllegalArgumentException("This invitation is no longer active");
         }
 
         if (invitation.getExpiresAt().before(new Date())) {
-            invitation.setStatus("EXPIRED");
+            invitation.setStatus(InvitationStatus.EXPIRED);
             invitationRepository.save(invitation);
             throw new IllegalArgumentException("This invitation link has expired");
         }
 
         if (invitation.getCurrentUses() >= invitation.getMaxUses()) {
-            invitation.setStatus("EXHAUSTED");
+            invitation.setStatus(InvitationStatus.EXHAUSTED);
             invitationRepository.save(invitation);
             throw new IllegalArgumentException("This invitation has reached its maximum usage limit");
         }
@@ -130,7 +130,7 @@ public class InvitationService {
                 .countByInvitationIdAndAttemptedAtAfterAndSuccessFalse(invitation.getId(), fifteenMinutesAgo);
 
         if (failedAttempts >= 5) {
-            invitation.setStatus("REVOKED");
+            invitation.setStatus(InvitationStatus.REVOKED);
             invitationRepository.save(invitation);
             throw new IllegalArgumentException("This invitation has been locked due to too many failed PIN attempts");
         }
@@ -158,10 +158,11 @@ public class InvitationService {
         
         // --- 1. Join Tenant ---
         if (!tenantMemberRepository.existsByTenantAndUser(tenant, currentUser)) {
+            TenantMemberRole assignedTenantRole = parseTenantMemberRole(invitation.getRole());
             TenantMember tenantMember = TenantMember.builder()
                     .tenant(tenant)
                     .user(currentUser)
-                    .role(invitation.getRole())
+                    .role(assignedTenantRole)
                     .joinedAt(new Date())
                     .build();
             tenantMemberRepository.save(tenantMember);
@@ -181,7 +182,7 @@ public class InvitationService {
             WorkspaceMember workspaceMember = WorkspaceMember.builder()
                     .workspace(workspace)
                     .user(currentUser)
-                    .role("MEMBER")
+                    .role(WorkspaceMemberRole.MEMBER)
                     .joinedAt(new Date())
                     .build();
             workspaceMemberRepository.save(workspaceMember);
@@ -199,7 +200,7 @@ public class InvitationService {
                 WorkspaceMember workspaceMember = WorkspaceMember.builder()
                         .workspace(teamWorkspace)
                         .user(currentUser)
-                        .role("MEMBER")
+                        .role(WorkspaceMemberRole.MEMBER)
                         .joinedAt(new Date())
                         .build();
                 workspaceMemberRepository.save(workspaceMember);
@@ -213,7 +214,7 @@ public class InvitationService {
                 TeamMember teamMember = TeamMember.builder()
                         .team(team)
                         .user(currentUser)
-                        .role("MEMBER")
+                        .role(TeamMemberRole.MEMBER)
                         .joinedAt(new Date())
                         .build();
                 teamMemberRepository.save(teamMember);
@@ -226,7 +227,7 @@ public class InvitationService {
         // 5. Increment Use Counter
         invitation.setCurrentUses(invitation.getCurrentUses() + 1);
         if (invitation.getCurrentUses() >= invitation.getMaxUses()) {
-            invitation.setStatus("EXHAUSTED");
+            invitation.setStatus(InvitationStatus.EXHAUSTED);
         }
         invitationRepository.save(invitation);
     }
@@ -236,12 +237,12 @@ public class InvitationService {
         Invitation invitation = invitationRepository.findByToken(token)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid or expired invitation link"));
 
-        if (!"ACTIVE".equalsIgnoreCase(invitation.getStatus())) {
+        if (invitation.getStatus() != InvitationStatus.ACTIVE) {
             throw new IllegalArgumentException("This invitation is no longer active");
         }
 
         if (invitation.getExpiresAt().before(new Date())) {
-            invitation.setStatus("EXPIRED");
+            invitation.setStatus(InvitationStatus.EXPIRED);
             invitationRepository.save(invitation);
             throw new IllegalArgumentException("This invitation link has expired");
         }
@@ -284,5 +285,16 @@ public class InvitationService {
                 .expiresAt(invite.getExpiresAt())
                 .createdAt(invite.getCreatedAt())
                 .build();
+    }
+
+    private TenantMemberRole parseTenantMemberRole(String role) {
+        if (role == null || role.isBlank()) {
+            return TenantMemberRole.MEMBER;
+        }
+        try {
+            return TenantMemberRole.valueOf(role.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return TenantMemberRole.MEMBER;
+        }
     }
 }

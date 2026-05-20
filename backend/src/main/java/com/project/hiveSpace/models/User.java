@@ -63,10 +63,28 @@ public class User implements UserDetails {
         private Tenant tenant;
 
         @Column(name = "created_at", nullable = false)
+        @Temporal(TemporalType.TIMESTAMP)
         private Date createdAt;
 
         @Column(name = "updated_at", nullable = false)
+        @Temporal(TemporalType.TIMESTAMP)
         private Date updatedAt;
+
+        @PrePersist
+        void prePersist() {
+                Date now = new Date();
+                if (createdAt == null) {
+                        createdAt = now;
+                }
+                if (updatedAt == null) {
+                        updatedAt = now;
+                }
+        }
+
+        @PreUpdate
+        void preUpdate() {
+                updatedAt = new Date();
+        }
 
         @Override
         public Collection<? extends GrantedAuthority> getAuthorities() {

@@ -2,7 +2,6 @@ package com.project.hiveSpace.repository;
 
 import com.project.hiveSpace.models.Project;
 import com.project.hiveSpace.models.Task;
-import com.project.hiveSpace.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

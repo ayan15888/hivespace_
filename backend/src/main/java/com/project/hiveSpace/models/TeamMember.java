@@ -6,7 +6,9 @@ import java.util.Date;
 import java.util.UUID;
 
 @Entity
-@Table(name = "team_members")
+@Table(name = "team_members", uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "team_id", "user_id" })
+})
 @Getter
 @Setter
 @AllArgsConstructor
@@ -25,9 +27,21 @@ public class TeamMember {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(nullable = false)
-    private String role;
+    private TeamMemberRole role = TeamMemberRole.MEMBER;
 
     @Column(name = "joined_at", nullable = false)
     private Date joinedAt;
+
+    @PrePersist
+    void prePersist() {
+        if (joinedAt == null) {
+            joinedAt = new Date();
+        }
+        if (role == null) {
+            role = TeamMemberRole.MEMBER;
+        }
+    }
 }

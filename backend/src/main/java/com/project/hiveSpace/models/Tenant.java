@@ -3,6 +3,8 @@ package com.project.hiveSpace.models;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.Date;
+
 //
 @Entity
 @Table(name = "tenants", uniqueConstraints = {
@@ -33,9 +35,10 @@ public class Tenant {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Plan plan;
+    @Builder.Default
+    private Plan plan = Plan.FREE;
 
-    @Column(nullable = false)
+    @Column(name = "owner_email", nullable = false)
     private String ownerEmail;
 
     @Column(length = 500)
@@ -49,9 +52,30 @@ public class Tenant {
     @Builder.Default
     private int workspacesCount = 0;
 
+    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false)
-    private java.util.Date createdAt;
+    private Date createdAt;
 
+    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at", nullable = false)
-    private java.util.Date updatedAt;
+    private Date updatedAt;
+
+    @PrePersist
+    void prePersist() {
+        Date now = new Date();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+        if (plan == null) {
+            plan = Plan.FREE;
+        }
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        updatedAt = new Date();
+    }
 }

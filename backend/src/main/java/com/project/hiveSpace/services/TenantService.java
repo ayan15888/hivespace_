@@ -51,7 +51,7 @@ public class TenantService {
         com.project.hiveSpace.models.TenantMember ownerMember = com.project.hiveSpace.models.TenantMember.builder()
                 .tenant(savedTenant)
                 .user(currentUser)
-                .role("OWNER")
+                .role(com.project.hiveSpace.models.TenantMemberRole.OWNER)
                 .joinedAt(new java.util.Date())
                 .build();
         tenantMemberRepository.save(ownerMember);
@@ -116,9 +116,16 @@ public class TenantService {
 
     public List<MemberResponse> getMembersByTenantId(UUID tenantId) {
         User currentUser = getCurrentUser();
-        // Ideally validate if user belongs to this tenant, but we'll assume yes for now
-        Tenant tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
+
+        // Validate tenant exists
+        if (!tenantRepository.existsById(tenantId)) {
+            throw new IllegalArgumentException("Tenant not found");
+        }
+
+        // Validate requester belongs to tenant
+        if (tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId()).isEmpty()) {
+            throw new IllegalArgumentException("You are not authorized to view members of this organization");
+        }
 
         return userRepository.findByTenantId(tenantId).stream()
                 .map(user -> new MemberResponse(

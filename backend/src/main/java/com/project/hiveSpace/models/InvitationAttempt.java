@@ -34,4 +34,11 @@ public class InvitationAttempt {
     @Builder.Default
     @Column(name = "success", nullable = false)
     private boolean success = false;
+
+    @PrePersist
+    void prePersist() {
+        if (attemptedAt == null) {
+            attemptedAt = new Date();
+        }
+    }
 }

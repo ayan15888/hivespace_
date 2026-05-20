@@ -31,7 +31,8 @@ public class ProjectMember {
 
     @Builder.Default
     @Column(name = "role", nullable = false)
-    private String role = "MEMBER"; // LEAD, MEMBER, VIEWER
+    @Enumerated(EnumType.STRING)
+    private ProjectMemberRole role = ProjectMemberRole.MEMBER;
 
     @Builder.Default
     @Temporal(TemporalType.TIMESTAMP)

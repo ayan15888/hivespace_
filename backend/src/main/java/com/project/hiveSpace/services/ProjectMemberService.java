@@ -3,6 +3,7 @@ package com.project.hiveSpace.services;
 import com.project.hiveSpace.dto.ProjectMemberResponse;
 import com.project.hiveSpace.models.Project;
 import com.project.hiveSpace.models.ProjectMember;
+import com.project.hiveSpace.models.ProjectMemberRole;
 import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.ProjectRepository;
@@ -36,7 +37,7 @@ public class ProjectMemberService {
     }
 
     @Transactional
-    public ProjectMemberResponse addMemberToProject(UUID projectId, UUID userId, String role) {
+    public ProjectMemberResponse addMemberToProject(UUID projectId, UUID userId, ProjectMemberRole role) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
@@ -47,10 +48,7 @@ public class ProjectMemberService {
             throw new IllegalArgumentException("User is already a member of this project");
         }
 
-        String actualRole = role != null ? role.toUpperCase() : "MEMBER";
-        if (!actualRole.equals("LEAD") && !actualRole.equals("MEMBER") && !actualRole.equals("VIEWER")) {
-            throw new IllegalArgumentException("Invalid role. Must be LEAD, MEMBER, or VIEWER");
-        }
+        ProjectMemberRole actualRole = role != null ? role : ProjectMemberRole.MEMBER;
 
         ProjectMember projectMember = ProjectMember.builder()
                 .project(project)
@@ -69,16 +67,11 @@ public class ProjectMemberService {
     }
 
     @Transactional
-    public ProjectMemberResponse updateMemberRole(UUID projectId, UUID userId, String role) {
+    public ProjectMemberResponse updateMemberRole(UUID projectId, UUID userId, ProjectMemberRole role) {
         ProjectMember projectMember = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
 
-        String actualRole = role.toUpperCase();
-        if (!actualRole.equals("LEAD") && !actualRole.equals("MEMBER") && !actualRole.equals("VIEWER")) {
-            throw new IllegalArgumentException("Invalid role. Must be LEAD, MEMBER, or VIEWER");
-        }
-
-        projectMember.setRole(actualRole);
+        projectMember.setRole(role);
         ProjectMember updated = projectMemberRepository.save(projectMember);
         return mapToResponse(updated);
     }

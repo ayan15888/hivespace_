@@ -1,6 +1,7 @@
 package com.project.hiveSpace.controllers;
 
 import com.project.hiveSpace.dto.ProjectMemberResponse;
+import com.project.hiveSpace.models.ProjectMemberRole;
 import com.project.hiveSpace.services.ProjectMemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +26,7 @@ public class ProjectMemberController {
     public ResponseEntity<ProjectMemberResponse> addMemberToProject(
             @PathVariable UUID projectId,
             @RequestParam UUID userId,
-            @RequestParam(required = false, defaultValue = "MEMBER") String role) {
+            @RequestParam(required = false, defaultValue = "MEMBER") ProjectMemberRole role) {
         return ResponseEntity.ok(projectMemberService.addMemberToProject(projectId, userId, role));
     }
 
@@ -33,7 +34,7 @@ public class ProjectMemberController {
     public ResponseEntity<ProjectMemberResponse> updateMemberRole(
             @PathVariable UUID projectId,
             @PathVariable UUID userId,
-            @RequestParam String role) {
+            @RequestParam ProjectMemberRole role) {
         return ResponseEntity.ok(projectMemberService.updateMemberRole(projectId, userId, role));
     }
 
