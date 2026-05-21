@@ -46,7 +46,7 @@ public class InvitationService {
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
         // Security Check: Is the inviter an OWNER or ADMIN of this organization?
-                TenantMember inviterMember = tenantMemberRepository.findByTenantIdAndUserId(tenant.getId(), currentUser.getId())
+        TenantMember inviterMember = tenantMemberRepository.findByTenantIdAndUserId(tenant.getId(), currentUser.getId())
                 .orElse(null);
                 
         // Backward-compatible ownership check
@@ -58,6 +58,33 @@ public class InvitationService {
 
         if (!isAuthorized) {
             throw new SecurityException("Only organization owners or administrators can create invitations");
+        }
+
+        // Determine inviter's actual role
+        TenantMemberRole inviterRole = TenantMemberRole.MEMBER;
+        if (isOwner) {
+            inviterRole = TenantMemberRole.OWNER;
+        } else if (inviterMember != null) {
+            inviterRole = inviterMember.getRole();
+        }
+
+        // Validate target role permission
+        String requestedRoleStr = request.getRole() != null ? request.getRole().trim().toUpperCase() : "MEMBER";
+        TenantMemberRole targetRole = TenantMemberRole.MEMBER;
+        try {
+            targetRole = TenantMemberRole.valueOf(requestedRoleStr);
+        } catch (IllegalArgumentException e) {
+            // Default to MEMBER
+        }
+
+        if (targetRole == TenantMemberRole.OWNER) {
+            throw new SecurityException("The Owner role cannot be assigned via invitation");
+        }
+
+        if (inviterRole == TenantMemberRole.ADMIN || inviterRole == TenantMemberRole.BILLING_ADMIN) {
+            if (targetRole == TenantMemberRole.ADMIN || targetRole == TenantMemberRole.OWNER) {
+                throw new SecurityException("Only organization owners can invite Administrators or Owners");
+            }
         }
 
         Workspace workspace = null;

@@ -18,7 +18,8 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogTrigger,
-  DialogClose
+  DialogClose,
+  DialogDescription
 } from "@/components/ui/dialog"
 import { 
   Select, 
@@ -39,6 +40,8 @@ import { generateInvite } from "@/lib/api/invites"
 import { InviteResponse } from "@/types/invite"
 import { gooeyToast as toast } from "@/components/ui/goey-toaster"
 import { useTeams } from "@/hooks/useTeams"
+import { useAuth } from "@/hooks/useAuth"
+import { useMembers } from "@/hooks/useMembers"
 
 interface InviteModalProps {
   trigger: React.ReactNode
@@ -48,6 +51,15 @@ export function InviteModal({ trigger }: InviteModalProps) {
   const [open, setOpen] = React.useState(false)
   const { activeOrg } = useOrgStore()
   const { workspaces, activeWorkspace } = useWorkspaceStore()
+  const { user } = useAuth()
+  const { members } = useMembers()
+  
+  // Determine inviter permissions:
+  // - isOwner: email matches the org owner's email (always reliable)
+  // - isAdmin: look up in the members list by email and check their tenant role
+  const isOwner = !!user && !!activeOrg && user.email === activeOrg.ownerEmail
+  const currentUserMember = members.find(m => m.email === user?.email)
+  const isAdmin = !isOwner && currentUserMember?.role === "ADMIN"
   
   const { teams: dbTeams, loading: teamsLoading } = useTeams(activeWorkspace?.id)
   
@@ -98,12 +110,9 @@ export function InviteModal({ trigger }: InviteModalProps) {
     
     setLoading(true);
     try {
-      const backendRole = role === "Member" ? "MEMBER" :
-                          role === "Workspace Admin" ? "ADMIN" :
-                          role === "Team Lead" ? "LEAD" :
-                          role === "Project Lead" ? "LEAD" :
-                          role === "Viewer" ? "VIEWER" :
-                          role === "Billing Admin" ? "ADMIN" : "MEMBER";
+      const backendRole = role === "Admin" ? "ADMIN" :
+                          role === "Billing Admin" ? "BILLING_ADMIN" :
+                          "MEMBER";
 
       // Send to each email individually via the backend resend integration
       const invitePromises = targetEmails.map(email => 
@@ -174,18 +183,12 @@ export function InviteModal({ trigger }: InviteModalProps) {
 
   const getRoleDescription = (selectedRole: string) => {
     switch (selectedRole) {
+      case "Admin":
+        return "Full org access, can manage members and settings";
+      case "Billing Admin":
+        return "Billing and invoices only, no access to projects or teams";
       case "Member":
         return "Can be assigned tasks, join channels, edit docs";
-      case "Workspace Admin":
-        return "Manages workspace settings and members";
-      case "Team Lead":
-        return "Manages team membership and tasks";
-      case "Project Lead":
-        return "Manages project board and access";
-      case "Viewer":
-        return "Read-only access to workspace content";
-      case "Billing Admin":
-        return "Billing portal access only";
       default:
         return "";
     }
@@ -211,9 +214,9 @@ export function InviteModal({ trigger }: InviteModalProps) {
             {/* Header */}
             <div className="px-6 pt-6 pb-4 border-b border-zinc-800/60 relative">
               <DialogTitle className="text-xl font-semibold text-[#E5E1E4]">Invite to {activeWorkspace?.name || "Workspace"}</DialogTitle>
-              <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+              <DialogDescription className="text-xs text-zinc-555 mt-1 leading-relaxed">
                 Invited users will join as org members first, then gain access to this workspace.
-              </p>
+              </DialogDescription>
             </div>
 
             {/* Body */}
@@ -318,7 +321,7 @@ export function InviteModal({ trigger }: InviteModalProps) {
                 <label className="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-2 block">
                   INVITE AS
                 </label>
-                <Select value={role} onValueChange={setRole}>
+                <Select value={role} onValueChange={setRole} modal={false}>
                   <SelectTrigger className="w-full bg-[#272629] border-zinc-700 hover:border-zinc-600 rounded-md h-10 px-3 text-[#E5E1E4] cursor-pointer focus:ring-0 focus-visible:ring-0 [&_svg]:text-zinc-500 [&_svg]:size-3.5">
                     <span className="text-sm">{role}</span>
                   </SelectTrigger>
@@ -329,34 +332,16 @@ export function InviteModal({ trigger }: InviteModalProps) {
                         <span className="text-xs text-zinc-500 mt-0.5">Can be assigned tasks, join channels, edit docs</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="Workspace Admin" className="px-3 py-2.5 hover:bg-zinc-800/30 cursor-pointer focus:bg-zinc-800 data-[state=checked]:bg-zinc-800/80 rounded-md">
+                    <SelectItem value="Admin" className="px-3 py-2.5 hover:bg-zinc-800/30 cursor-pointer focus:bg-zinc-800 data-[state=checked]:bg-zinc-800/80 rounded-md">
                       <div className="flex flex-col text-left items-start">
-                        <span className="text-sm font-medium text-[#E5E1E4]">Workspace Admin</span>
-                        <span className="text-xs text-zinc-500 mt-0.5">Manages workspace settings and members</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="Team Lead" className="px-3 py-2.5 hover:bg-zinc-800/30 cursor-pointer focus:bg-zinc-800 data-[state=checked]:bg-zinc-800/80 rounded-md">
-                      <div className="flex flex-col text-left items-start">
-                        <span className="text-sm font-medium text-[#E5E1E4]">Team Lead</span>
-                        <span className="text-xs text-zinc-500 mt-0.5">Manages team membership and tasks</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="Project Lead" className="px-3 py-2.5 hover:bg-zinc-800/30 cursor-pointer focus:bg-zinc-800 data-[state=checked]:bg-zinc-800/80 rounded-md">
-                      <div className="flex flex-col text-left items-start">
-                        <span className="text-sm font-medium text-[#E5E1E4]">Project Lead</span>
-                        <span className="text-xs text-zinc-500 mt-0.5">Manages project board and access</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="Viewer" className="px-3 py-2.5 hover:bg-zinc-800/30 cursor-pointer focus:bg-zinc-800 data-[state=checked]:bg-zinc-800/80 rounded-md">
-                      <div className="flex flex-col text-left items-start">
-                        <span className="text-sm font-medium text-[#E5E1E4]">Viewer</span>
-                        <span className="text-xs text-zinc-500 mt-0.5">Read-only access to workspace content</span>
+                        <span className="text-sm font-medium text-[#E5E1E4]">Admin</span>
+                        <span className="text-xs text-zinc-500 mt-0.5">Full org access, can manage members and settings</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="Billing Admin" className="px-3 py-2.5 hover:bg-zinc-800/30 cursor-pointer focus:bg-zinc-800 data-[state=checked]:bg-zinc-800/80 rounded-md">
                       <div className="flex flex-col text-left items-start">
                         <span className="text-sm font-medium text-[#E5E1E4]">Billing Admin</span>
-                        <span className="text-xs text-zinc-500 mt-0.5">Billing portal access only</span>
+                        <span className="text-xs text-zinc-500 mt-0.5">Billing and invoices only, no access to projects or teams</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -365,6 +350,7 @@ export function InviteModal({ trigger }: InviteModalProps) {
                   {getRoleDescription(role)}
                 </p>
               </section>
+
 
               {/* SECTION 4: ADD TO WORKSPACE */}
               <section>
@@ -502,9 +488,9 @@ export function InviteModal({ trigger }: InviteModalProps) {
             {/* Success Icon & Title */}
             <CheckCircle className="h-10 w-10 text-green-400 mx-auto" strokeWidth={1.5} />
             <DialogTitle className="text-lg font-semibold text-[#E5E1E4] mt-3">Invites sent!</DialogTitle>
-            <p className="text-sm text-zinc-400 mt-1 text-center">
+            <DialogDescription className="text-sm text-zinc-400 mt-1 text-center">
               {emails.length} invite {emails.length === 1 ? 'email has' : 'emails have'} been sent. They expire in 72 hours.
-            </p>
+            </DialogDescription>
 
             {/* Pending list */}
             <div className="w-full mt-6 space-y-2 max-h-40 overflow-y-auto scrollbar-none">
