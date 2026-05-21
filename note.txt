@@ -14,6 +14,33 @@ The newSchema.sql file (the IDE planned schema) is a production-grade PostgreSQL
 
 The current live schema is a standard "developer-mode" ORM schema. It works for prototyping, but as your teammate pointed out, it is dangerous for production because bad data (like a user being added to a workspace twice, or a role being misspelled as SUPER_ADMIN) will be accepted by the database without throwing an error.
 
+# =========================================================================
+# HIVESPACE FRONTEND ENVIRONMENT VARIABLES
+# Only NEXT_PUBLIC_ variables are exposed to the browser.
+# =========================================================================
+# --- APP CONFIGURATION ---
+NEXT_PUBLIC_API_URL=http://localhost:8080
+NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
 NEXT_PUBLIC_APP_DOMAIN=hive-space.indevs.in
 
 RESEND_API=re_aFR6xxth_4bc4wR9Xq2BtSRjKUX2856ZC
+
+# --- SUPABASE (Public) ---
+NEXT_PUBLIC_SUPABASE_URL=https://zbiabrwtaomqnfojfsya.supabase.co
+
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.
+eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiaWFicnd0YW9tcW5mb2pmc3lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2Njg1NzIsImV4cCI6MjA5NDI0NDU3Mn0.m75__asfdtyKr9cinAMoWqdhMRoq2bo9xlFH-spiYwY
+
+NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpiaWFicnd0YW9tcW5mb2pmc3lhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODY2ODU3MiwiZXhwIjoyMDk0MjQ0NTcyfQ.VQJXt53p_1nYqEVVmZwnembgHe_lVNbC0rhkjoz99Ho
+
+# --- CLOUDFLARE R2 (Public) ---
+NEXT_PUBLIC_R2_PUBLIC_URL=https://cdn.hivespace.app
+
+# --- GITHUB INTEGRATION (Public) ---
+NEXT_PUBLIC_GITHUB_CLIENT_ID=[your-client-id]
+
+# --- STRIPE BILLING (Public) ---
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=[your-client-id]
+
