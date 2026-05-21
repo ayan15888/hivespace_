@@ -23,6 +23,17 @@ public class InvitationController {
         return ResponseEntity.ok(invitationService.createInvite(request));
     }
 
+    @GetMapping("/validate")
+    public ResponseEntity<InviteResponse> validateInvite(
+            @RequestParam String token,
+            @RequestParam(required = false) String orgSlug) {
+        InviteResponse details = invitationService.getInvite(token);
+        if (orgSlug != null && !orgSlug.isBlank() && !details.getTenantSlug().equalsIgnoreCase(orgSlug)) {
+            throw new IllegalArgumentException("The invitation token does not match the organization slug");
+        }
+        return ResponseEntity.ok(details);
+    }
+
     @GetMapping("/{token}")
     public ResponseEntity<InviteResponse> getInvite(@PathVariable String token) {
         return ResponseEntity.ok(invitationService.getInvite(token));

@@ -39,6 +39,15 @@ export default function InviteAcceptancePage() {
   const params = useParams()
   const router = useRouter()
   const token = params.token as string
+  const orgSlug = params.orgSlug as string
+
+  // Store invite token and slug to sessionStorage so generic signup flows can auto-bridge
+  React.useEffect(() => {
+    if (token && orgSlug) {
+      sessionStorage.setItem("pendingInviteToken", token);
+      sessionStorage.setItem("pendingInviteOrgSlug", orgSlug);
+    }
+  }, [token, orgSlug]);
 
   const { isAuthenticated, user: authUser } = useAuth()
   const login = useAuthStore((state) => state.login)
