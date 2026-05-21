@@ -13,6 +13,7 @@ interface ActiveRolesDirectoryProps {
   handlePromoteMember: (userId: string, targetRole: string) => void;
   handleRevokeMember: (userId: string) => void;
   getMappedRole: (role: string, level: LevelType) => string;
+  canManage: boolean; // Dynamic security check
 }
 
 export default function ActiveRolesDirectory({
@@ -27,6 +28,7 @@ export default function ActiveRolesDirectory({
   handlePromoteMember,
   handleRevokeMember,
   getMappedRole,
+  canManage,
 }: ActiveRolesDirectoryProps) {
   return (
     <div className="bg-[#1C1B1E] border border-zinc-800/80 rounded-xl p-6 mb-8">
@@ -37,38 +39,43 @@ export default function ActiveRolesDirectory({
             Active Roles Allocation ({activeDetail.id})
           </h3>
           <p className="text-[11px] text-zinc-400 mt-0.5">
-            Directly promote roles, assign new user allocations, or revoke active level credentials.
+            {canManage 
+              ? "Directly promote roles, assign new user allocations, or revoke active level credentials."
+              : "View all active role allocations and security clearances for this level."
+            }
           </p>
         </div>
         
-        {/* MINIMALIST ASSIGN FORM */}
-        <form onSubmit={handleAssignUser} className="flex items-center gap-2">
-          <input
-            type="email"
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-            placeholder="user@example.com"
-            className="bg-zinc-950/60 border border-zinc-800/80 rounded px-2.5 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-[#7C5CFC]/60 transition-colors w-40 md:w-48"
-          />
-          <select
-            value={newRole}
-            onChange={(e) => setNewRole(e.target.value)}
-            className="bg-zinc-950/60 border border-zinc-800/80 rounded px-2 py-1 text-xs text-zinc-300 focus:outline-none focus:border-[#7C5CFC]/60 transition-colors cursor-pointer"
-          >
-            {activeDetail.roles.map((r) => (
-              <option key={r.name} value={r.name} className="bg-[#1C1B1E]">
-                {r.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="bg-[#7C5CFC]/10 border border-[#7C5CFC]/30 text-white hover:bg-[#7C5CFC] hover:text-white px-2.5 py-1 rounded text-xs transition-all duration-300 flex items-center gap-1 cursor-pointer font-medium"
-          >
-            <UserPlus className="h-3 w-3" />
-            <span>Assign</span>
-          </button>
-        </form>
+        {/* MINIMALIST ASSIGN FORM - HIDDEN IF USER LACKS PRIVILEGES */}
+        {canManage && (
+          <form onSubmit={handleAssignUser} className="flex items-center gap-2">
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="user@example.com"
+              className="bg-zinc-950/60 border border-zinc-800/80 rounded px-2.5 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-[#7C5CFC]/60 transition-colors w-40 md:w-48"
+            />
+            <select
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+              className="bg-zinc-950/60 border border-zinc-800/80 rounded px-2 py-1 text-xs text-zinc-300 focus:outline-none focus:border-[#7C5CFC]/60 transition-colors cursor-pointer"
+            >
+              {activeDetail.roles.map((r) => (
+                <option key={r.name} value={r.name} className="bg-[#1C1B1E]">
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="bg-[#7C5CFC]/10 border border-[#7C5CFC]/30 text-white hover:bg-[#7C5CFC] hover:text-white px-2.5 py-1 rounded text-xs transition-all duration-300 flex items-center gap-1 cursor-pointer font-medium"
+            >
+              <UserPlus className="h-3 w-3" />
+              <span>Assign</span>
+            </button>
+          </form>
+        )}
       </div>
 
       {/* COMPACT MINIMALIST LIST */}
@@ -108,8 +115,9 @@ export default function ActiveRolesDirectory({
                     <span className="text-[9px] font-mono text-zinc-550 uppercase">Role:</span>
                     <select
                       value={currentMappedRole}
+                      disabled={!canManage}
                       onChange={(e) => handlePromoteMember(member.id, e.target.value)}
-                      className="bg-zinc-900 border border-zinc-800/80 rounded px-2 py-0.5 text-[10.5px] text-zinc-300 font-semibold focus:outline-none focus:border-[#7C5CFC]/40 cursor-pointer"
+                      className="bg-zinc-900 border border-zinc-800/80 rounded px-2 py-0.5 text-[10.5px] text-zinc-300 font-semibold focus:outline-none focus:border-[#7C5CFC]/45 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                     >
                       {activeDetail.roles.map((r) => (
                         <option key={r.name} value={r.name} className="bg-[#1C1B1E]">
@@ -119,14 +127,16 @@ export default function ActiveRolesDirectory({
                     </select>
                   </div>
 
-                  {/* Revoke Action */}
-                  <button
-                    onClick={() => handleRevokeMember(member.id)}
-                    title="Revoke level credentials"
-                    className="text-zinc-650 hover:text-red-400 p-1.5 rounded transition-colors opacity-60 group-hover:opacity-100 cursor-pointer hover:bg-red-500/5 border border-transparent hover:border-red-500/10"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {/* Revoke Action - HIDE IF USER LACKS PRIVILEGES */}
+                  {canManage && (
+                    <button
+                      onClick={() => handleRevokeMember(member.id)}
+                      title="Revoke level credentials"
+                      className="text-zinc-650 hover:text-red-400 p-1.5 rounded transition-colors opacity-60 group-hover:opacity-100 cursor-pointer hover:bg-red-500/5 border border-transparent hover:border-red-500/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             );

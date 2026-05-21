@@ -161,14 +161,19 @@ export function WorkspaceSidebar() {
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 flex flex-col gap-6 scrollbar-none pb-8">
         
         {/* 2. + New Project Button */}
-        <Button 
-          variant="ghost" 
-          className="w-full justify-start text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 h-8 px-2 rounded-md border border-border/50"
-          onClick={() => setIsCreateProjectModalOpen(true)}
-        >
-          <Plus strokeWidth={1.5} className="mr-2 h-3.5 w-3.5" />
-          New Project
-        </Button>
+        <div className="relative w-full group/btn-wrap">
+          <div className="glowing-border-btn-glow" />
+          <div className="glowing-border-btn-wrap">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start text-xs text-muted-foreground hover:text-foreground h-8 px-2 bg-transparent hover:bg-transparent border-none rounded-[inherit]"
+              onClick={() => setIsCreateProjectModalOpen(true)}
+            >
+              <Plus strokeWidth={1.5} className="mr-2 h-3.5 w-3.5" />
+              New Project
+            </Button>
+          </div>
+        </div>
 
         <div className="flex flex-col">
           <span className="px-2 mb-2 text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Projects</span>

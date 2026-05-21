@@ -201,4 +201,75 @@ public class TenantService {
                     .build());
         }
     }
+
+    @Transactional
+    public MemberResponse updateMemberRole(UUID tenantId, UUID userId, String roleStr) {
+        User currentUser = getCurrentUser();
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
+
+        TenantMember currentMember = tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId())
+                .orElseThrow(() -> new IllegalArgumentException("You are not a member of this organization"));
+
+        if (currentMember.getRole() != TenantMemberRole.OWNER && currentMember.getRole() != TenantMemberRole.ADMIN) {
+            throw new IllegalArgumentException("You are not authorized to update roles in this organization");
+        }
+
+        TenantMember memberToUpdate = tenantMemberRepository.findByTenantIdAndUserId(tenantId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Member not found in this organization"));
+
+        TenantMemberRole newRole = TenantMemberRole.valueOf(roleStr.toUpperCase());
+        
+        if (memberToUpdate.getUser().getEmail().equalsIgnoreCase(tenant.getOwnerEmail())) {
+            throw new IllegalArgumentException("Cannot change role of the primary organization owner");
+        }
+
+        if (newRole == TenantMemberRole.OWNER && currentMember.getRole() != TenantMemberRole.OWNER) {
+            throw new IllegalArgumentException("Only the owner can transfer ownership");
+        }
+
+        memberToUpdate.setRole(newRole);
+        TenantMember savedMember = tenantMemberRepository.save(memberToUpdate);
+        
+        User u = savedMember.getUser();
+        return new MemberResponse(
+                u.getId(),
+                u.getEmail(),
+                u.getUsername(),
+                u.getFullName() != null ? u.getFullName() : u.getUsername(),
+                u.getAvatarUrl(),
+                u.getJobTitle() != null ? u.getJobTitle() : "Member",
+                savedMember.getRole().name()
+        );
+    }
+
+    @Transactional
+    public void removeMember(UUID tenantId, UUID userId) {
+        User currentUser = getCurrentUser();
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
+
+        TenantMember currentMember = tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId())
+                .orElseThrow(() -> new IllegalArgumentException("You are not a member of this organization"));
+
+        if (currentMember.getRole() != TenantMemberRole.OWNER && currentMember.getRole() != TenantMemberRole.ADMIN) {
+            throw new IllegalArgumentException("You are not authorized to remove members from this organization");
+        }
+
+        TenantMember memberToRemove = tenantMemberRepository.findByTenantIdAndUserId(tenantId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Member not found in this organization"));
+
+        if (memberToRemove.getUser().getEmail().equalsIgnoreCase(tenant.getOwnerEmail())) {
+            throw new IllegalArgumentException("Cannot remove the primary organization owner");
+        }
+
+        if (memberToRemove.getRole() == TenantMemberRole.ADMIN && currentMember.getRole() != TenantMemberRole.OWNER) {
+            throw new IllegalArgumentException("Only the owner can remove administrators");
+        }
+
+        tenantMemberRepository.delete(memberToRemove);
+        
+        tenant.setMembersCount(Math.max(1, tenant.getMembersCount() - 1));
+        tenantRepository.save(tenant);
+    }
 }

@@ -22,9 +22,6 @@ export interface LevelDetail {
   tableName: string;
   icon: React.ElementType;
   description: string;
-  sqlCheck: string;
-  ddl: string;
-  indexes: string[];
   roles: RoleDetail[];
   matrix: MatrixRow[];
 }

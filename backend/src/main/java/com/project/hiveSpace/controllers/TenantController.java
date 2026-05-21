@@ -43,4 +43,20 @@ public class TenantController {
     public ResponseEntity<List<MemberResponse>> getTenantMembers(@PathVariable UUID tenantId) {
         return ResponseEntity.ok(tenantService.getMembersByTenantId(tenantId));
     }
+
+    @PutMapping("/{tenantId}/members/{userId}/role")
+    public ResponseEntity<MemberResponse> updateMemberRole(
+            @PathVariable UUID tenantId,
+            @PathVariable UUID userId,
+            @RequestParam String role) {
+        return ResponseEntity.ok(tenantService.updateMemberRole(tenantId, userId, role));
+    }
+
+    @DeleteMapping("/{tenantId}/members/{userId}")
+    public ResponseEntity<Void> removeMember(
+            @PathVariable UUID tenantId,
+            @PathVariable UUID userId) {
+        tenantService.removeMember(tenantId, userId);
+        return ResponseEntity.noContent().build();
+    }
 }

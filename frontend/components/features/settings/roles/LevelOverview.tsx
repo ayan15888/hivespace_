@@ -1,4 +1,3 @@
-import { Database } from "lucide-react";
 import { LevelDetail } from "./types";
 
 interface LevelOverviewProps {
@@ -19,7 +18,7 @@ export default function LevelOverview({ activeDetail }: LevelOverviewProps) {
         </div>
         <div>
           <span className="text-[10px] font-bold text-[#7C5CFC] uppercase tracking-widest font-mono">
-            {activeDetail.tableName} schema level
+            {activeDetail.tableName} level
           </span>
           <h2 className="text-lg font-bold text-white mt-1">
             {activeDetail.name}
@@ -27,17 +26,6 @@ export default function LevelOverview({ activeDetail }: LevelOverviewProps) {
           <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
             {activeDetail.description}
           </p>
-        </div>
-      </div>
-
-      {/* SQL CONSTRAINT INDICATOR */}
-      <div className="mt-4 flex items-center gap-2 px-3 py-2 rounded bg-zinc-950/40 border border-zinc-850">
-        <Database className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-        <div className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-300">
-          <span>SQL Enforced Constraint:</span>
-          <code className="text-emerald-400 font-mono text-[11px] bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">
-            {activeDetail.sqlCheck}
-          </code>
         </div>
       </div>
     </div>

@@ -19,11 +19,11 @@ export default function CapabilityMatrix({
             Granular Capability Matrix
           </h3>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Review exactly which actions are mapped to which database-enforced roles.
+            Review exactly which actions are mapped to which system roles.
           </p>
         </div>
         <span className="text-[9px] font-mono uppercase bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">
-          Enforced by DB Engine
+          Enforced by System Engine
         </span>
       </div>
 
