@@ -1,33 +1,25 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getTeamsByWorkspace, TeamResponse } from "@/lib/api/teams";
+import { queryKeys } from "@/lib/queryKeys";
 
 export function useTeams(workspaceId?: string) {
-  const [teams, setTeams] = useState<TeamResponse[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const query = useQuery<TeamResponse[], Error>({
+    queryKey: workspaceId ? queryKeys.teams(workspaceId) : ["teams", "none"],
+    queryFn: () => {
+      if (!workspaceId) return Promise.resolve([]);
+      return getTeamsByWorkspace(workspaceId);
+    },
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+    retry: 1,
+  });
 
-  const fetchTeams = useCallback(async () => {
-    if (!workspaceId) {
-      setTeams([]);
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await getTeamsByWorkspace(workspaceId);
-      setTeams(data);
-      setError(null);
-    } catch (err: unknown) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [workspaceId]);
-
-  useEffect(() => {
-    fetchTeams();
-  }, [fetchTeams]);
-
-  return { teams, loading, error, refresh: fetchTeams };
+  return {
+    teams: query.data ?? [],
+    loading: query.isLoading || query.isFetching,
+    error: query.error?.message ?? null,
+    refresh: query.refetch,
+  };
 }
