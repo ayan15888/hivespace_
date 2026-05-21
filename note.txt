@@ -13,3 +13,7 @@ Your Teammate's Final Verdict is Spot On
 The newSchema.sql file (the IDE planned schema) is a production-grade PostgreSQL schema. It pushes data integrity, cascading deletes, and safety checks down to the database layer, which is how enterprise apps like Jira or Linear are built.
 
 The current live schema is a standard "developer-mode" ORM schema. It works for prototyping, but as your teammate pointed out, it is dangerous for production because bad data (like a user being added to a workspace twice, or a role being misspelled as SUPER_ADMIN) will be accepted by the database without throwing an error.
+
+NEXT_PUBLIC_APP_DOMAIN=hive-space.indevs.in
+
+RESEND_API=re_aFR6xxth_4bc4wR9Xq2BtSRjKUX2856ZC

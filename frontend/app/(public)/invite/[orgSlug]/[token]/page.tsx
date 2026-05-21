@@ -693,7 +693,7 @@ export default function InviteAcceptancePage() {
               </div>
 
               <p className="text-[8px] text-zinc-600 mt-8 leading-relaxed">
-                If you believe this is in error, contact your organization admin or email <span className="text-[#7C5CFC]/80">support@hivespace.io</span>
+                If you believe this is in error, contact your organization admin or email <span className="text-[#7C5CFC]/80">support@{process.env.NEXT_PUBLIC_APP_DOMAIN || "hivespace.app"}</span>
               </p>
             </div>
           )}
