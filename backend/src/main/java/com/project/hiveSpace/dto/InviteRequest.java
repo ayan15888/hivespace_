@@ -16,4 +16,6 @@ public class InviteRequest {
     private String role; // e.g. MEMBER, ADMIN, VIEWER, LEAD
     private Integer maxUses;
     private String pin; // Optional custom PIN; auto-generated if null
+    private String email; // Optional email to send invite directly to the invitee
+    private UUID projectId;
 }

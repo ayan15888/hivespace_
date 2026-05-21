@@ -9,7 +9,8 @@ import {
   Copy,
   Info,
   ChevronDown,
-  Lock
+  Lock,
+  Send
 } from "lucide-react"
 import { 
   Dialog, 
@@ -79,6 +80,17 @@ export function InviteModal({ trigger }: InviteModalProps) {
       toast.error("No active organization found");
       return;
     }
+
+    const targetEmails = [...emails];
+    const trimmedInput = emailInput.trim();
+    if (trimmedInput && !targetEmails.includes(trimmedInput)) {
+      targetEmails.push(trimmedInput);
+    }
+
+    if (targetEmails.length === 0) {
+      toast.error("Please add at least one email address");
+      return;
+    }
     
     setLoading(true);
     try {
@@ -89,24 +101,26 @@ export function InviteModal({ trigger }: InviteModalProps) {
                           role === "Viewer" ? "VIEWER" :
                           role === "Billing Admin" ? "ADMIN" : "MEMBER";
 
-      const response = await generateInvite({
-        tenantId: activeOrg.id,
-        workspaceId: activeWorkspace?.id,
-        role: backendRole,
-        maxUses: Math.max(1, emails.length),
-      });
+      // Send to each email individually via the backend resend integration
+      const invitePromises = targetEmails.map(email => 
+        generateInvite({
+          tenantId: activeOrg.id,
+          workspaceId: activeWorkspace?.id,
+          role: backendRole,
+          maxUses: 1,
+          email: email
+        })
+      );
 
-      setGeneratedInvite(response);
-
-      if (emails.length > 0) {
-        const inviteUrl = `${window.location.origin}/invite/${activeOrg.slug}/${response.token}`;
-        const subject = `Invitation to join ${activeOrg.name} on HiveSpace`;
-        const body = `Hi there,\n\nYou have been invited to join the ${activeOrg.name} organization on HiveSpace as a ${role}.\n\nClick this link to accept the invitation:\n${inviteUrl}\n\nFor security, please use the following PIN to complete the join process:\nPIN: ${response.pin}\n\n${message ? `Personal message from sender:\n"${message}"\n\n` : ""}Looking forward to collaborating with you!\n\nBest regards,\nThe HiveSpace Team`;
-
-        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(emails.join(','))}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.open(gmailUrl, "_blank");
+      const responses = await Promise.all(invitePromises);
+      
+      if (responses.length > 0) {
+        setGeneratedInvite(responses[0]);
       }
 
+      toast.success(`Successfully sent ${targetEmails.length} invitation email(s)!`);
+      setEmails(targetEmails);
+      setEmailInput("");
       setStep("success");
     } catch (err: any) {
       toast.error(err.message || "Failed to send invites");
@@ -205,27 +219,40 @@ export function InviteModal({ trigger }: InviteModalProps) {
                 <label className="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-2 block">
                   EMAIL ADDRESSES
                 </label>
-                <div className="bg-[#272629] border border-zinc-700 rounded-md min-h-12 max-h-32 p-3 flex flex-wrap gap-1.5 overflow-y-auto focus-within:border-violet-500/50 transition-colors">
-                  {emails.map(email => (
-                    <div key={email} className="bg-zinc-700 rounded-full px-2.5 py-1 text-xs text-zinc-200 flex items-center gap-1.5">
-                      <span>{email}</span>
-                      <button 
-                        type="button"
-                        onClick={() => removeEmail(email)} 
-                        className="text-zinc-500 hover:text-zinc-300 transition-colors"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                  <input 
-                    type="text"
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    onKeyDown={addEmail}
-                    placeholder={emails.length === 0 ? "Add email addresses and press Enter..." : ""}
-                    className="bg-transparent border-none outline-none text-sm text-[#E5E1E4] placeholder:text-zinc-500 flex-1 min-w-[120px]"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="bg-[#272629] border border-zinc-700 rounded-md min-h-12 max-h-32 p-3 flex flex-wrap gap-1.5 overflow-y-auto focus-within:border-violet-500/50 transition-colors flex-1">
+                    {emails.map(email => (
+                      <div key={email} className="bg-zinc-700 rounded-full px-2.5 py-1 text-xs text-zinc-200 flex items-center gap-1.5">
+                        <span>{email}</span>
+                        <button 
+                          type="button"
+                          onClick={() => removeEmail(email)} 
+                          className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                    <input 
+                      type="text"
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      onKeyDown={addEmail}
+                      placeholder={emails.length === 0 ? "Add email addresses and press Enter..." : ""}
+                      className="bg-transparent border-none outline-none text-sm text-[#E5E1E4] placeholder:text-zinc-500 flex-1 min-w-[120px]"
+                    />
+                  </div>
+                  {(emailInput.trim() || emails.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={handleSend}
+                      disabled={loading}
+                      title="Send Invitation"
+                      className="h-12 w-12 rounded-md bg-[#272629] border border-zinc-700 hover:border-violet-500/50 hover:bg-zinc-800 text-zinc-400 hover:text-violet-400 flex items-center justify-center transition-all shrink-0 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Send className="h-5 w-5" />
+                    </button>
+                  )}
                 </div>
               </section>
 

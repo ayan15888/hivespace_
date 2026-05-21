@@ -40,6 +40,10 @@ public class Invitation {
     private Team team; // Optional team scope
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project; // Optional project scope
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "inviter_id", nullable = false)
     private User inviter;
 

@@ -29,8 +29,14 @@ public class InvitationService {
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final InvitationAttemptRepository invitationAttemptRepository;
+    private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     
     private final PasswordEncoder passwordEncoder;
+    private final ResendEmailService resendEmailService;
+
+    @org.springframework.beans.factory.annotation.Value("${APP_DOMAIN:hive-space.indevs.in}")
+    private String appDomain;
 
     @Transactional
     public InviteResponse createInvite(InviteRequest request) {
@@ -66,6 +72,12 @@ public class InvitationService {
                     .orElseThrow(() -> new IllegalArgumentException("Team not found"));
         }
 
+        Project project = null;
+        if (request.getProjectId() != null) {
+            project = projectRepository.findById(request.getProjectId())
+                    .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+        }
+
         // Generate or verify the PIN
         String rawPin = request.getPin();
         if (rawPin == null || rawPin.trim().isEmpty()) {
@@ -82,6 +94,7 @@ public class InvitationService {
                 .tenant(tenant)
                 .workspace(workspace)
                 .team(team)
+                .project(project)
                 .inviter(currentUser)
                 .role(request.getRole() != null ? request.getRole() : "MEMBER")
                 .maxUses(request.getMaxUses() != null ? request.getMaxUses() : 1)
@@ -96,6 +109,26 @@ public class InvitationService {
         InviteResponse response = mapToResponse(saved);
         // We include the raw plain PIN only upon successful creation so the inviter can copy it
         response.setPin(rawPin);
+
+        // If email is provided in the request, send it via ResendEmailService
+        if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
+            String domain = appDomain;
+            if (domain == null || domain.isBlank()) {
+                domain = "hive-space.indevs.in";
+            }
+            String protocol = domain.contains("localhost") ? "http://" : "https://";
+            String inviteUrl = protocol + domain + "/invite/" + tenant.getSlug() + "/" + saved.getToken();
+            
+            resendEmailService.sendInvitationEmail(
+                request.getEmail().trim(),
+                tenant.getName(),
+                request.getRole() != null ? request.getRole() : "MEMBER",
+                currentUser.getUsername(),
+                inviteUrl,
+                rawPin
+            );
+        }
+
         return response;
     }
 
@@ -224,6 +257,39 @@ public class InvitationService {
             }
         }
 
+        // --- 4. Join Project (if specified) ---
+        Project project = invitation.getProject();
+        if (project != null) {
+            Workspace projectWorkspace = project.getWorkspace();
+            
+            // Join Workspace if they aren't in it
+            if (projectWorkspace != null && !workspaceMemberRepository.existsByWorkspaceAndUser(projectWorkspace, currentUser)) {
+                WorkspaceMember workspaceMember = WorkspaceMember.builder()
+                        .workspace(projectWorkspace)
+                        .user(currentUser)
+                        .role(WorkspaceMemberRole.MEMBER)
+                        .joinedAt(new Date())
+                        .build();
+                workspaceMemberRepository.save(workspaceMember);
+                projectWorkspace.setMembersCount(projectWorkspace.getMembersCount() + 1);
+                workspaceRepository.save(projectWorkspace);
+            }
+
+            // Join Project
+            if (!projectMemberRepository.existsByProjectAndUser(project, currentUser)) {
+                ProjectMember projectMember = ProjectMember.builder()
+                        .project(project)
+                        .user(currentUser)
+                        .role(ProjectMemberRole.MEMBER)
+                        .joinedAt(new Date())
+                        .build();
+                projectMemberRepository.save(projectMember);
+
+                project.setMembersCount(project.getMembersCount() + 1);
+                projectRepository.save(project);
+            }
+        }
+
         // 5. Increment Use Counter
         invitation.setCurrentUses(invitation.getCurrentUses() + 1);
         if (invitation.getCurrentUses() >= invitation.getMaxUses()) {
@@ -285,6 +351,8 @@ public class InvitationService {
                 .workspaceName(invite.getWorkspace() != null ? invite.getWorkspace().getName() : null)
                 .teamId(invite.getTeam() != null ? invite.getTeam().getId() : null)
                 .teamName(invite.getTeam() != null ? invite.getTeam().getName() : null)
+                .projectId(invite.getProject() != null ? invite.getProject().getId() : null)
+                .projectName(invite.getProject() != null ? invite.getProject().getName() : null)
                 .inviterUsername(invite.getInviter().getUsername())
                 .role(invite.getRole())
                 .maxUses(invite.getMaxUses())
