@@ -10,10 +10,19 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import com.project.hiveSpace.models.TenantMember;
+import com.project.hiveSpace.models.TenantMemberRole;
 import com.project.hiveSpace.dto.MemberResponse;
+
+import java.util.Date;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -84,11 +93,27 @@ public class TenantService {
         );
     }
 
+    @Transactional(readOnly = true)
     public List<TenantResponse> getTenantsForCurrentUser() {
         User currentUser = getCurrentUser();
-        return tenantRepository.findAllByOwnerEmail(currentUser.getEmail()).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        Set<UUID> seen = new HashSet<>();
+        List<TenantResponse> result = new ArrayList<>();
+
+        for (TenantMember membership : tenantMemberRepository.findAllByUserId(currentUser.getId())) {
+            Tenant tenant = membership.getTenant();
+            if (seen.add(tenant.getId())) {
+                result.add(mapToResponse(tenant));
+            }
+        }
+
+        // Backward compatibility for orgs created before tenant_members existed
+        for (Tenant tenant : tenantRepository.findAllByOwnerEmail(currentUser.getEmail())) {
+            if (seen.add(tenant.getId())) {
+                result.add(mapToResponse(tenant));
+            }
+        }
+
+        return result;
     }
 
     public long getTenantCountByOwnerId(UUID userId) {
@@ -114,25 +139,22 @@ public class TenantService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<MemberResponse> getMembersByTenantId(UUID tenantId) {
         User currentUser = getCurrentUser();
 
-        // Validate tenant exists
-        if (!tenantRepository.existsById(tenantId)) {
-            throw new IllegalArgumentException("Tenant not found");
-        }
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
-        // Validate requester belongs to tenant
-        if (tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId()).isEmpty()) {
+        ensureOwnerMembership(tenant);
+
+        if (!canViewMemberDirectory(tenant, currentUser)) {
             throw new IllegalArgumentException("You are not authorized to view members of this organization");
         }
 
-        return userRepository.findByTenantId(tenantId).stream()
-                .map(user -> {
-                    String role = tenantMemberRepository
-                            .findByTenantIdAndUserId(tenantId, user.getId())
-                            .map(tm -> tm.getRole().name())
-                            .orElse("MEMBER");
+        return tenantMemberRepository.findAllByTenantId(tenantId).stream()
+                .map(membership -> {
+                    User user = membership.getUser();
                     return new MemberResponse(
                             user.getId(),
                             user.getEmail(),
@@ -140,9 +162,43 @@ public class TenantService {
                             user.getFullName() != null ? user.getFullName() : user.getUsername(),
                             user.getAvatarUrl(),
                             user.getJobTitle() != null ? user.getJobTitle() : "Member",
-                            role
+                            membership.getRole().name()
                     );
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Org owner, admins, and members may view the full member directory.
+     * Billing admins are scoped to billing only (see product blueprint).
+     */
+    private boolean canViewMemberDirectory(Tenant tenant, User user) {
+        if (tenant.getOwnerEmail() != null
+                && tenant.getOwnerEmail().equalsIgnoreCase(user.getEmail())) {
+            return true;
+        }
+        return tenantMemberRepository.findByTenantIdAndUserId(tenant.getId(), user.getId())
+                .map(m -> m.getRole() != TenantMemberRole.BILLING_ADMIN)
+                .orElse(false);
+    }
+
+    /** Backfill owner row for orgs created before tenant_members was enforced. */
+    private void ensureOwnerMembership(Tenant tenant) {
+        if (tenant.getOwnerEmail() == null || tenant.getOwnerEmail().isBlank()) {
+            return;
+        }
+        Optional<User> ownerUser = userRepository.findByEmail(tenant.getOwnerEmail());
+        if (ownerUser.isEmpty()) {
+            return;
+        }
+        User owner = ownerUser.get();
+        if (!tenantMemberRepository.existsByTenantAndUser(tenant, owner)) {
+            tenantMemberRepository.save(TenantMember.builder()
+                    .tenant(tenant)
+                    .user(owner)
+                    .role(TenantMemberRole.OWNER)
+                    .joinedAt(new Date())
+                    .build());
+        }
     }
 }

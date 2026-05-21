@@ -345,6 +345,20 @@ public class InvitationService {
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public java.util.List<InviteResponse> getInvitationsByTenant(UUID tenantId) {
+        User currentUser = getCurrentUser();
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
+
+        boolean isOwner = tenant.getOwnerEmail().equalsIgnoreCase(currentUser.getEmail());
+        TenantMember member = tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId())
+                .orElse(null);
+        boolean isAdmin = member != null
+                && (member.getRole() == TenantMemberRole.OWNER || member.getRole() == TenantMemberRole.ADMIN);
+
+        if (!isOwner && !isAdmin) {
+            throw new SecurityException("Only organization owners or administrators can view invitations");
+        }
+
         return invitationRepository.findByTenantIdOrderByCreatedAtDesc(tenantId).stream()
                 .map(this::mapToResponse)
                 .collect(java.util.stream.Collectors.toList());
