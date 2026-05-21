@@ -5,7 +5,6 @@ export interface ProjectRequest {
   description?: string;
   status: string;
   workspaceId: string;
-  slug?: string; // Optional for frontend internal use
   color?: string; // Optional for frontend internal use
 }
 
@@ -16,9 +15,9 @@ export interface ProjectResponse {
   status: string;
   workspaceId: string;
   createdAt: string;
+  updatedAt: string;
   teamsCount: number;
   membersCount: number;
-  slug?: string; // Optional for UI use
   color?: string; // Optional for UI use
 }
 

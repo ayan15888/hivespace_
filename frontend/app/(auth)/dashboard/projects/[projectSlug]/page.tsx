@@ -62,9 +62,9 @@ const RECENT_PRs = [
 export default function ProjectOverviewPage() {
   const params = useParams();
   const { projects } = useProjects();
-  const projectSlug = params?.projectSlug as string || "sprint-3";
+  const projectId = params?.projectSlug as string || "";
 
-  const currentProject = projects.find(p => p.slug === projectSlug || p.id === projectSlug);
+  const currentProject = projects.find(p => p.id === projectId);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
   const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
 
@@ -82,10 +82,7 @@ export default function ProjectOverviewPage() {
     fetchProjectMembers();
   }, [fetchProjectMembers]);
 
-  const displayTitle = currentProject?.name || projectSlug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const displayTitle = currentProject?.name || "Project";
 
   return (
     <ScrollArea className="h-screen w-full bg-background text-foreground">
@@ -100,11 +97,11 @@ export default function ProjectOverviewPage() {
         </div>
 
         <nav className="flex h-full items-center gap-6">
-          <Link href={`/dashboard/projects/${projectSlug}`} className="relative flex h-full items-center px-1 text-sm font-medium text-foreground">
+          <Link href={`/dashboard/projects/${projectId}`} className="relative flex h-full items-center px-1 text-sm font-medium text-foreground">
             Overview
             <div className="absolute bottom-0 left-0 h-[2px] w-full" style={{ backgroundColor: themeColor }} />
           </Link>
-          <Link href={`/dashboard/projects/${projectSlug}/board`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <Link href={`/dashboard/projects/${projectId}/board`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Board
           </Link>
           <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -264,7 +261,7 @@ export default function ProjectOverviewPage() {
           <section className="flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold tracking-widest text-zinc-600 uppercase">Recent Tasks</h3>
-              <Link href={`/dashboard/projects/${projectSlug}/board`} className="text-[11px] font-semibold hover:opacity-80 transition-opacity flex items-center gap-1 group" style={{ color: themeColor }}>
+              <Link href={`/dashboard/projects/${projectId}/board`} className="text-[11px] font-semibold hover:opacity-80 transition-opacity flex items-center gap-1 group" style={{ color: themeColor }}>
                 View board <ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>

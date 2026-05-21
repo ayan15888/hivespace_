@@ -70,16 +70,13 @@ const COLUMN_NAMES = ["Backlog", "Todo", "In Progress", "Review", "Done"];
 export default function SprintThreeBoardPage() {
   const params = useParams();
   const { projects } = useProjects();
-  const projectSlug = params?.projectSlug as string || "";
+  const projectId = params?.projectSlug as string || "";
   
 
-  const currentProject = projects.find(p => p.slug === projectSlug || p.id === projectSlug);
+  const currentProject = projects.find(p => p.id === projectId);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
 
-  const displayTitle = currentProject?.name || projectSlug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const displayTitle = currentProject?.name || "Project";
 
   const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
   const [editedTitle, setEditedTitle] = useState("");

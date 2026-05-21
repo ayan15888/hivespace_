@@ -33,14 +33,12 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
   const { workspaces, activeWorkspace } = useWorkspaceStore();
   const addProject = useProjectStore(state => state.addProject);
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
   const [selectedColor, setSelectedColor] = useState(PROJECT_COLORS[1]);
   const [loading, setLoading] = useState(false);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setName(val);
-    setSlug(val.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, ""));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,7 +52,6 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
         description: "", 
         status: "ACTIVE",
         workspaceId: activeWorkspace.id,
-        slug,
         color: selectedColor.value,
       });
       
@@ -131,18 +128,6 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                         />
                       </div>
     
-                      <div className="space-y-2">
-                        <Label htmlFor="p-slug" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Slug</Label>
-                        <Input 
-                          id="p-slug" 
-                          placeholder="mobile-app" 
-                          value={slug}
-                          onChange={(e) => setSlug(e.target.value)}
-                          required
-                          className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground"
-                        />
-                      </div>
-
                       <div className="space-y-2">
                         <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Theme Color</Label>
                         <div className="flex gap-2.5 pt-1">

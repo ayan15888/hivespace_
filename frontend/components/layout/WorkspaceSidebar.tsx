@@ -55,7 +55,7 @@ export function WorkspaceSidebar() {
   const { workspaces } = useWorkspaces();
   const { activeWorkspace, setActiveWorkspace } = useWorkspaceStore();
   const { projects, loading: projectsLoading } = useProjects();
-  const activeProject = projects.find(p => pathname.startsWith(`/dashboard/projects/${p.id}`) || (p.slug && pathname.startsWith(`/dashboard/projects/${p.slug}`)));
+  const activeProject = projects.find(p => pathname.startsWith(`/dashboard/projects/${p.id}`));
   const activeProjectId = activeProject?.id || null;
   
   const expandedProjectId = manualExpandedId !== null ? manualExpandedId : activeProjectId;
@@ -176,8 +176,7 @@ export function WorkspaceSidebar() {
           <div className="flex flex-col gap-0.5">
             <AnimatePresence initial={false}>
               {projects.map(project => {
-                const projectIdentifier = project.slug || project.id;
-                const projectPath = `/dashboard/projects/${projectIdentifier}`;
+                const projectPath = `/dashboard/projects/${project.id}`;
                 const isActive = pathname.startsWith(projectPath);
                 const isExpanded = expandedProjectId === project.id;
                 const dotColor = PROJECT_COLOR_MAP[project.color || ""] || "#7C5CFC";

@@ -312,7 +312,7 @@ function DashboardPageContent() {
                                 {project.name}
                               </span>
                               <span className="text-[10px] text-muted-foreground/60 uppercase tracking-tight truncate">
-                                {project.slug || project.id.slice(0, 8)}
+                                {project.id.slice(0, 8)}
                               </span>
                             </div>
                           </div>
