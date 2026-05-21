@@ -128,15 +128,21 @@ public class TenantService {
         }
 
         return userRepository.findByTenantId(tenantId).stream()
-                .map(user -> new MemberResponse(
-                        user.getId(),
-                        user.getEmail(),
-                        user.getUsername(),
-                        user.getFullName() != null ? user.getFullName() : user.getUsername(),
-                        user.getAvatarUrl(),
-                        user.getJobTitle() != null ? user.getJobTitle() : "Member",
-                        "MEMBER"
-                ))
+                .map(user -> {
+                    String role = tenantMemberRepository
+                            .findByTenantIdAndUserId(tenantId, user.getId())
+                            .map(tm -> tm.getRole().name())
+                            .orElse("MEMBER");
+                    return new MemberResponse(
+                            user.getId(),
+                            user.getEmail(),
+                            user.getUsername(),
+                            user.getFullName() != null ? user.getFullName() : user.getUsername(),
+                            user.getAvatarUrl(),
+                            user.getJobTitle() != null ? user.getJobTitle() : "Member",
+                            role
+                    );
+                })
                 .collect(Collectors.toList());
     }
 }
