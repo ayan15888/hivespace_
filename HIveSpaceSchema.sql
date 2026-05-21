@@ -1,3 +1,8 @@
+===========================================================================
+---------------------------------------------------------------------------
+---------------------- UP AND RUNNING IN THE DB ---------------------------
+---------------------------------------------------------------------------
+
 -- TENANTS
 CREATE TABLE tenants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -73,6 +78,8 @@ CREATE TABLE projects (
   color VARCHAR,
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  start_date TIMESTAMP,
+  end_date TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
@@ -179,6 +186,11 @@ CREATE TABLE invitation_attempts (
   attempted_at TIMESTAMP NOT NULL DEFAULT now(),
   success BOOLEAN NOT NULL DEFAULT false
 );
+
+==========================================================================
+---------------------------------------------------------------------------
+---------------------- NOT ADDED IN THE DB YET ----------------------------
+---------------------------------------------------------------------------
 
 -- CHANNELS
 CREATE TABLE channels (
@@ -309,7 +321,12 @@ CREATE TABLE shareable_links (
   last_accessed_at TIMESTAMP,
   access_count INTEGER NOT NULL DEFAULT 0,
   is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMP NOT NULL DEFAULT now()
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  CONSTRAINT check_exactly_one_scope CHECK (
+    (CASE WHEN project_id IS NOT NULL THEN 1 ELSE 0 END +
+     CASE WHEN workspace_id IS NOT NULL THEN 1 ELSE 0 END +
+     CASE WHEN team_id IS NOT NULL THEN 1 ELSE 0 END) = 1
+  )
 );
 
 -- FILE UPLOADS
@@ -355,7 +372,6 @@ CREATE TABLE subscriptions (
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
-
 -- AT LAST STAGE WE WILL DO INDEXING ON ALL TABLES (add these — critical for performance)
 -- INDEXES
 CREATE INDEX idx_users_tenant ON users(tenant_id);
@@ -378,6 +394,8 @@ CREATE INDEX idx_shareable_links_token ON shareable_links(token);
 CREATE INDEX idx_shareable_links_project ON shareable_links(project_id);
 CREATE INDEX idx_shareable_links_workspace ON shareable_links(workspace_id);
 CREATE INDEX idx_shareable_links_team ON shareable_links(team_id);
+CREATE INDEX idx_shareable_links_token ON shareable_links(token);
+CREATE INDEX idx_shareable_links_project ON shareable_links(project_id);
 -- INDEXES 
 CREATE INDEX idx_workspace_members_user ON workspace_members(user_id);
 CREATE INDEX idx_workspace_members_workspace ON workspace_members(workspace_id);
