@@ -30,12 +30,12 @@ public class Project {
     @Builder.Default
     private ProjectStatus status = ProjectStatus.ACTIVE;
 
-    @Transient
     @Builder.Default
+    @Column(name = "teams_count", nullable = false)
     private int teamsCount = 0;
 
-    @Transient
     @Builder.Default
+    @Column(name = "members_count", nullable = false)
     private int membersCount = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -56,6 +56,14 @@ public class Project {
 
     @Column(name = "color")
     private String color;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "start_date")
+    private Date startDate;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "end_date")
+    private Date endDate;
 
     @PrePersist
     void prePersist() {

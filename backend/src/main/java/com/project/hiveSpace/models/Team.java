@@ -25,8 +25,8 @@ public class Team {
     @Column(name = "description", nullable = true)
     private String description;
 
-    @Transient
     @Builder.Default
+    @Column(name = "members_count", nullable = false)
     private int membersCount = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)

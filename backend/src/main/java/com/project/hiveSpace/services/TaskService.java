@@ -35,6 +35,11 @@ public class TaskService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
+        User assignee = null;
+        if (request.getAssigneeId() != null) {
+            assignee = userRepository.findById(request.getAssigneeId()).orElse(null);
+        }
+
         Task task = Task.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -44,23 +49,21 @@ public class TaskService {
                 .dueDate(request.getDueDate())
                 .points(request.getPoints())
                 .project(project)
+                .assignee(assignee)
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
 
         Task savedTask = taskRepository.save(task);
 
-        if (request.getAssigneeId() != null) {
-            User assignee = userRepository.findById(request.getAssigneeId()).orElse(null);
-            if (assignee != null) {
-                TaskAssignee taskAssignee = TaskAssignee.builder()
-                        .task(savedTask)
-                        .user(assignee)
-                        .role(TaskAssigneeRole.OWNER)
-                        .assignedAt(new Date())
-                        .build();
-                taskAssigneeRepository.save(taskAssignee);
-            }
+        if (assignee != null) {
+            TaskAssignee taskAssignee = TaskAssignee.builder()
+                    .task(savedTask)
+                    .user(assignee)
+                    .role(TaskAssigneeRole.OWNER)
+                    .assignedAt(new Date())
+                    .build();
+            taskAssigneeRepository.save(taskAssignee);
         }
 
         return mapToResponse(savedTask);
@@ -100,27 +103,35 @@ public class TaskService {
                 .updatedAt(task.getUpdatedAt())
                 .build();
 
-        Optional<TaskAssignee> assigneeOpt = taskAssigneeRepository.findFirstByTask(task);
-        if (assigneeOpt.isPresent()) {
-            User assigneeUser = assigneeOpt.get().getUser();
+        User assigneeUser = task.getAssignee();
+        if (assigneeUser == null) {
+            Optional<TaskAssignee> assigneeOpt = taskAssigneeRepository.findFirstByTask(task);
+            if (assigneeOpt.isPresent()) {
+                assigneeUser = assigneeOpt.get().getUser();
+            }
+        }
+
+        if (assigneeUser != null) {
             response.setAssigneeId(assigneeUser.getId());
             response.setAssigneeName(assigneeUser.getFullName());
-            
-            // Basic initials logic from fullName
-            String initials = "";
-            String fullName = assigneeUser.getFullName();
-            if (fullName != null && !fullName.isEmpty()) {
-                String[] parts = fullName.split("\\s+");
-                if (parts.length > 0 && !parts[0].isEmpty()) {
-                    initials += parts[0].charAt(0);
-                }
-                if (parts.length > 1 && !parts[1].isEmpty()) {
-                    initials += parts[1].charAt(0);
-                }
-            }
-            response.setAssigneeInitials(initials.toUpperCase());
+            response.setAssigneeInitials(toInitials(assigneeUser.getFullName()));
         }
 
         return response;
+    }
+
+    private String toInitials(String fullName) {
+        if (fullName == null || fullName.isBlank()) {
+            return "";
+        }
+        String[] parts = fullName.trim().split("\\s+");
+        StringBuilder initials = new StringBuilder();
+        if (parts.length > 0 && !parts[0].isEmpty()) {
+            initials.append(parts[0].charAt(0));
+        }
+        if (parts.length > 1 && !parts[1].isEmpty()) {
+            initials.append(parts[1].charAt(0));
+        }
+        return initials.toString().toUpperCase();
     }
 }

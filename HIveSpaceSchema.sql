@@ -396,6 +396,7 @@ CREATE INDEX idx_shareable_links_workspace ON shareable_links(workspace_id);
 CREATE INDEX idx_shareable_links_team ON shareable_links(team_id);
 CREATE INDEX idx_shareable_links_token ON shareable_links(token);
 CREATE INDEX idx_shareable_links_project ON shareable_links(project_id);
+CREATE INDEX idx_tenants_slug ON tenants(slug);
 -- INDEXES 
 CREATE INDEX idx_workspace_members_user ON workspace_members(user_id);
 CREATE INDEX idx_workspace_members_workspace ON workspace_members(workspace_id);

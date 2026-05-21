@@ -44,12 +44,12 @@ public class Tenant {
     @Column(length = 500)
     private String description;
 
-    @Transient
     @Builder.Default
+    @Column(name = "members_count", nullable = false)
     private int membersCount = 0;
 
-    @Transient
     @Builder.Default
+    @Column(name = "workspaces_count", nullable = false)
     private int workspacesCount = 0;
 
     @Temporal(TemporalType.TIMESTAMP)
