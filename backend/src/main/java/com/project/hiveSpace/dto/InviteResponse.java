@@ -19,6 +19,7 @@ public class InviteResponse {
     private String pin; // Returned only upon successful creation so the user can copy/share it
     private UUID tenantId;
     private String tenantName;
+    private String tenantSlug;
     private UUID workspaceId;
     private String workspaceName;
     private UUID teamId;

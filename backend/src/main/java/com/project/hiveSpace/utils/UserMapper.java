@@ -26,7 +26,7 @@ public class UserMapper {
                 user.getId(),
                 user.getEmail(),
                 user.getUsername(),
-                null,
+                com.project.hiveSpace.models.Role.USER,
                 token,
                 hasTenants,
                 user.getAvatarUrl(),

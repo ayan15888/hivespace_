@@ -99,7 +99,7 @@ export function InviteModal({ trigger }: InviteModalProps) {
       setGeneratedInvite(response);
 
       if (emails.length > 0) {
-        const inviteUrl = `${window.location.origin}/invite/${response.token}`;
+        const inviteUrl = `${window.location.origin}/invite/${activeOrg.slug}/${response.token}`;
         const subject = `Invitation to join ${activeOrg.name} on HiveSpace`;
         const body = `Hi there,\n\nYou have been invited to join the ${activeOrg.name} organization on HiveSpace as a ${role}.\n\nClick this link to accept the invitation:\n${inviteUrl}\n\nFor security, please use the following PIN to complete the join process:\nPIN: ${response.pin}\n\n${message ? `Personal message from sender:\n"${message}"\n\n` : ""}Looking forward to collaborating with you!\n\nBest regards,\nThe HiveSpace Team`;
 
@@ -136,7 +136,7 @@ export function InviteModal({ trigger }: InviteModalProps) {
       });
       setShareableInvite({ token: response.token, pin: response.pin });
       
-      const link = `${window.location.origin}/invite/${response.token}`;
+      const link = `${window.location.origin}/invite/${activeOrg.slug}/${response.token}`;
       navigator.clipboard.writeText(`Invite Link: ${link}\nSecurity PIN: ${response.pin}`);
       toast.success("Link and PIN copied!");
     } catch (err: any) {
@@ -146,7 +146,7 @@ export function InviteModal({ trigger }: InviteModalProps) {
 
   const handleCopyLink = () => {
     if (shareableInvite) {
-      const link = `${window.location.origin}/invite/${shareableInvite.token}`;
+      const link = `${window.location.origin}/invite/${activeOrg?.slug}/${shareableInvite.token}`;
       navigator.clipboard.writeText(link);
       toast.success("Link copied!");
     } else {
@@ -236,7 +236,7 @@ export function InviteModal({ trigger }: InviteModalProps) {
                 </label>
                 <div className="bg-[#272629] border border-zinc-700 rounded-md h-10 px-3 flex items-center gap-2">
                   <span className="font-mono text-xs text-zinc-400 flex-1 truncate min-w-0">
-                    {shareableInvite ? `${window.location.origin.replace(/^https?:\/\//, "")}/invite/${shareableInvite.token}` : "hivespace.io/invite/..."}
+                    {shareableInvite && activeOrg ? `${window.location.origin.replace(/^https?:\/\//, "")}/invite/${activeOrg.slug}/${shareableInvite.token}` : "hivespace.io/invite/..."}
                   </span>
                   <button 
                     type="button"

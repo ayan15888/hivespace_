@@ -13,6 +13,7 @@ export interface InviteResponse {
     pin: string; // The backend returns the plain-text PIN only upon creation
     tenantId: string;
     tenantName: string;
+    tenantSlug: string;
     workspaceId?: string;
     workspaceName?: string;
     teamId?: string;

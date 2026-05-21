@@ -273,6 +273,7 @@ public class InvitationService {
                 .token(invite.getToken())
                 .tenantId(invite.getTenant().getId())
                 .tenantName(invite.getTenant().getName())
+                .tenantSlug(invite.getTenant().getSlug())
                 .workspaceId(invite.getWorkspace() != null ? invite.getWorkspace().getId() : null)
                 .workspaceName(invite.getWorkspace() != null ? invite.getWorkspace().getName() : null)
                 .teamId(invite.getTeam() != null ? invite.getTeam().getId() : null)
