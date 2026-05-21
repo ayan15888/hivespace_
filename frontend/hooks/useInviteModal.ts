@@ -14,24 +14,22 @@ import { useTeams } from "@/hooks/useTeams"
 import type { OrgResponse } from "@/lib/api/orgs"
 import type { WorkspaceResponse } from "@/lib/api/workspaces"
 import type { TeamResponse } from "@/lib/api/teams"
+import type { TenantRole } from "@/types/roles"
 
 type Step = "form" | "success"
 type ShareableInvite = { token: string; pin: string }
-type UiRole = "Member" | "Admin" | "Billing Admin"
-type BackendRole = "MEMBER" | "ADMIN" | "BILLING_ADMIN"
+type UiRole = TenantRole
 
-function mapRoleToBackend(role: string): BackendRole {
-  return role === "Admin" ? "ADMIN" : role === "Billing Admin" ? "BILLING_ADMIN" : "MEMBER"
-}
-
-function getRoleDescription(role: string) {
+function getRoleDescription(role: TenantRole) {
   switch (role) {
-    case "Admin":
+    case "ADMIN":
       return "Full org access, can manage members and settings"
-    case "Billing Admin":
+    case "BILLING_ADMIN":
       return "Billing and invoices only, no access to projects or teams"
-    case "Member":
+    case "MEMBER":
       return "Can be assigned tasks, join channels, edit docs"
+    case "OWNER":
+      return "Organization owner"
     default:
       return ""
   }
@@ -100,7 +98,7 @@ export function useInviteModal(params: { setOpen: (open: boolean) => void }): Us
   const [step, setStep] = React.useState<Step>("form")
   const [emails, setEmails] = React.useState<string[]>([])
   const [emailInput, setEmailInput] = React.useState("")
-  const [role, setRole] = React.useState<UiRole>("Member")
+  const [role, setRole] = React.useState<UiRole>("MEMBER")
   const [message, setMessage] = React.useState("")
   const [selectedWorkspaces, setSelectedWorkspaces] = React.useState<string[]>([])
   const [selectedTeams, setSelectedTeams] = React.useState<string[]>([])
@@ -129,7 +127,7 @@ export function useInviteModal(params: { setOpen: (open: boolean) => void }): Us
   )
 
   const sendInvitesMutation = useMutation({
-    mutationFn: async (args: { targetEmails: string[]; role: BackendRole }) => {
+    mutationFn: async (args: { targetEmails: string[]; role: TenantRole }) => {
       if (!activeOrg) throw new Error("No active organization found")
 
       const invitePromises = args.targetEmails.map((email) =>
@@ -179,8 +177,7 @@ export function useInviteModal(params: { setOpen: (open: boolean) => void }): Us
       return
     }
 
-    const backendRole = mapRoleToBackend(role)
-    sendInvitesMutation.mutate({ targetEmails, role: backendRole })
+    sendInvitesMutation.mutate({ targetEmails, role })
   }, [activeOrg, emailInput, emails, role, sendInvitesMutation])
 
   const generateShareableMutation = useMutation({
@@ -189,7 +186,7 @@ export function useInviteModal(params: { setOpen: (open: boolean) => void }): Us
       return generateInvite({
         tenantId: activeOrg.id,
         workspaceId: activeWorkspace?.id,
-        role: "MEMBER",
+        role,
         maxUses: 100,
       })
     },
@@ -222,16 +219,16 @@ export function useInviteModal(params: { setOpen: (open: boolean) => void }): Us
     }
   }, [activeOrg?.slug, generateShareableInvite, shareableInvite])
 
-  const reset = React.useCallback(() => {
-    setStep("form")
-    setEmails([])
-    setEmailInput("")
-    setRole("Member")
-    setMessage("")
-    setSelectedWorkspaces([])
-    setSelectedTeams([])
-    setGeneratedInvite(null)
-  }, [])
+	  const reset = React.useCallback(() => {
+	    setStep("form")
+	    setEmails([])
+	    setEmailInput("")
+	    setRole("MEMBER")
+	    setMessage("")
+	    setSelectedWorkspaces([])
+	    setSelectedTeams([])
+	    setGeneratedInvite(null)
+	  }, [])
 
   const closeModal = React.useCallback(() => {
     params.setOpen(false)

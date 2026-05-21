@@ -4,12 +4,13 @@ import { MessageSquare, Users } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { roleLabel } from "@/types/roles";
 
 const MEMBERS = [
   { 
     name: "Meera V.", 
     initials: "MV", 
-    role: "Team Lead", 
+    role: "LEAD", 
     status: "online", 
     workingOn: { id: "HS-044", title: "STOMP WebSocket chat broadcast", priority: "bg-red-500" },
     stats: { open: 8, completed: 12, prs: 3 }
@@ -98,9 +99,9 @@ export function MembersTab() {
               <span className="text-sm font-medium text-[#E5E1E4] leading-none mb-0.5">{member.name}</span>
               <div className={cn(
                 "w-fit px-1.5 py-0.5 rounded-sm text-[10px] font-medium tracking-wide uppercase",
-                member.role === "Team Lead" ? "bg-violet-500/20 text-violet-400" : "bg-zinc-800 text-zinc-500"
+                member.role === "LEAD" ? "bg-violet-500/20 text-violet-400" : "bg-zinc-800 text-zinc-500"
               )}>
-                {member.role}
+                {roleLabel(member.role)}
               </div>
             </div>
           </div>

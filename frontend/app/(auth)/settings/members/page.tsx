@@ -39,24 +39,20 @@ import { getTenantInvitations, generateInvite } from "@/lib/api/invites";
 import { InviteResponse } from "@/types/invite";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { InviteModal } from "@/components/common/InviteModal";
+import { TENANT_ROLES, type TenantRole, roleLabel } from "@/types/roles";
 
 const pendingInvites: Array<{ email: string; role: string; expires: string }> = [];
 
 const roleColors: Record<string, string> = {
-  "Org Owner": "text-[#7C5CFC] bg-[#7C5CFC]/10 border-[#7C5CFC]/20",
-  "Org Admin": "text-blue-400 bg-blue-400/10 border-blue-400/20",
-  "Workspace Admin": "text-teal-400 bg-teal-400/10 border-teal-400/20",
-  "Team Lead": "text-amber-400 bg-amber-400/10 border-amber-400/20",
-  "Member": "text-zinc-400 bg-zinc-800 border-zinc-700",
-  "Viewer": "text-zinc-500 bg-zinc-800 border-zinc-700",
-  "Billing Admin": "text-green-400 bg-green-400/10 border-green-400/20",
+  OWNER: "text-[#7C5CFC] bg-[#7C5CFC]/10 border-[#7C5CFC]/20",
+  ADMIN: "text-blue-400 bg-blue-400/10 border-blue-400/20",
+  BILLING_ADMIN: "text-green-400 bg-green-400/10 border-green-400/20",
+  MEMBER: "text-zinc-400 bg-zinc-800 border-zinc-700",
 };
 
-const getUiRole = (dbRole: string): string => {
-  const role = dbRole?.toUpperCase();
-  if (role === "OWNER" || role === "ADMIN") return "Org Owner";
-  if (role === "LEAD" || role === "TEAM_LEAD") return "Team Lead";
-  return "Member";
+const normalizeTenantRole = (value: string): TenantRole => {
+  const role = value?.toUpperCase?.() ?? "";
+  return (TENANT_ROLES as readonly string[]).includes(role) ? (role as TenantRole) : "MEMBER";
 };
 
 
@@ -78,7 +74,7 @@ export default function MembersSettings() {
   };
 
   // Popover States
-  const [popoverRole, setPopoverRole] = useState("Member");
+  const [popoverRole, setPopoverRole] = useState<TenantRole>("MEMBER");
   const [popoverLimitUses, setPopoverLimitUses] = useState(false);
   const [popoverMaxUses, setPopoverMaxUses] = useState(10);
   const [popoverGenerating, setPopoverGenerating] = useState(false);
@@ -111,7 +107,7 @@ export default function MembersSettings() {
     try {
       const response = await generateInvite({
         tenantId: activeOrg.id,
-        role: popoverRole.toUpperCase(),
+        role: popoverRole,
         maxUses: popoverLimitUses ? popoverMaxUses : 999999,
       });
       setInviteLinks((prev) => [response, ...prev]);
@@ -150,10 +146,10 @@ export default function MembersSettings() {
           </SelectTrigger>
           <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-300">
             <SelectItem value="all">All roles</SelectItem>
-            <SelectItem value="owner">Org Owner</SelectItem>
-            <SelectItem value="admin">Org Admin</SelectItem>
-            <SelectItem value="lead">Team Lead</SelectItem>
-            <SelectItem value="member">Member</SelectItem>
+            <SelectItem value="OWNER">{roleLabel("OWNER")}</SelectItem>
+            <SelectItem value="ADMIN">{roleLabel("ADMIN")}</SelectItem>
+            <SelectItem value="BILLING_ADMIN">{roleLabel("BILLING_ADMIN")}</SelectItem>
+            <SelectItem value="MEMBER">{roleLabel("MEMBER")}</SelectItem>
           </SelectContent>
         </Select>
         <div className="ml-auto">
@@ -181,6 +177,9 @@ export default function MembersSettings() {
           </div>
         ) : (
           members.map((member) => (
+            (() => {
+              const memberRole = normalizeTenantRole(member.role);
+              return (
             <div
               key={member.id}
               className="h-14 flex items-center gap-3 px-4 rounded-md transition-colors hover:bg-zinc-800/30 group"
@@ -216,21 +215,21 @@ export default function MembersSettings() {
 
               <div className="ml-6">
                 <Select
-                  defaultValue={getUiRole(member.role)}
+                  defaultValue={memberRole}
                 >
                   <SelectTrigger
                     className={cn(
                       "h-7 text-[10px] px-2 py-0 min-w-[110px] border font-medium rounded-sm bg-transparent",
-                      roleColors[getUiRole(member.role)]
+                      roleColors[memberRole]
                     )}
                   >
-                    <SelectValue />
+                    <SelectValue>{roleLabel(memberRole)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-300">
-                    <SelectItem value="Org Owner">Org Owner</SelectItem>
-                    <SelectItem value="Team Lead">Team Lead</SelectItem>
-                    <SelectItem value="Member">Member</SelectItem>
-                    <SelectItem value="Billing Admin">Billing Admin</SelectItem>
+                    <SelectItem value="OWNER">{roleLabel("OWNER")}</SelectItem>
+                    <SelectItem value="ADMIN">{roleLabel("ADMIN")}</SelectItem>
+                    <SelectItem value="BILLING_ADMIN">{roleLabel("BILLING_ADMIN")}</SelectItem>
+                    <SelectItem value="MEMBER">{roleLabel("MEMBER")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -241,6 +240,8 @@ export default function MembersSettings() {
                 <MoreHorizontal className="h-4 w-4" />
               </button>
             </div>
+              );
+            })()
           ))
         )}
       </div>
