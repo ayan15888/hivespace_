@@ -63,12 +63,12 @@ export default function WebGPUVisualizer({
       mouseRef.current.active = false
     }
 
-    canvas.addEventListener("mousemove", handleMouseMove)
-    canvas.addEventListener("mouseleave", handleMouseLeave)
+    window.addEventListener("mousemove", handleMouseMove)
+    document.addEventListener("mouseleave", handleMouseLeave)
 
     return () => {
-      canvas.removeEventListener("mousemove", handleMouseMove)
-      canvas.removeEventListener("mouseleave", handleMouseLeave)
+      window.removeEventListener("mousemove", handleMouseMove)
+      document.removeEventListener("mouseleave", handleMouseLeave)
     }
   }, [])
 
