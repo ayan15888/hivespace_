@@ -12,8 +12,11 @@ import java.sql.Connection;
 public class HiveSpaceApplication {
 
 	public static void main(String[] args) {
+		String userDir = System.getProperty("user.dir");
+		String envDir = userDir.endsWith("backend") ? "." : "./backend";
+
 		Dotenv dotenv = Dotenv.configure()
-				.directory("..") // Point to root since we are in backend/
+				.directory(envDir)
 				.ignoreIfMalformed()
 				.ignoreIfMissing()
 				.load();
