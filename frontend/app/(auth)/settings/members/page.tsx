@@ -100,6 +100,11 @@ export default function MembersSettings() {
     fetchInvitations();
   }, [activeOrg?.id]);
 
+  // Only Org Owners and Admins can invite new members
+  const isOwner = !!user && !!activeOrg && user.email === activeOrg.ownerEmail;
+  const currentUserMember = members.find(m => m.email === user?.email);
+  const canInvite = isOwner || currentUserMember?.role === "ADMIN" || currentUserMember?.role === "BILLING_ADMIN";
+
   const handleCreateInviteLink = async () => {
     if (!activeOrg?.id) return;
     setPopoverGenerating(true);
@@ -152,14 +157,16 @@ export default function MembersSettings() {
           </SelectContent>
         </Select>
         <div className="ml-auto">
-          <InviteModal
-            trigger={
-              <CTAButton className="flex items-center gap-2 !bg-none !bg-emerald-600 hover:!bg-emerald-500 hover:opacity-100 transition-colors">
-                <UserPlus className="h-3.5 w-3.5" />
-                Invite Member
-              </CTAButton>
-            }
-          />
+          {canInvite && (
+            <InviteModal
+              trigger={
+                <CTAButton className="flex items-center gap-2 !bg-none !bg-emerald-600 hover:!bg-emerald-500 hover:opacity-100 transition-colors">
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Invite Member
+                </CTAButton>
+              }
+            />
+          )}
         </div>
       </div>
 
