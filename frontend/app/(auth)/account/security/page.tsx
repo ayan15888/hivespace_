@@ -56,8 +56,8 @@ export default function SecurityPage() {
           {/* Strength Indicator */}
           <div className="flex flex-col gap-1.5 px-1 mt-1">
              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">Strength</span>
-                <span className="text-[10px] text-amber-500 font-bold uppercase tracking-tighter">Fair</span>
+                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">Strength</span>
+                <span className="text-[10px] text-amber-500 font-bold uppercase tracking-tight">Fair</span>
              </div>
              <div className="h-1 w-full bg-zinc-800 rounded-full overflow-hidden flex">
                 <div className="h-full bg-red-400" style={{ width: '20%' }} />

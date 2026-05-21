@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
+import { useAuthStore } from "@/store/authStore";
 
 export default function SignUpPage() {
   const router = useRouter();
+  const login = useAuthStore((state) => state.login);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,7 +31,7 @@ export default function SignUpPage() {
         body: JSON.stringify({ username, email, password }),
       });
 
-      localStorage.setItem("token", response.token);
+      login(response.token, response);
       
       if (response.hasTenants) {
         router.push("/dashboard");

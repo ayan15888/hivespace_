@@ -14,9 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { createWorkspace } from "@/lib/api/workspaces";
-import { useOrg } from "@/store/orgStore";
-import { useWorkspace } from "@/store/workspaceStore";
-import { toast } from "sonner";
+import { useOrgStore } from "@/store/orgStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 
 interface CreateWorkspaceModalProps {
   isOpen: boolean;
@@ -25,16 +25,15 @@ interface CreateWorkspaceModalProps {
 }
 
 export function CreateWorkspaceModal({ isOpen, onClose, onSuccess }: CreateWorkspaceModalProps) {
-  const { activeOrg } = useOrg();
-  const { setActiveWorkspace } = useWorkspace();
+  const { activeOrg } = useOrgStore();
+  const { setActiveWorkspace } = useWorkspaceStore();
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
+  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setName(val);
-    setSlug(val.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, ""));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,9 +44,8 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSuccess }: CreateWorks
     try {
       const response = await createWorkspace({
         name,
-        slug,
+        description: description || undefined,
         tenantId: activeOrg.id,
-        plan: "FREE", // Required by backend
       });
       
       setActiveWorkspace(response);
@@ -87,13 +85,12 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSuccess }: CreateWorks
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ws-slug">Slug</Label>
+            <Label htmlFor="ws-desc">Description (optional)</Label>
             <Input 
-              id="ws-slug" 
-              placeholder="engineering" 
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              required
+              id="ws-desc"
+              placeholder="What is this workspace for?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               className="bg-zinc-900 border-zinc-800"
             />
           </div>

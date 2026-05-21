@@ -9,6 +9,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
+import java.util.Date;
 
 @Entity
 @Table(name = "users", uniqueConstraints = {
@@ -28,20 +29,19 @@ public class User implements UserDetails {
         @Column(nullable = false)
         private String email;
 
-        @Column(nullable = false)
+        @Column(nullable = false, unique = true)
         private String username;
 
         @Builder.Default
         @Column(nullable = false)
-        final Boolean active = true;
+        private Boolean active = true;
 
         @JsonIgnore
         @Column(nullable = false)
         private String password;
 
-        @Enumerated(EnumType.STRING)
-        @Column(nullable = false)
-        private Role role;
+        @Column(name = "github_username")
+        private String githubUsername;
 
         @Column(name = "github_id")
         private Long githubId;
@@ -62,9 +62,33 @@ public class User implements UserDetails {
         @JoinColumn(name = "tenant_id")
         private Tenant tenant;
 
+        @Column(name = "created_at", nullable = false)
+        @Temporal(TemporalType.TIMESTAMP)
+        private Date createdAt;
+
+        @Column(name = "updated_at", nullable = false)
+        @Temporal(TemporalType.TIMESTAMP)
+        private Date updatedAt;
+
+        @PrePersist
+        void prePersist() {
+                Date now = new Date();
+                if (createdAt == null) {
+                        createdAt = now;
+                }
+                if (updatedAt == null) {
+                        updatedAt = now;
+                }
+        }
+
+        @PreUpdate
+        void preUpdate() {
+                updatedAt = new Date();
+        }
+
         @Override
         public Collection<? extends GrantedAuthority> getAuthorities() {
-                return List.of(new SimpleGrantedAuthority(role.name()));
+                return List.of(new SimpleGrantedAuthority("ROLE_USER"));
         }
 
         @Override

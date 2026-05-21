@@ -1,4 +1,4 @@
-```markdown
+# Theme: Dark (Monolithic Depth)
 # Design System Strategy: High-Density Precision
  
 ## 1. Overview & Creative North Star: "The Digital Architect"
@@ -79,4 +79,90 @@ We reject drop shadows in favor of **Ambient Light**.
 ---
  
 ## 7. Signature Layout Logic
-To achieve the "Linear/Huly" feel, prioritize the **Sidebar-Detail** split. The sidebar should be `surface_container_low`, and the main stage should be `surface`. This creates an "inset" feel, as if the content is nested within the navigation, rather than floating on top of it. Use "Ghost Borders" only at the very top of the scroll to indicate header separation.```
+To achieve the "Linear/Huly" feel, prioritize the **Sidebar-Detail** split. The sidebar should be `surface_container_low`, and the main stage should be `surface`. This creates an "inset" feel, as if the content is nested within the navigation, rather than floating on top of it. Use "Ghost Borders" only at the very top of the scroll to indicate header separation.
+
+---
+
+# Theme: Light (The Digital Architect)
+# Design System Strategy: High-Precision Studio
+
+## 1. Overview & Creative North Star: "The Digital Architect"
+This design system is built for power users who demand speed, clarity, and deep focus. The Creative North Star is **"The Digital Architect"**—a philosophy that treats information as the primary material and the UI as a transparent, high-precision framework. 
+
+To break away from "generic SaaS" aesthetics, we move beyond flat grids into a world of **Clinical Clarity**. We lean into a "Geist-inspired" technicality where every pixel is earned. We use intentional asymmetry—such as right-aligned metadata and left-heavy content—to create a rhythmic flow that feels engineered, not just "placed." The goal is an interface that feels like a professional instrument: bright, sharp, and incredibly capable.
+
+---
+
+## 2. Colors: Tonal Architecture
+The palette is a study in "High-Value White" depth. We do not use color for decoration; we use it as a functional signal.
+
+### The Foundation
+*   **Surface Lowest (#FFFFFF):** The bedrock. Used for the main application background.
+*   **Surface Low (#F7F7F8):** The primary sidebar or secondary navigation tier.
+*   **Surface Container (#EFEEF0):** The standard "card" or main content area lift.
+
+### The "No-Line" Rule
+Traditional 1px borders are clumsy. In this system, boundaries are defined by **Background Shifts**. To separate the sidebar from the main view, simply transition from `surface_low` to `surface`. If you feel the urge to draw a line, use a subtle background color change or a 10% opacity stroke instead.
+
+### The Glass & Gradient Rule
+For floating elements (Command Palettes, Popovers), use `surface` at 80% opacity with a `20px` backdrop blur. 
+*   **Signature Polish:** For Primary CTAs, apply a subtle linear gradient from `primary` (#7C5CFC) to a slightly lighter violet at a 145-degree angle. This adds "soul" to the brand color without breaking the minimalist aesthetic.
+
+---
+
+## 3. Typography: Sharp Grotesque
+We use **Inter** for its mathematical clarity and neutral "grotesque" tone.
+
+*   **Display/Headline:** Use `headline-sm` (1.5rem) for major views. Keep letter-spacing at `-0.02em` to maintain a tight, editorial look.
+*   **Body:** `body-md` (0.875rem) is the workhorse. High legibility requires readable text with generous line-height.
+*   **The Mono-Signal:** Use a Monospaced font for IDs (e.g., `HV-124`), timestamps, and numerical data. This creates a visual "texture" shift that alerts the user they are looking at technical metadata rather than human conversation.
+
+---
+
+## 4. Elevation & Depth: Tonal Layering
+We reject heavy drop shadows in favor of **Ambient Light**.
+
+*   **The Layering Principle:** Stack containers from lightest to darkest. `surface` (the base) -> `surface_container` (the card) -> `surface_container_high` (the active element).
+*   **The Ghost Border Fallback:** If a container sits on a background of the same color, use a "Ghost Border": `neutral` (#0E0E10) at **8% opacity**. It should be felt, not seen.
+*   **Ambient Shadows:** For floating modals, use a massive 64px blur with 6% opacity of the `neutral` color. It should look like a soft glow of light, not a heavy shadow.
+
+---
+
+## 5. Components: High-Density Primitives
+
+### Buttons
+*   **Primary:** Gradient fill (`primary` to a lighter tint). `label-md` uppercase for a "pro" feel.
+*   **Secondary:** `surface_container` fill with no border. Text color: `neutral`.
+*   **Tertiary:** Transparent background. Violet `primary` text. Use only for low-priority actions.
+
+### Input Fields
+*   **Default:** `surface_low` background. 
+*   **Active State:** No change in background; instead, a 1px "Ghost Border" of `primary` (#7C5CFC) and a subtle inner glow. 
+*   **Validation:** Error states use `tertiary` (#FF5F52) text—minimal and sharp.
+
+### Cards & Lists
+*   **No Dividers:** Absolute prohibition on horizontal lines. Separate list items using `12px` of vertical margin or a hover state shift to `surface_container`.
+*   **Density:** Use `body-sm` for secondary list metadata to maximize information density while utilizing the 8px spacing grid.
+
+### Badges (The "Coral Signal")
+*   **Unread States:** Use a 6px solid circle of `tertiary` (#FF5F52). No text inside the dot. It is a "ping" for the eye.
+
+---
+
+## 6. Do’s and Don’ts
+
+### Do
+*   **Embrace Whitespace:** Use the generous 8px spacing grid to let the technical elements breathe.
+*   **Align to the Pixel:** High-density layouts fail if alignment is off by even 1px. Use a strict 8px grid (Factor 2).
+*   **Use Monospacing for Data:** It adds an authoritative, "engineered" feel to timestamps and IDs.
+
+### Don’t
+*   **Don't Use Pure Black for Text:** Use `neutral` (#0E0E10) at 85-90% opacity for body text to reduce contrast-induced eye strain on bright backgrounds.
+*   **Don't Use Decorative Icons:** Icons must be functional. If an icon doesn't assist in navigation, remove it. Use 1.5px stroke weights—never filled icons.
+*   **Don't Rounded Everything:** Stick to the 4px (`roundedness: 1`) radius. Avoid large "bubbly" corners; they betray the professional, architectural intent.
+
+---
+
+## 7. Signature Layout Logic
+To achieve the "Digital Architect" feel, prioritize the **Sidebar-Detail** split. The sidebar should be `surface_low`, and the main stage should be `surface`. This creates an "inset" feel, as if the content is nested within the navigation. Use "Ghost Borders" only at the very top of the scroll to indicate header separation, keeping the rest of the interface defined by subtle tonal shifts.
+```

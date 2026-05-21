@@ -21,9 +21,13 @@ export interface TaskResponse {
   dueDate: string;
   points: number;
   projectId: string;
+  projectName: string;
+  projectColor?: string;
   assigneeId?: string;
   assigneeName?: string;
   assigneeInitials?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export async function createTask(projectId: string, data: TaskRequest): Promise<TaskResponse> {
@@ -35,4 +39,8 @@ export async function createTask(projectId: string, data: TaskRequest): Promise<
 
 export async function getTasksByProject(projectId: string): Promise<TaskResponse[]> {
   return apiFetch(`/api/projects/${projectId}/tasks`);
+}
+
+export async function getAllTasks(): Promise<TaskResponse[]> {
+  return apiFetch("/api/tasks");
 }

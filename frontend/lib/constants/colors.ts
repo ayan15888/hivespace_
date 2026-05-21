@@ -15,3 +15,26 @@ export const PROJECT_COLORS = [
   { name: "Rose", value: "bg-rose-500", hex: "#F43F5E" },
   { name: "Indigo", value: "bg-indigo-500", hex: "#6366F1" },
 ];
+
+export const THEME_COLORS = {
+  light: {
+    base: "#fcf8fb",
+    nav: "#f6f3f5",
+    main: "#f0edf0",
+    card: "#eae7ea",
+    text: "#1b1b1d",
+    accent: "#5f3add",
+    ctaGradientStart: "#7857f8",
+    ctaGradientEnd: "#5f3add",
+  },
+  dark: {
+    base: "#0E0E10",
+    nav: "#1B1B1D",
+    main: "#201F21",
+    card: "#272629",
+    text: "#E5E1E4",
+    accent: "#7C5CFC",
+    ctaGradientStart: "#CABEFF",
+    ctaGradientEnd: "#947DFF",
+  }
+};

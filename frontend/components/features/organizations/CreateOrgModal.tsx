@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Globe } from "lucide-react";
 import { createOrganization } from "@/lib/api/orgs";
-import { useOrg } from "@/store/orgStore";
+import { useOrgStore } from "@/store/orgStore";
+import { useAuthStore } from "@/store/authStore";
 
 interface CreateOrgModalProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ interface CreateOrgModalProps {
 }
 
 export function CreateOrgModal({ isOpen, onClose }: CreateOrgModalProps) {
-  const { setActiveOrg } = useOrg();
+  const { setActiveOrg } = useOrgStore();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
@@ -50,6 +51,13 @@ export function CreateOrgModal({ isOpen, onClose }: CreateOrgModalProps) {
       });
       
       setActiveOrg(response);
+
+      // Update local hasTenants state to true so Next/Zustand doesn't bounce to onboarding
+      const { user, setUser } = useAuthStore.getState();
+      if (user) {
+        setUser({ ...user, hasTenants: true });
+      }
+
       // Refresh to update hasTenants state and redirect to dashboard
       window.location.href = "/dashboard";
     } catch (err: unknown) {
@@ -86,7 +94,7 @@ export function CreateOrgModal({ isOpen, onClose }: CreateOrgModalProps) {
             <div className="flex items-center">
               <div className="flex h-10 items-center rounded-l-md border border-r-0 border-zinc-800 bg-zinc-950 px-3 text-zinc-500 text-sm">
                 <Globe className="mr-2 h-4 w-4" />
-                hivespace.app/
+                {process.env.NEXT_PUBLIC_APP_DOMAIN || "hivespace.app"}/
               </div>
               <Input 
                 id="slug" 

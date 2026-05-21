@@ -12,5 +12,5 @@ import java.util.UUID;
 public class TeamRequest {
     private String name;
     private String description;
-    private UUID projectId;
+    private UUID workspaceId;
 }

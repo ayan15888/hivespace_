@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Ticket } from "lucide-react";
 import { joinOrganization } from "@/lib/api/orgs";
+import { useAuthStore } from "@/store/authStore";
 
 
 interface JoinOrgModalProps {
@@ -34,6 +35,12 @@ export function JoinOrgModal({ isOpen, onClose }: JoinOrgModalProps) {
     try {
       await joinOrganization(code);
       
+      // Update local hasTenants state to true so Next/Zustand doesn't bounce to onboarding
+      const { user, setUser } = useAuthStore.getState();
+      if (user) {
+        setUser({ ...user, hasTenants: true });
+      }
+
       // Refresh to update hasTenants state and redirect to dashboard
       window.location.href = "/dashboard";
     } catch (err: unknown) {

@@ -47,18 +47,18 @@ export default function EmailClientPage() {
   }
 
   return (
-    <div className="flex h-screen bg-[#0E0E10] overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden">
       {/* ─── EMAIL SIDEBAR (260px) ─── */}
-      <aside className="w-[260px] bg-[#1B1B1D] border-r border-zinc-800/30 flex flex-col px-3 py-4 flex-shrink-0">
+      <aside className="w-[260px] bg-hs-nav border-r border-border/30 flex flex-col px-3 py-4 flex-shrink-0">
         <div className="flex items-center gap-3 px-2">
-          <Avatar className="h-8 w-8 rounded-lg border border-zinc-800">
-            <AvatarFallback className="bg-zinc-800 text-[10px] text-zinc-400 rounded-lg">JD</AvatarFallback>
+          <Avatar className="h-8 w-8 rounded-lg border border-border">
+            <AvatarFallback className="bg-muted text-[10px] text-muted-foreground rounded-lg">JD</AvatarFallback>
           </Avatar>
           <div className="flex flex-col min-w-0">
-            <p className="text-[11px] font-medium text-zinc-300 truncate">john@acme.com</p>
+            <p className="text-[11px] font-medium text-foreground/80 truncate">john@acme.com</p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
-              <span className="text-[10px] text-zinc-600 font-medium tracking-tight">Sync active</span>
+              <span className="text-[10px] text-muted-foreground font-medium tracking-tight">Sync active</span>
             </div>
           </div>
         </div>
@@ -91,17 +91,17 @@ export default function EmailClientPage() {
       </aside>
 
       {/* ─── EMAIL LIST (340px) ─── */}
-      <section className="w-[340px] bg-[#201F21] border-r border-zinc-800/30 flex flex-col flex-shrink-0">
+      <section className="w-[340px] bg-hs-card border-r border-border/30 flex flex-col flex-shrink-0">
         <div className="p-4 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-[#E5E1E4]">Inbox</h2>
-            <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">12 unread</span>
+            <h2 className="text-sm font-semibold text-foreground">Inbox</h2>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">12 unread</span>
           </div>
           <div className="relative mt-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input 
               placeholder="Search emails..." 
-              className="bg-zinc-800/50 border-zinc-800 h-9 text-xs pl-9 focus-visible:ring-[#7C5CFC]/30"
+              className="bg-muted/50 border-border h-9 text-xs pl-9 focus-visible:ring-primary/30"
             />
           </div>
         </div>
@@ -120,27 +120,27 @@ export default function EmailClientPage() {
               {email.unread && (
                 <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-violet-500" />
               )}
-              <Avatar className="h-9 w-9 rounded-full shrink-0 border border-zinc-800">
+              <Avatar className="h-9 w-9 rounded-full shrink-0 border border-border">
                 <AvatarFallback className={cn("text-[11px] font-bold", email.color)}>
                   {email.initials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
-                  <p className={cn("text-xs truncate", email.unread ? "font-bold text-[#E5E1E4]" : "font-medium text-zinc-400")}>
+                  <p className={cn("text-xs truncate", email.unread ? "font-bold text-foreground" : "font-medium text-muted-foreground")}>
                     {email.sender}
                   </p>
-                  <span className="text-[10px] text-zinc-600 shrink-0 ml-2">{email.time}</span>
+                  <span className="text-[10px] text-muted-foreground shrink-0 ml-2">{email.time}</span>
                 </div>
-                <p className={cn("text-xs truncate mb-1", email.unread ? "text-zinc-300 font-medium" : "text-zinc-500")}>
+                <p className={cn("text-xs truncate mb-1", email.unread ? "text-foreground/80 font-medium" : "text-muted-foreground/70")}>
                   {email.subject}
                 </p>
-                <p className="text-[11px] text-zinc-600 truncate leading-relaxed">
+                <p className="text-[11px] text-muted-foreground/60 truncate leading-relaxed">
                   {email.preview}
                 </p>
               </div>
               {email.unread && (
-                <div className="h-1.5 w-1.5 rounded-full bg-violet-500 shrink-0 mt-2" />
+                <div className="h-1.5 w-1.5 rounded-full bg-primary shrink-0 mt-2" />
               )}
             </div>
           ))}
@@ -148,29 +148,29 @@ export default function EmailClientPage() {
       </section>
 
       {/* ─── EMAIL DETAIL (flex-1) ─── */}
-      <main className="flex-1 bg-[#201F21] flex flex-col overflow-hidden min-w-0">
+      <main className="flex-1 bg-hs-main flex flex-col overflow-hidden min-w-0">
         {selectedEmail ? (
           <>
             {/* Detail Header */}
-            <header className="px-8 py-6 border-b border-zinc-800/30 flex-shrink-0">
+            <header className="px-8 py-6 border-b border-border/30 flex-shrink-0">
               <div className="flex items-start justify-between">
                 <div className="min-w-0">
-                  <h1 className="text-xl font-semibold text-[#E5E1E4] tracking-tight truncate">
+                  <h1 className="text-xl font-semibold text-foreground tracking-tight truncate">
                     {selectedEmail.subject}
                   </h1>
                   <div className="flex items-center gap-4 mt-4">
-                    <Avatar className="h-10 w-10 border border-zinc-800">
+                    <Avatar className="h-10 w-10 border border-border">
                       <AvatarFallback className={cn("text-xs font-bold", selectedEmail.color)}>
                         {selectedEmail.initials}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
-                         <span className="text-sm font-semibold text-[#E5E1E4]">{selectedEmail.sender}</span>
-                         <span className="text-[10px] text-zinc-600 font-mono tracking-tighter">{"<"}{selectedEmail.email}{">"}</span>
+                         <span className="text-sm font-semibold text-foreground">{selectedEmail.sender}</span>
+                         <span className="text-[10px] text-muted-foreground  tracking-tight">{"<"}{selectedEmail.email}{">"}</span>
                       </div>
-                      <p className="text-[11px] text-zinc-500 mt-0.5">
-                        To: <span className="text-zinc-400 font-medium">john@acme.com</span> · Today at {selectedEmail.time}
+                      <p className="text-[11px] text-muted-foreground/80 mt-0.5">
+                        To: <span className="text-foreground/70 font-medium">john@acme.com</span> · Today at {selectedEmail.time}
                       </p>
                     </div>
                   </div>
@@ -190,14 +190,14 @@ export default function EmailClientPage() {
 
             {/* Email Body */}
             <div className="flex-1 overflow-y-auto px-8 py-10 scrollbar-none">
-              <div className="max-w-3xl space-y-6 text-sm text-zinc-300 leading-relaxed font-light">
+              <div className="max-w-3xl space-y-6 text-sm text-foreground/80 leading-relaxed font-light">
                 <p>Hi John,</p>
                 <p>
                   Looks good overall! Just a few comments on the WebSocket architecture section:
                 </p>
-                <ul className="list-decimal pl-5 space-y-4 text-zinc-400">
+                <ul className="list-decimal pl-5 space-y-4 text-muted-foreground">
                   <li>
-                    The STOMP topic naming convention should follow <span className="font-mono text-[11px] bg-zinc-800 px-1 py-0.5 rounded text-violet-400">/topic/channel.{`{id}`}</span> consistently.
+                    The STOMP topic naming convention should follow <span className=" text-[11px] bg-muted px-1 py-0.5 rounded text-primary">/topic/channel.{`{id}`}</span> consistently.
                   </li>
                   <li>
                     Have you considered the reconnection strategy when the WebSocket drops? We should probably implement an exponential backoff with a jitter factor on the frontend.
@@ -208,13 +208,13 @@ export default function EmailClientPage() {
                 </p>
                 <div className="pt-4">
                   <p>Best,</p>
-                  <p className="font-medium text-zinc-200">Sarah</p>
+                  <p className="font-medium text-foreground">Sarah</p>
                 </div>
 
                 <div className="pt-8 flex flex-col items-start gap-4">
-                  <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-800 border border-zinc-700 hover:border-violet-500/40 transition-all group">
-                     <KanbanSquare className="h-4 w-4 text-violet-400 group-hover:scale-110 transition-transform" />
-                     <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest group-hover:text-zinc-200">Convert to task</span>
+                  <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted border border-border hover:border-primary/40 transition-all group">
+                     <KanbanSquare className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                     <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest group-hover:text-foreground">Convert to task</span>
                   </button>
                 </div>
               </div>
@@ -222,13 +222,13 @@ export default function EmailClientPage() {
 
             {/* Reply Compose */}
             <div className="px-8 pb-8 pt-2 flex-shrink-0">
-               <div className="bg-[#1B1B1D] border border-zinc-800 rounded-xl p-5 shadow-2xl shadow-black/20 focus-within:border-zinc-700 transition-colors">
-                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3">Reply to {selectedEmail.sender}</p>
+               <div className="bg-hs-nav border border-border rounded-xl p-5 shadow-2xl shadow-black/5 focus-within:border-border/80 transition-colors">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Reply to {selectedEmail.sender}</p>
                   <textarea 
-                    className="w-full bg-transparent border-none outline-none text-sm text-zinc-200 placeholder:text-zinc-700 resize-none min-h-[120px] scrollbar-none"
+                    className="w-full bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/30 resize-none min-h-[120px] scrollbar-none"
                     placeholder="Write a reply..."
                   />
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800/50">
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
                     <div className="flex items-center gap-4 text-zinc-500">
                        <div className="flex items-center gap-2">
                          <DetailAction icon={Bold} />
@@ -263,7 +263,7 @@ function FolderItem({ icon: Icon, name, unread, active, onClick }: { icon: React
       onClick={onClick}
       className={cn(
         "w-full h-9 px-3 flex items-center justify-between rounded-md transition-colors",
-        active ? "bg-zinc-800 text-[#E5E1E4]" : "text-zinc-500 hover:bg-zinc-800/30 hover:text-zinc-300"
+        active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
       )}
     >
       <div className="flex items-center gap-3">
@@ -273,7 +273,7 @@ function FolderItem({ icon: Icon, name, unread, active, onClick }: { icon: React
       {unread && (
         <span className={cn(
           "text-[10px] font-bold px-1.5 py-0.5 rounded-sm",
-          active ? "bg-[#7C5CFC] text-white" : "bg-zinc-800 text-zinc-500"
+          active ? "bg-primary text-white" : "bg-muted text-muted-foreground"
         )}>
           {unread}
         </span>

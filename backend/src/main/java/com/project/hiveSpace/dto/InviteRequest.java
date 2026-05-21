@@ -10,6 +10,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class InviteRequest {
+    private UUID tenantId;
+    private UUID workspaceId;
     private UUID teamId;
-    private String recipientUsername;
+    private String role; // e.g. MEMBER, ADMIN, VIEWER, LEAD
+    private Integer maxUses;
+    private String pin; // Optional custom PIN; auto-generated if null
 }

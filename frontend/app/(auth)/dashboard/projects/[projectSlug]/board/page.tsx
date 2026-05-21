@@ -70,16 +70,13 @@ const COLUMN_NAMES = ["Backlog", "Todo", "In Progress", "Review", "Done"];
 export default function SprintThreeBoardPage() {
   const params = useParams();
   const { projects } = useProjects();
-  const projectSlug = params?.projectSlug as string || "";
+  const projectId = params?.projectSlug as string || "";
   
 
-  const currentProject = projects.find(p => p.slug === projectSlug || p.id === projectSlug);
+  const currentProject = projects.find(p => p.id === projectId);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
 
-  const displayTitle = currentProject?.name || projectSlug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const displayTitle = currentProject?.name || "Project";
 
   const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
   const [editedTitle, setEditedTitle] = useState("");
@@ -116,57 +113,57 @@ export default function SprintThreeBoardPage() {
   });
 
   return (
-    <div className="flex h-screen flex-col bg-[#000000] text-[#E5E1E4] overflow-hidden font-sans">
+    <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden font-sans">
       
       {/* --- TOP BREADCRUMB BAR --- */}
-      <header className="sticky top-0 z-30 flex h-[44px] shrink-0 items-center justify-between border-b border-zinc-800/50 bg-[#000000]/80 px-6 backdrop-blur-sm">
+      <header className="sticky top-0 z-30 flex h-[44px] shrink-0 items-center justify-between border-b border-border/50 bg-background/80 px-6 backdrop-blur-sm">
         
         {/* Left: Breadcrumbs */}
         <div className="flex items-center gap-2 flex-1">
-          <span className="text-xs text-zinc-400">Hivespace</span>
-          <span className="text-zinc-600">/</span>
-          <span className="text-xs text-zinc-400">Engineering</span>
-          <span className="text-zinc-600">/</span>
-          <span className="text-xs font-medium text-white">{displayTitle}</span>
+          <span className="text-xs text-muted-foreground">Hivespace</span>
+          <span className="text-border">/</span>
+          <span className="text-xs text-muted-foreground">Engineering</span>
+          <span className="text-border">/</span>
+          <span className="text-xs font-medium text-foreground">{displayTitle}</span>
           
-          <div className="ml-3 flex items-center rounded-md bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400 font-medium">
+          <div className="ml-3 flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] text-muted-foreground font-medium">
             {displayTitle} · Apr 1–15
           </div>
         </div>
 
         {/* Center: Tabs */}
         <nav className="flex h-full items-center gap-6">
-          <button className="flex h-full items-center px-1 text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Overview
           </button>
-          <button className="relative flex h-full items-center px-1 text-sm font-medium text-white">
+          <button className="relative flex h-full items-center px-1 text-sm font-medium text-foreground">
             Board
             <div className="absolute bottom-0 left-0 h-[2px] w-full" style={{ backgroundColor: themeColor }} />
           </button>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             List
           </button>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Timeline
           </button>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Backlog
           </button>
         </nav>
 
         {/* Right: Actions */}
         <div className="flex items-center justify-end gap-2 flex-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-[#E5E1E4] hover:bg-zinc-800 rounded-md">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
             <SlidersHorizontal strokeWidth={1.5} className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-[#E5E1E4] hover:bg-zinc-800 rounded-md">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
             <LayoutList strokeWidth={1.5} className="h-3.5 w-3.5" />
           </Button>
           
           <div className="flex items-center ml-2 mr-2">
             {["MV", "RK", "PL", "RS"].map((initials, i) => (
-              <Avatar key={initials} className={`h-6 w-6 ring-2 ring-[#000000] -ml-1.5 first:ml-0 bg-zinc-800 border border-zinc-700/50`}>
-                <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-300 font-medium">{initials}</AvatarFallback>
+              <Avatar key={initials} className={`h-6 w-6 ring-2 ring-background -ml-1.5 first:ml-0 bg-muted border border-border/50`}>
+                <AvatarFallback className="bg-muted text-[9px] text-muted-foreground font-medium">{initials}</AvatarFallback>
               </Avatar>
             ))}
           </div>
@@ -183,7 +180,7 @@ export default function SprintThreeBoardPage() {
       </header>
 
       {/* --- CONTENT AREA --- */}
-      <div className="flex-1 flex flex-col min-h-0 bg-[#201F21]">
+      <div className="flex-1 flex flex-col min-h-0 bg-hs-main">
         
         {/* Sprint Progress Bar */}
         <div className="flex flex-col px-8 py-5 shrink-0 gap-2.5">
@@ -192,10 +189,10 @@ export default function SprintThreeBoardPage() {
             <span className="text-xs text-zinc-400">Apr 1 – Apr 15, 2026</span>
           </div>
           <div className="flex items-center gap-4">
-            <div className="relative h-1.5 flex-1 max-w-[400px] bg-zinc-700 rounded-full overflow-hidden">
+            <div className="relative h-1.5 flex-1 max-w-[400px] bg-muted rounded-full overflow-hidden">
               <div className="absolute top-0 left-0 h-full rounded-full transition-all" style={{ width: '68%', backgroundColor: themeColor }} />
             </div>
-            <span className="text-[10px] font-medium text-zinc-400">17/25 tasks complete</span>
+            <span className="text-[10px] font-medium text-muted-foreground">17/25 tasks complete</span>
           </div>
         </div>
 
@@ -209,27 +206,27 @@ export default function SprintThreeBoardPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="flex flex-col w-[280px] shrink-0 bg-[#1B1B1D] rounded-lg h-full overflow-hidden"
+                  className="flex flex-col w-[280px] shrink-0 bg-hs-nav rounded-lg h-full overflow-hidden shadow-sm"
                 >
                   
                   {/* Column Header */}
                   <div className="flex items-center justify-between p-3 shrink-0">
                     <div className="flex items-center">
-                      <span className="text-sm font-medium" style={{ color: col.name === 'In Progress' ? themeColor : col.accent ? themeColor : '#E5E1E4' }}>
+                      <span className="text-sm font-medium" style={{ color: col.name === 'In Progress' ? themeColor : col.accent ? themeColor : 'var(--foreground)' }}>
                         {col.name}
                       </span>
-                      <span className="text-xs text-zinc-500 ml-2">{col.count}</span>
+                      <span className="text-xs text-muted-foreground ml-2">{col.count}</span>
                     </div>
                     <div className="flex items-center gap-0.5">
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-6 w-6 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-md"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
                         onClick={() => handleNewTask(col.name)}
                       >
                         <Plus strokeWidth={1.5} className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-md">
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
                         <MoreHorizontal strokeWidth={1.5} className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -262,7 +259,7 @@ export default function SprintThreeBoardPage() {
             </AnimatePresence>
 
             {/* Add Column Button */}
-            <button className="flex h-10 w-48 shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 text-xs text-zinc-500 hover:border-zinc-600 hover:text-zinc-400 transition-all mt-2.5">
+            <button className="flex h-10 w-48 shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-border/80 hover:text-foreground transition-all mt-2.5">
               <Plus className="h-3.5 w-3.5" />
               <span>Add column</span>
             </button>
@@ -273,21 +270,21 @@ export default function SprintThreeBoardPage() {
 
       {/* --- TASK DETAIL SHEET --- */}
       <Sheet open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
-        <SheetContent side="right" className="w-[380px] p-0 bg-[#1B1B1D] border-l border-zinc-800/50 shadow-2xl flex flex-col gap-0 outline-none">
+        <SheetContent side="right" className="w-[380px] p-0 bg-hs-nav border-l border-border/50 shadow-2xl flex flex-col gap-0 outline-none">
           <ScrollArea className="flex-1">
             <div className="p-6 flex flex-col gap-6">
               
               {/* Header Info */}
               <div className="flex items-center justify-between">
-                <span className="font-mono text-xs text-zinc-500 tracking-tight">{selectedTask?.id}</span>
+                <span className="font-mono text-xs text-muted-foreground tracking-tight">{selectedTask?.id}</span>
                 <Select defaultValue="in-progress">
-                  <SelectTrigger className="w-auto h-7 text-xs bg-zinc-800/50 border-none text-[#E5E1E4] focus:ring-0 shadow-none px-2 rounded-md hover:bg-zinc-800 transition-colors">
+                  <SelectTrigger className="w-auto h-7 text-xs bg-muted/50 border-none text-foreground focus:ring-0 shadow-none px-2 rounded-md hover:bg-muted transition-colors">
                     <div className="flex items-center gap-2">
                     <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
                       <SelectValue placeholder="Status" />
                     </div>
                   </SelectTrigger>
-                  <SelectContent className="bg-[#201F21] border-zinc-800 text-[#E5E1E4] rounded-md">
+                  <SelectContent className="bg-hs-main border-border text-foreground rounded-md">
                     <SelectItem value="todo">Todo</SelectItem>
                     <SelectItem value="in-progress">In Progress</SelectItem>
                     <SelectItem value="review">Review</SelectItem>
@@ -301,24 +298,24 @@ export default function SprintThreeBoardPage() {
                 type="text"
                 value={editedTitle}
                 onChange={(e) => setEditedTitle(e.target.value)}
-                className="text-lg font-medium bg-transparent border-none text-[#E5E1E4] focus:outline-none focus:ring-1 focus:ring-zinc-800 rounded px-1 -ml-1 hover:bg-zinc-800/20 transition-colors w-full cursor-text"
+                className="text-lg font-medium bg-transparent border-none text-foreground focus:outline-none focus:ring-1 focus:ring-border rounded px-1 -ml-1 hover:bg-muted/20 transition-colors w-full cursor-text"
               />
 
               {/* Metadata Table */}
               <div className="flex flex-col text-[13px]">
                 <MetadataRow label="Owner">
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-5 w-5 bg-zinc-800 border border-zinc-700/50">
+                    <Avatar className="h-5 w-5 bg-muted border border-border/50">
                       <AvatarFallback className="text-[9px] uppercase">{selectedTask?.assigneeInitials}</AvatarFallback>
                     </Avatar>
-                    <span className="text-[#E5E1E4]">{selectedTask?.assigneeName || "Unassigned"}</span>
+                    <span className="text-foreground">{selectedTask?.assigneeName || "Unassigned"}</span>
                   </div>
                 </MetadataRow>
                 
                 <MetadataRow label="Collaborators">
                   <div className="flex items-center">
                     {["RK", "PL"].map((initials, i) => (
-                      <Avatar key={initials} className="h-5 w-5 ring-2 ring-[#1B1B1D] -ml-1.5 first:ml-0 bg-zinc-800 border border-zinc-700/50">
+                      <Avatar key={initials} className="h-5 w-5 ring-2 ring-hs-nav -ml-1.5 first:ml-0 bg-muted border border-border/50">
                         <AvatarFallback className="text-[8px] font-medium">{initials}</AvatarFallback>
                       </Avatar>
                     ))}
@@ -327,16 +324,22 @@ export default function SprintThreeBoardPage() {
 
                 <MetadataRow label="Priority">
                   <div className="flex items-center gap-2">
-                    <div className={`h-1.5 w-1.5 rounded-full ${selectedTask?.priority === 'urgent' ? 'bg-[#E24B4A]' : 'bg-zinc-500'}`} />
-                    <span className="text-[#E5E1E4] capitalize">{selectedTask?.priority}</span>
+                    <div className={`h-1.5 w-1.5 rounded-full ${selectedTask?.priority === 'urgent' ? 'bg-[#E24B4A]' : 'bg-muted-foreground'}`} />
+                    <span className="text-foreground capitalize">{selectedTask?.priority}</span>
                   </div>
                 </MetadataRow>
 
                 <MetadataRow label="Due date">
                   <div className="flex items-center gap-2 text-zinc-300">
                     <Calendar className="h-3.5 w-3.5 text-zinc-500" strokeWidth={1.5} />
-                    <span>{selectedTask?.dueDate || "None"}</span>
+                    <span>{selectedTask?.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : "None"}</span>
                   </div>
+                </MetadataRow>
+
+                <MetadataRow label="Created">
+                  <span className="text-muted-foreground">
+                    {selectedTask?.createdAt ? new Date(selectedTask.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : "N/A"}
+                  </span>
                 </MetadataRow>
 
                 <MetadataRow label="Sprint">
@@ -354,7 +357,7 @@ export default function SprintThreeBoardPage() {
                 </MetadataRow>
 
                 <MetadataRow label="Estimate">
-                  <span className="text-[#E5E1E4]">{selectedTask?.points ? `${selectedTask.points} points` : "Unestimated"}</span>
+                  <span className="text-foreground">{selectedTask?.points ? `${selectedTask.points} points` : "Unestimated"}</span>
                 </MetadataRow>
               </div>
 
@@ -367,10 +370,10 @@ export default function SprintThreeBoardPage() {
                       <GitPullRequest className="h-4 w-4 text-emerald-500" strokeWidth={1.5} />
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-[#E5E1E4]">PR #82</span>
+                          <span className="font-mono text-xs text-foreground">PR #82</span>
                           <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-1 rounded-sm border-none font-medium h-4 flex items-center">OPEN</span>
                         </div>
-                        <span className="text-xs text-zinc-400">feat/stomp-broadcast</span>
+                        <span className="text-xs text-muted-foreground">feat/stomp-broadcast</span>
                       </div>
                     </div>
                   </div>
@@ -417,12 +420,12 @@ export default function SprintThreeBoardPage() {
           </ScrollArea>
 
           {/* Comment Input */}
-          <div className="p-4 bg-[#1B1B1D] border-t border-zinc-800/50 shrink-0">
+          <div className="p-4 bg-hs-nav border-t border-border/50 shrink-0">
             <div className="relative flex items-center">
               <input 
                 type="text" 
                 placeholder="Type a comment..." 
-                className="w-full bg-[#272629] border border-zinc-800/50 rounded-md px-3 py-2 text-sm text-[#E5E1E4] placeholder:text-zinc-500 focus:outline-none focus:ring-1 transition-all pr-10"
+                className="w-full bg-hs-card border border-border/50 rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 transition-all pr-10"
                 style={{ "--tw-ring-color": `${themeColor}80` } as React.CSSProperties}
               />
               <button className="absolute right-2 h-6 w-6 flex items-center justify-center text-white rounded hover:opacity-90 transition-opacity" style={{ backgroundColor: themeColor }}>
@@ -454,7 +457,7 @@ function TaskCard({ task, isMuted, onClick, themeColor }: { task: TaskResponse; 
     <div 
       onClick={onClick}
       className={cn(
-        "group relative flex flex-col gap-2.5 bg-[#272629] p-3 rounded-md border border-zinc-800/50 hover:bg-zinc-700/20 cursor-pointer transition-all",
+        "group relative flex flex-col gap-2.5 bg-hs-card p-3 rounded-md border border-border/50 hover:bg-muted/20 cursor-pointer transition-all",
         isDone && "opacity-50"
       )}
       style={task.status === "IN_PROGRESS" ? { borderLeftWidth: "2px", borderLeftColor: themeColor } : {}}
@@ -474,15 +477,15 @@ function TaskCard({ task, isMuted, onClick, themeColor }: { task: TaskResponse; 
               <MoreHorizontal strokeWidth={1.5} className="h-4 w-4" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-[#201F21] border-zinc-800 text-zinc-300">
-            <DropdownMenuItem className="focus:bg-zinc-800 focus:text-white">Edit Task</DropdownMenuItem>
-            <DropdownMenuItem className="focus:bg-zinc-800 focus:text-white text-red-400">Delete</DropdownMenuItem>
+          <DropdownMenuContent className="bg-hs-card border-border text-foreground">
+            <DropdownMenuItem className="focus:bg-muted focus:text-foreground">Edit Task</DropdownMenuItem>
+            <DropdownMenuItem className="focus:bg-muted text-destructive">Delete</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
       {/* Row 2: Title */}
-      <p className={`text-sm leading-snug font-medium line-clamp-2 overflow-hidden text-ellipsis ${isDone ? 'line-through text-zinc-500' : 'text-[#E5E1E4]'}`}>
+      <p className={`text-sm leading-snug font-medium line-clamp-2 overflow-hidden text-ellipsis ${isDone ? 'line-through text-muted-foreground/60' : 'text-foreground'}`}>
         {task.title}
       </p>
 
@@ -490,7 +493,7 @@ function TaskCard({ task, isMuted, onClick, themeColor }: { task: TaskResponse; 
       {task.labels && (
         <div className="flex flex-wrap gap-1.5">
           {(typeof task.labels === 'string' ? task.labels.split(',') : task.labels).map(l => l.trim()).filter(Boolean).slice(0, 2).map(label => (
-            <Badge key={label} className="bg-zinc-800 text-zinc-400 border border-zinc-700 h-5 px-1.5 py-0.5 font-normal text-xs rounded-sm hover:bg-zinc-800 shadow-none">
+            <Badge key={label} className="bg-muted/50 text-muted-foreground border border-border/50 h-5 px-1.5 py-0.5 font-normal text-xs rounded-sm hover:bg-muted shadow-none">
               {label}
             </Badge>
           ))}
@@ -525,7 +528,7 @@ function TaskCard({ task, isMuted, onClick, themeColor }: { task: TaskResponse; 
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Avatar className={`h-6 w-6 rounded-full border-none ${ASSIGNEE_COLORS[task.assigneeInitials || ''] || 'bg-zinc-800'}`}>
+                <Avatar className={`h-6 w-6 rounded-full border-none ${ASSIGNEE_COLORS[task.assigneeInitials || ''] || 'bg-muted'}`}>
                   <AvatarFallback className="bg-transparent text-white text-xs font-bold">{task.assigneeInitials}</AvatarFallback>
                 </Avatar>
               </TooltipTrigger>

@@ -123,14 +123,14 @@ export default function MyTasksPage() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-[#0E0E10] text-[#E5E1E4] overflow-hidden">
+    <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
       
       {/* --- TOP BAR --- */}
-      <header className="sticky top-0 z-10 flex h-auto min-h-[44px] shrink-0 flex-col bg-[#0E0E10]/80 backdrop-blur-sm border-b border-zinc-800/50">
+      <header className="sticky top-0 z-10 flex h-auto min-h-[44px] shrink-0 flex-col bg-background/80 backdrop-blur-sm border-b border-border/50">
         <div className="flex h-11 items-center justify-between px-6">
           <div className="flex flex-col">
-            <h1 className="text-lg font-medium text-[#E5E1E4]">My Tasks</h1>
-            <span className="text-[10px] uppercase tracking-wider text-zinc-500">32 tasks across 4 projects</span>
+            <h1 className="text-lg font-medium text-foreground">My Tasks</h1>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">32 tasks across 4 projects</span>
           </div>
 
           <nav className="flex items-center gap-6">
@@ -140,34 +140,34 @@ export default function MyTasksPage() {
                 onClick={() => setActiveTab(tab)}
                 className={cn(
                   "relative py-3.5 text-sm font-medium transition-colors",
-                  activeTab === tab ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+                  activeTab === tab ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {tab}
-                {activeTab === tab && <div className="absolute bottom-0 left-0 h-[2px] w-full bg-[#7C5CFC]" />}
+                {activeTab === tab && <div className="absolute bottom-0 left-0 h-[2px] w-full bg-primary" />}
               </button>
             ))}
           </nav>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-white rounded-md">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-md">
               <SlidersHorizontal strokeWidth={1.5} className="h-4 w-4" />
             </Button>
             <div className="flex items-center gap-2">
               <Select defaultValue="project">
-                <SelectTrigger className="h-8 bg-zinc-800/50 border-none text-xs text-zinc-400 w-auto gap-2 px-3 rounded-md">
-                  <LayoutList className="h-3.5 w-3.5" />
-                  <span className="text-zinc-500">Group by:</span>
-                  <SelectValue />
+                <SelectTrigger className="h-8 bg-muted/50 border-none text-xs text-muted-foreground w-auto gap-2 px-3 rounded-md">
+                   <LayoutList className="h-3.5 w-3.5" />
+                   <span className="text-muted-foreground/60">Group by:</span>
+                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-300">
+                <SelectContent className="bg-hs-card border-border text-foreground/80">
                   <SelectItem value="project">Project</SelectItem>
                   <SelectItem value="priority">Priority</SelectItem>
                   <SelectItem value="dueDate">Due Date</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-white rounded-md">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-md">
               <ArrowUpDown strokeWidth={1.5} className="h-4 w-4" />
             </Button>
           </div>
@@ -175,14 +175,14 @@ export default function MyTasksPage() {
       </header>
 
       {/* --- CONTENT --- */}
-      <main className="flex-1 overflow-y-auto bg-[#201F21] p-6 pt-4 pb-20">
+      <main className="flex-1 overflow-y-auto bg-hs-main p-6 pt-4 pb-20">
         
         {activeTab === "Overdue" && tasks.every(t => t.dueDate !== "Overdue") ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <CheckCircle className="h-12 w-12 text-zinc-700" strokeWidth={1.5} />
             <div className="text-center">
-              <h3 className="text-sm font-medium text-zinc-400">No overdue tasks</h3>
-              <p className="text-xs text-zinc-500 mt-1">You&apos;re all caught up!</p>
+              <h3 className="text-sm font-medium text-muted-foreground">No overdue tasks</h3>
+              <p className="text-xs text-muted-foreground/60 mt-1">You&apos;re all caught up!</p>
             </div>
           </div>
         ) : (
@@ -215,11 +215,11 @@ export default function MyTasksPage() {
                     onClick={() => toggleGroup(project.name)}
                     className="flex items-center gap-2 py-2 cursor-pointer group/header px-2"
                   >
-                    {isExpanded ? <ChevronDown className="h-4 w-4 text-zinc-500" /> : <ChevronRight className="h-4 w-4 text-zinc-500" />}
+                    {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                     <div className={cn("h-2 w-2 rounded-full shrink-0", project.color)} />
-                    <span className="text-sm font-semibold text-[#E5E1E4]">{project.name}</span>
-                    <span className="text-xs text-zinc-500 ml-1">· {project.workspace}</span>
-                    <Badge className="bg-zinc-800 text-zinc-500 border-none font-medium ml-2 px-1.5 h-4.5 rounded-full text-[10px]">
+                    <span className="text-sm font-semibold text-foreground">{project.name}</span>
+                    <span className="text-xs text-muted-foreground ml-1">· {project.workspace}</span>
+                    <Badge className="bg-muted text-muted-foreground border-none font-medium ml-2 px-1.5 h-4.5 rounded-full text-[10px]">
                       {groupTasks.length}
                     </Badge>
                   </div>
@@ -241,11 +241,11 @@ export default function MyTasksPage() {
                         <div className="flex items-center h-11 px-2 gap-3 bg-zinc-800/20 rounded-md py-2">
                           <Checkbox disabled className="opacity-30 border-zinc-600" />
                           <div className="h-1 w-1 rounded-full bg-zinc-500 shrink-0" />
-                          <span className="font-mono text-xs text-zinc-600 w-16 shrink-0 underline decoration-dotted">NEW</span>
+                          <span className=" text-xs text-zinc-600 w-16 shrink-0 underline decoration-dotted">NEW</span>
                           <input 
                             autoFocus
                             placeholder="Task title..."
-                            className="flex-1 bg-transparent border-none text-sm text-[#E5E1E4] outline-none placeholder:text-zinc-600"
+                            className="flex-1 bg-transparent border-none text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
                             value={quickAddTitle}
                             onChange={e => setQuickAddTitle(e.target.value)}
                             onKeyDown={e => {
@@ -257,7 +257,7 @@ export default function MyTasksPage() {
                       ) : (
                         <button 
                           onClick={() => setQuickAddGroup(project.name)}
-                          className="flex items-center h-9 px-10 gap-2 text-xs text-zinc-600 hover:text-zinc-400 transition-colors group/add"
+                          className="flex items-center h-9 px-10 gap-2 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors group/add"
                         >
                           <Plus className="h-3 w-3 opacity-40 group-hover/add:opacity-100" />
                           Add task
@@ -275,8 +275,8 @@ export default function MyTasksPage() {
       {/* --- BULK ACTION BAR --- */}
       {selectedTaskIds.length > 0 && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
-          <div className="flex items-center gap-4 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2 shadow-2xl shadow-black">
-            <span className="text-sm font-medium text-white pr-4 border-r border-zinc-800">
+          <div className="flex items-center gap-4 bg-hs-card border border-border rounded-lg px-4 py-2 shadow-2xl shadow-black/20">
+            <span className="text-sm font-medium text-foreground pr-4 border-r border-border">
               {selectedTaskIds.length} tasks selected
             </span>
             <div className="flex items-center gap-1">
@@ -317,7 +317,7 @@ function TaskRow({ task, selected, onSelect }: { task: Task; selected: boolean; 
         checked={selected} 
         onCheckedChange={(checked) => onSelect(!!checked)} 
         className={cn(
-          "border-zinc-600 data-[state=checked]:bg-[#7C5CFC] data-[state=checked]:border-[#7C5CFC]",
+          "border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary",
           selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 transition-opacity"
         )}
       />
@@ -328,16 +328,16 @@ function TaskRow({ task, selected, onSelect }: { task: Task; selected: boolean; 
         style={{ backgroundColor: PRIORITIES[task.priority] }} 
       />
 
-      <span className="font-mono text-xs text-zinc-500 w-16 shrink-0">{task.id}</span>
+      <span className=" text-xs text-zinc-500 w-16 shrink-0">{task.id}</span>
       
       <span className={cn(
         "text-sm flex-1 truncate",
-        task.completed ? "line-through text-zinc-500" : "text-[#E5E1E4] font-medium"
+        task.completed ? "line-through text-muted-foreground/60" : "text-foreground font-medium"
       )}>
         {task.title}
       </span>
 
-      <Badge className="bg-zinc-800 text-zinc-500 border border-zinc-700/50 font-normal h-5 px-1.5 rounded-sm text-[10px] hidden sm:flex hover:bg-zinc-800">
+      <Badge className="bg-muted text-muted-foreground border border-border/50 font-normal h-5 px-1.5 rounded-sm text-[10px] hidden sm:flex hover:bg-muted">
         {task.sprint || task.project} · Engineering
       </Badge>
 

@@ -1,49 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { User } from "@/types/auth";
-import { getCurrentUser } from "@/lib/api/auth";
+import { useEffect } from "react";
+import { useAuthStore } from "@/store/authStore";
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user, loading, error, isAuthenticated, fetchUser, logout } = useAuthStore();
 
   useEffect(() => {
-    async function initAuth() {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setLoading(false);
-        return;
-      }
+    // Only fetch user details once when mounting/initializing if a token is present
+    fetchUser();
+  }, [fetchUser]);
 
-      try {
-        const userData = await getCurrentUser();
-        setUser(userData);
-      } catch (err: unknown) {
-        const error = err as Error;
-        console.error("Auth initialization failed:", error);
-        localStorage.removeItem("token");
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    initAuth();
-  }, []);
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-    window.location.href = "/signin";
+  const handleLogout = () => {
+    logout();
+    setTimeout(() => {
+      window.location.href = "/signin";
+    }, 800);
   };
 
   return {
     user,
     loading,
     error,
-    logout,
-    isAuthenticated: !!user,
+    logout: handleLogout,
+    isAuthenticated,
   };
 }
+

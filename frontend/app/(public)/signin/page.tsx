@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
+import { useAuthStore } from "@/store/authStore";
 
 export default function SignInPage() {
   const router = useRouter();
+  const login = useAuthStore((state) => state.login);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,15 +31,19 @@ export default function SignInPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      localStorage.setItem("token", response.token);
+      login(response.token, response);
 
       if (response.hasTenants) {
+        toast.success("Welcome back!");
         router.push("/dashboard");
       } else {
+        toast.success("Signed in successfully!");
         router.push("/onboarding");
       }
     } catch (err: unknown) {
-      setError((err as Error).message || "Invalid email or password");
+      const message = (err as Error).message || "Invalid email or password";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }

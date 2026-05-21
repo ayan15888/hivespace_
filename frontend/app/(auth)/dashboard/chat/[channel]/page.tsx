@@ -138,7 +138,7 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
   // Find project associated with this channel
   // For now, we'll mock this by checking a hypothetical channel-to-project mapping or just using a default
   // In a real app, the channel object would have a projectId
-  const currentProject = projects.find(p => p.id === "sprint-3" || p.slug === "sprint-3"); // Mock association
+  const currentProject = projects.find(p => p.id === "sprint-3"); // Mock association
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
 
   const [messages] = useState<Message[]>(MOCK_MESSAGES);
@@ -194,18 +194,18 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
   });
 
   return (
-    <div className="flex h-screen bg-[#000000] text-[#E5E1E4] overflow-hidden">
+    <div className="flex h-screen bg-background text-foreground overflow-hidden">
       
       {/* --- MAIN CHAT AREA --- */}
       <div className="flex flex-1 flex-col overflow-hidden relative">
         
         {/* CHANNEL TOP BAR */}
-        <header className="sticky top-0 z-20 flex h-[48px] shrink-0 items-center justify-between bg-[#000000]/80 backdrop-blur-md px-4 border-b border-zinc-800/50">
+        <header className="sticky top-0 z-20 flex h-[48px] shrink-0 items-center justify-between bg-background/80 backdrop-blur-md px-4 border-b border-border/50">
           <div className="flex items-center">
-            <Hash className="h-4 w-4 text-zinc-500 mr-1" strokeWidth={1.5} />
-            <span className="text-sm font-medium text-[#E5E1E4]">{channel}</span>
-            <div className="w-px h-4 bg-zinc-700 mx-3" />
-            <span className="text-xs text-zinc-400 truncate max-w-[400px]">
+            <Hash className="h-4 w-4 text-muted-foreground mr-1" strokeWidth={1.5} />
+            <span className="text-sm font-medium text-foreground">{channel}</span>
+            <div className="w-px h-4 bg-border/50 mx-3" />
+            <span className="text-xs text-muted-foreground truncate max-w-[400px]">
               Engineering team — backend discussion, PRs, deployments
             </span>
           </div>
@@ -219,9 +219,9 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
         </header>
 
         {/* PINNED MESSAGES BAR */}
-        <div className="h-8 bg-zinc-800/50 border-b border-zinc-800 flex items-center px-4 shrink-0 transition-all hover:bg-zinc-800/70 cursor-pointer">
-          <Pin className="h-3 w-3 text-zinc-400 mr-2" />
-          <span className="text-xs text-zinc-400">1 pinned message</span>
+        <div className="h-8 bg-muted/30 border-b border-border flex items-center px-4 shrink-0 transition-all hover:bg-muted/50 cursor-pointer">
+          <Pin className="h-3 w-3 text-muted-foreground mr-2" />
+          <span className="text-xs text-muted-foreground">1 pinned message</span>
           <button className="text-[10px] font-bold ml-auto uppercase tracking-wider transition-opacity hover:opacity-80" style={{ color: themeColor }}>View</button>
         </div>
 
@@ -261,8 +261,8 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
         {/* COMPOSE BAR */}
         <div className="p-4 pt-0 shrink-0">
           <div className={cn(
-             "relative flex flex-col bg-zinc-800/80 backdrop-blur-sm border rounded-xl transition-all duration-200",
-             inputFocused ? "shadow-[0_0_15px_rgba(124,92,252,0.1)]" : "border-zinc-700"
+             "relative flex flex-col bg-hs-card/80 backdrop-blur-sm border rounded-xl transition-all duration-200",
+             inputFocused ? "shadow-[0_0_15px_rgba(124,92,252,0.1)]" : "border-border"
           )} style={inputFocused ? { borderColor: `${themeColor}80` } : undefined}>
             {/* Formatting Toolbar (shown on focus) */}
             {inputFocused && (
@@ -284,7 +284,7 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
                 onFocus={() => setInputFocused(true)}
                 onBlur={() => setInputFocused(false)}
                 placeholder={`Message #${channel}`}
-                className="w-full bg-transparent border-none text-sm text-zinc-200 outline-none placeholder:text-zinc-500 resize-none min-h-[40px] px-2 py-1"
+                className="w-full bg-transparent border-none text-sm text-foreground outline-none placeholder:text-muted-foreground/60 resize-none min-h-[40px] px-2 py-1"
               />
 
               <div className="flex items-center justify-between mt-1 px-1">
@@ -318,13 +318,13 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
 
       {/* --- THREAD PANEL --- */}
       {activeThread && (
-        <aside className="w-[320px] shrink-0 bg-[#0E0E10] border-l border-zinc-800 flex flex-col animate-in slide-in-from-right duration-300">
-          <header className="flex h-[48px] items-center justify-between px-4 border-b border-zinc-800/50">
+        <aside className="w-[320px] shrink-0 bg-hs-nav border-l border-border flex flex-col animate-in slide-in-from-right duration-300">
+          <header className="flex h-[48px] items-center justify-between px-4 border-b border-border/50">
             <div className="flex flex-col">
-              <span className="text-sm font-medium text-[#E5E1E4]">Thread</span>
-              <span className="text-[10px] text-zinc-500"># {channel}</span>
+              <span className="text-sm font-medium text-foreground">Thread</span>
+              <span className="text-[10px] text-muted-foreground"># {channel}</span>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setActiveThread(null)} className="h-8 w-8 text-zinc-500 hover:text-white">
+            <Button variant="ghost" size="icon" onClick={() => setActiveThread(null)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
               <X className="h-4 w-4" />
             </Button>
           </header>
@@ -381,7 +381,7 @@ function MessageItem({
 
   return (
     <div className={cn(
-      "group relative flex gap-3 px-2 py-1 rounded-sm transition-colors hover:bg-zinc-800/20",
+      "group relative flex gap-3 px-2 py-1 rounded-sm transition-colors hover:bg-muted/20",
       isAI ? "p-3 rounded-r-md mt-2" : "",
       message.isGrouped ? "mt-0" : "mt-4"
     )} style={isAI ? { borderLeft: `2px solid ${themeColor}`, backgroundColor: `${themeColor}10` } : undefined}>
@@ -405,10 +405,10 @@ function MessageItem({
       <div className="flex flex-1 flex-col overflow-hidden">
         {!message.isGrouped && (
           <div className="flex items-center mb-0.5">
-            <span className="text-sm font-semibold text-[#E5E1E4] hover:underline cursor-pointer">
+            <span className="text-sm font-semibold text-foreground hover:underline cursor-pointer">
               {message.sender.name}
             </span>
-            <span className="text-[10px] text-zinc-500 ml-2 font-medium">{message.timestamp}</span>
+            <span className="text-[10px] text-muted-foreground ml-2 font-medium">{message.timestamp}</span>
           </div>
         )}
 
@@ -416,7 +416,7 @@ function MessageItem({
 
         <div className={cn(
           "text-sm leading-relaxed",
-          isAI ? "text-zinc-300" : "text-zinc-300"
+          isAI ? "text-foreground/90" : "text-foreground/90"
         )}>
           {message.content.replace(/\[\[.*?\]\]/g, "").trim() || message.content}
         </div>
@@ -472,38 +472,38 @@ function MessageItem({
 
 function PRCard({ data }: { data: NonNullable<Message["metadata"]> }) {
   return (
-    <div className="mt-2 flex flex-col bg-zinc-800/80 border border-zinc-700 rounded-lg p-3 max-w-sm group/card cursor-pointer hover:border-zinc-500 transition-colors">
+    <div className="mt-2 flex flex-col bg-hs-card/80 border border-border rounded-lg p-3 max-w-sm group/card cursor-pointer hover:border-border/80 transition-colors">
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
           <GitPullRequest className="h-4 w-4 text-emerald-500" strokeWidth={2} />
-          <span className="font-mono text-[11px] text-zinc-400">PR #{data.prNumber}</span>
+          <span className="font-mono text-[11px] text-muted-foreground">PR #{data.prNumber}</span>
         </div>
         <Badge className="h-5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-bold px-1.5">
           {data.status}
         </Badge>
       </div>
-      <span className="text-xs font-medium text-zinc-300">{data.title}</span>
+      <span className="text-xs font-medium text-foreground/90">{data.title}</span>
     </div>
   );
 }
 
 function TaskCard({ data }: { data: NonNullable<Message["metadata"]> }) {
   return (
-    <div className="mt-2 flex flex-col bg-zinc-800/80 border border-zinc-700 rounded-lg p-3 max-w-sm cursor-pointer hover:border-zinc-500 transition-colors">
+    <div className="mt-2 flex flex-col bg-hs-card/80 border border-border rounded-lg p-3 max-w-sm cursor-pointer hover:border-border/80 transition-colors">
       <div className="flex items-center gap-2 mb-2">
         <div className={cn(
           "h-1.5 w-1.5 rounded-full shrink-0",
-          data.priority === "high" ? "bg-[#EF9F27]" : "bg-zinc-500"
+          data.priority === "high" ? "bg-[#EF9F27]" : "bg-muted-foreground/50"
         )} />
-        <span className="font-mono text-[11px] text-zinc-400 underline decoration-dotted decoration-zinc-600">{data.taskId}</span>
-        <span className="text-xs font-semibold text-zinc-300 truncate ml-1">{data.title}</span>
+        <span className="font-mono text-[11px] text-muted-foreground underline decoration-dotted decoration-muted-foreground/30">{data.taskId}</span>
+        <span className="text-xs font-semibold text-foreground/90 truncate ml-1">{data.title}</span>
       </div>
       <div className="flex items-center justify-between">
-        <Badge className="bg-zinc-900/50 text-zinc-500 border-zinc-700/50 font-normal h-5 px-1.5 rounded-sm text-[10px]">
+        <Badge className="bg-muted/50 text-muted-foreground border-border/50 font-normal h-5 px-1.5 rounded-sm text-[10px]">
           {data.status}
         </Badge>
-        <Avatar className="h-5 w-5 border border-zinc-700">
-           <AvatarFallback className="text-[8px] bg-zinc-800 text-zinc-400">
+        <Avatar className="h-5 w-5 border border-border">
+           <AvatarFallback className="text-[8px] bg-muted text-muted-foreground">
              {data.assignee?.initials || "??"}
            </AvatarFallback>
         </Avatar>
@@ -515,15 +515,15 @@ function TaskCard({ data }: { data: NonNullable<Message["metadata"]> }) {
 function DateSeparator({ date }: { date: string }) {
   return (
     <div className="relative flex items-center justify-center my-6 h-px">
-      <div className="absolute inset-x-0 h-px bg-zinc-800 opacity-30" />
-      <span className="relative z-10 bg-[#0E0E10] px-3 text-[11px] font-bold text-zinc-600 uppercase tracking-[2px]">{date}</span>
+      <div className="absolute inset-x-0 h-px bg-border opacity-30" />
+      <span className="relative z-10 bg-background px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-[2px]">{date}</span>
     </div>
   );
 }
 
 function IconButton({ icon: Icon, label: _label, count }: { icon: React.ElementType; label: string; count?: number }) {
   return (
-    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-white relative group">
+    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground relative group">
       <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
       {count && (
         <span className="absolute -top-1 -right-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full px-1 text-[8px] font-bold text-white shadow shadow-black bg-violet-600">
@@ -536,7 +536,7 @@ function IconButton({ icon: Icon, label: _label, count }: { icon: React.ElementT
 
 function IconButtonSmall({ icon: Icon }: { icon: React.ElementType }) {
   return (
-    <button className="text-zinc-500 hover:text-zinc-300 transition-colors">
+    <button className="text-muted-foreground hover:text-foreground transition-colors">
       <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
     </button>
   );
@@ -544,7 +544,7 @@ function IconButtonSmall({ icon: Icon }: { icon: React.ElementType }) {
 
 function ToolbarButton({ icon: Icon }: { icon: React.ElementType }) {
   return (
-    <button className="h-6 w-6 flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/50 rounded transition-colors">
+    <button className="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors">
       <Icon className="h-3.5 w-3.5" />
     </button>
   );
@@ -554,7 +554,7 @@ function ActionIcon({ icon: Icon, onClick }: { icon: React.ElementType; onClick?
   return (
     <button 
       onClick={onClick}
-      className="h-7 w-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
+      className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
     >
       <Icon className="h-4 w-4" strokeWidth={1.5} />
     </button>

@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/p/{projectId}/teams")
+@RequestMapping("/api/workspaces/{workspaceId}/teams")
 @RequiredArgsConstructor
 public class TeamController {
 
@@ -20,14 +20,27 @@ public class TeamController {
 
     @PostMapping
     public ResponseEntity<TeamResponse> createTeam(
-            @PathVariable UUID projectId,
+            @PathVariable UUID workspaceId,
             @Valid @RequestBody TeamRequest request) {
-        request.setProjectId(projectId);
+        request.setWorkspaceId(workspaceId);
         return ResponseEntity.ok(teamService.createTeam(request));
     }
 
     @GetMapping
-    public ResponseEntity<List<TeamResponse>> getTeamsByProject(@PathVariable UUID projectId) {
-        return ResponseEntity.ok(teamService.getTeamsByProject(projectId));
+    public ResponseEntity<List<TeamResponse>> getTeamsByWorkspace(@PathVariable UUID workspaceId) {
+        return ResponseEntity.ok(teamService.getTeamsByWorkspace(workspaceId));
+    }
+
+    @PutMapping("/{teamId}")
+    public ResponseEntity<TeamResponse> updateTeam(
+            @PathVariable UUID teamId,
+            @Valid @RequestBody TeamRequest request) {
+        return ResponseEntity.ok(teamService.updateTeam(teamId, request));
+    }
+
+    @DeleteMapping("/{teamId}")
+    public ResponseEntity<Void> deleteTeam(@PathVariable UUID teamId) {
+        teamService.deleteTeam(teamId);
+        return ResponseEntity.noContent().build();
     }
 }

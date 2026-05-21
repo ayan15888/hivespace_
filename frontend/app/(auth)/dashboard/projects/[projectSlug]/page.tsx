@@ -32,8 +32,9 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
-import { useTeams } from "@/hooks/useTeams";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
+import { useState, useEffect, useCallback } from "react";
+import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
 
 // --- MOCK DATA ---
 
@@ -61,50 +62,61 @@ const RECENT_PRs = [
 export default function ProjectOverviewPage() {
   const params = useParams();
   const { projects } = useProjects();
-  const { teams } = useTeams();
-  const projectSlug = params?.projectSlug as string || "sprint-3";
-  
-  const currentProject = projects.find(p => p.slug === projectSlug || p.id === projectSlug);
-  const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
+  const projectId = params?.projectSlug as string || "";
 
-  const displayTitle = currentProject?.name || projectSlug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const currentProject = projects.find(p => p.id === projectId);
+  const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
+  const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+
+  const fetchProjectMembers = useCallback(async () => {
+    if (!currentProject?.id) return;
+    try {
+      const data = await getProjectMembers(currentProject.id);
+      setProjectMembers(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [currentProject?.id]);
+
+  useEffect(() => {
+    fetchProjectMembers();
+  }, [fetchProjectMembers]);
+
+  const displayTitle = currentProject?.name || "Project";
 
   return (
-    <ScrollArea className="h-screen w-full bg-[#000000] text-[#E5E1E4]">
+    <ScrollArea className="h-screen w-full bg-background text-foreground">
       {/* ─── TOP BAR ─── */}
-      <header className="sticky top-0 z-30 flex h-[44px] shrink-0 items-center justify-between border-b border-zinc-800/50 bg-[#000000]/80 px-6 backdrop-blur-md">
+      <header className="sticky top-0 z-30 flex h-[44px] shrink-0 items-center justify-between border-b border-border/50 bg-background/80 px-6 backdrop-blur-md">
         <div className="flex items-center gap-2 flex-1">
-          <span className="text-xs text-zinc-500">Hivespace</span>
-          <span className="text-zinc-800 text-[10px]">/</span>
-          <span className="text-xs text-zinc-500">Engineering</span>
-          <span className="text-zinc-800 text-[10px]">/</span>
-          <span className="text-xs font-medium text-white">{displayTitle}</span>
+          <span className="text-xs text-muted-foreground">Hivespace</span>
+          <span className="text-border text-[10px]">/</span>
+          <span className="text-xs text-muted-foreground">Engineering</span>
+          <span className="text-border text-[10px]">/</span>
+          <span className="text-xs font-medium text-foreground">{displayTitle}</span>
         </div>
 
         <nav className="flex h-full items-center gap-6">
-          <Link href={`/dashboard/projects/${projectSlug}`} className="relative flex h-full items-center px-1 text-sm font-medium text-white">
+          <Link href={`/dashboard/projects/${projectId}`} className="relative flex h-full items-center px-1 text-sm font-medium text-foreground">
             Overview
             <div className="absolute bottom-0 left-0 h-[2px] w-full" style={{ backgroundColor: themeColor }} />
           </Link>
-          <Link href={`/dashboard/projects/${projectSlug}/board`} className="flex h-full items-center px-1 text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
+          <Link href={`/dashboard/projects/${projectId}/board`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Board
           </Link>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             List
           </button>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Timeline
           </button>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Backlog
           </button>
-          <Link href="/dashboard/docs" className="flex h-full items-center px-1 text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
+          <Link href="/dashboard/docs" className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Docs
           </Link>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Settings
           </button>
         </nav>
@@ -134,9 +146,9 @@ export default function ProjectOverviewPage() {
               ⚡
             </div>
             <div className="flex flex-col gap-1">
-              <h1 className="text-3xl font-bold tracking-tight text-[#E5E1E4]">{displayTitle}</h1>
-              <p className="text-xs font-medium text-zinc-500">Engineering workspace</p>
-              <p className="text-sm text-zinc-400 mt-2 max-w-2xl leading-relaxed">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">{displayTitle}</h1>
+              <p className="text-xs font-medium text-muted-foreground">Engineering workspace</p>
+              <p className="text-sm text-muted-foreground/80 mt-2 max-w-2xl leading-relaxed">
                 Core backend infrastructure sprint — WebSocket, Auth, GitHub integration, and Docs editor. 
                 Focused on stabilizing real-time communication and document synchronization.
               </p>
@@ -149,32 +161,45 @@ export default function ProjectOverviewPage() {
 
           <div className="flex flex-col items-end gap-4">
             <div className="flex items-center">
-              {["MV", "RK", "DK", "SA", "PL", "RS"].map((initials, i) => (
-                <Avatar key={initials} className={cn(
-                  "h-8 w-8 ring-4 ring-[#000000] -ml-2.5 first:ml-0 bg-zinc-800 border border-zinc-700/50",
-                  i === 0 && "z-10",
-                  i === 1 && "z-20",
-                  i === 2 && "z-30",
-                  i === 3 && "z-40",
-                  i === 4 && "z-50",
-                )}>
-                  <AvatarFallback className="bg-zinc-800 text-[10px] text-zinc-300 font-bold">{initials}</AvatarFallback>
-                </Avatar>
-              ))}
-              <div className="h-8 w-8 rounded-full ring-4 ring-[#000000] -ml-2.5 bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[10px] text-zinc-500 font-medium">
-                +2
-              </div>
+              {projectMembers.length > 0 ? (
+                <>
+                  {projectMembers.slice(0, 5).map((member, i) => (
+                    <Avatar key={member.id} className={cn(
+                      "h-8 w-8 ring-4 ring-background -ml-2.5 first:ml-0 bg-muted border border-border/50 relative group",
+                      i === 0 && "z-10",
+                      i === 1 && "z-20",
+                      i === 2 && "z-30",
+                      i === 3 && "z-40",
+                      i === 4 && "z-50",
+                      member.role === "LEAD" && "border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                    )}>
+                      <AvatarFallback className={cn("bg-muted text-[10px] text-muted-foreground font-bold", member.role === "LEAD" && "text-amber-500")}>
+                        {member.fullName ? member.fullName.substring(0, 2).toUpperCase() : member.username.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  ))}
+                  {projectMembers.length > 5 && (
+                    <div className="h-8 w-8 rounded-full ring-4 ring-background -ml-2.5 bg-muted border border-border flex items-center justify-center text-[10px] text-muted-foreground font-medium z-50">
+                      +{projectMembers.length - 5}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="h-8 w-8 rounded-full ring-4 ring-background bg-muted border border-border flex items-center justify-center text-[10px] text-muted-foreground font-bold">
+                  --
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md">
+              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
                 <UserPlus className="h-3.5 w-3.5 mr-2" strokeWidth={1.5} />
                 Invite
               </Button>
-              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md">
+              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
                 <Share2 className="h-3.5 w-3.5 mr-2" strokeWidth={1.5} />
                 Share
               </Button>
-              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md">
+              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
                 <Settings className="h-3.5 w-3.5 mr-2" strokeWidth={1.5} />
                 Edit Project
               </Button>
@@ -185,42 +210,42 @@ export default function ProjectOverviewPage() {
 
       {/* ─── SPRINT PROGRESS ─── */}
       <div className="px-8 mb-8 mt-2">
-        <div className="bg-[#1C1B1F] border border-zinc-800/30 rounded-[28px] p-6">
+        <div className="bg-hs-card border border-border/30 rounded-[28px] p-6">
            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center">
-                <span className="text-sm font-semibold text-[#E5E1E4]">Sprint Progress</span>
-                <span className="text-[10px] text-zinc-500 font-mono ml-3 uppercase tracking-wider">Apr 1–15, 2026</span>
+                <span className="text-sm font-semibold text-foreground">Sprint Progress</span>
+                <span className="text-[10px] text-muted-foreground font-mono ml-3 uppercase tracking-wider">Apr 1–15, 2026</span>
                 <span className="text-[10px] font-bold text-amber-500 ml-4 bg-amber-500/10 px-2 py-0.5 rounded-full ring-1 ring-amber-500/20">8 DAYS REMAINING</span>
               </div>
-              <span className="text-xs font-mono text-zinc-400">17/25 tasks complete · 68%</span>
+              <span className="text-xs font-mono text-muted-foreground">17/25 tasks complete · 68%</span>
            </div>
-           <Progress value={68} className="h-2 bg-zinc-800/50" indicatorStyle={{ backgroundColor: themeColor }} />
+           <Progress value={68} className="h-2 bg-muted/50" indicatorStyle={{ backgroundColor: themeColor }} />
            
            <div className="flex gap-2.5 mt-5">
-              <div className="flex items-center gap-2 bg-[#201F21] px-3 py-1.5 rounded-full border border-zinc-800/50">
-                <div className="h-1.5 w-1.5 rounded-full bg-zinc-600" />
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Backlog</span>
-                <span className="text-xs font-mono text-zinc-500 ml-1">3</span>
+              <div className="flex items-center gap-2 bg-hs-main px-3 py-1.5 rounded-full border border-border/50">
+                <div className="h-1.5 w-1.5 rounded-full bg-border" />
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Backlog</span>
+                <span className="text-xs font-mono text-muted-foreground/60 ml-1">3</span>
               </div>
-              <div className="flex items-center gap-2 bg-[#201F21] px-3 py-1.5 rounded-full border border-zinc-800/50">
-                <div className="h-1.5 w-1.5 rounded-full bg-zinc-500" />
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Todo</span>
-                <span className="text-xs font-mono text-zinc-500 ml-1">4</span>
+              <div className="flex items-center gap-2 bg-hs-main px-3 py-1.5 rounded-full border border-border/50">
+                <div className="h-1.5 w-1.5 rounded-full bg-border" />
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Todo</span>
+                <span className="text-xs font-mono text-muted-foreground/60 ml-1">4</span>
               </div>
-              <div className="flex items-center gap-2 bg-[#201F21] px-3 py-1.5 rounded-full border border-zinc-800/50">
+              <div className="flex items-center gap-2 bg-hs-main px-3 py-1.5 rounded-full border border-border/50">
                 <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">In Progress</span>
-                <span className="text-xs font-mono text-zinc-500 ml-1">3</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">In Progress</span>
+                <span className="text-xs font-mono text-muted-foreground/60 ml-1">3</span>
               </div>
-              <div className="flex items-center gap-2 bg-[#201F21] px-3 py-1.5 rounded-full border border-zinc-800/50">
+              <div className="flex items-center gap-2 bg-hs-main px-3 py-1.5 rounded-full border border-border/50">
                 <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Review</span>
-                <span className="text-xs font-mono text-zinc-500 ml-1">2</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Review</span>
+                <span className="text-xs font-mono text-muted-foreground/60 ml-1">2</span>
               </div>
-              <div className="flex items-center gap-2 bg-[#201F21] px-3 py-1.5 rounded-full border border-zinc-800/50">
+              <div className="flex items-center gap-2 bg-hs-main px-3 py-1.5 rounded-full border border-border/50">
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Done</span>
-                <span className="text-xs font-mono text-zinc-500 ml-1">8</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Done</span>
+                <span className="text-xs font-mono text-muted-foreground/60 ml-1">8</span>
               </div>
            </div>
         </div>
@@ -236,11 +261,11 @@ export default function ProjectOverviewPage() {
           <section className="flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold tracking-widest text-zinc-600 uppercase">Recent Tasks</h3>
-              <Link href={`/dashboard/projects/${projectSlug}/board`} className="text-[11px] font-semibold hover:opacity-80 transition-opacity flex items-center gap-1 group" style={{ color: themeColor }}>
+              <Link href={`/dashboard/projects/${projectId}/board`} className="text-[11px] font-semibold hover:opacity-80 transition-opacity flex items-center gap-1 group" style={{ color: themeColor }}>
                 View board <ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
-            <div className="flex flex-col bg-[#1B1B1D] rounded-lg overflow-hidden border border-zinc-800/10 shadow-xl shadow-black/20">
+            <div className="flex flex-col bg-hs-nav rounded-lg overflow-hidden border border-border/10 shadow-xl shadow-black/10">
               {RECENT_TASKS.map((task, i) => (
                 <div key={task.id} className={cn(
                   "flex items-center justify-between px-5 py-3 hover:bg-white/5 transition-colors group cursor-pointer",
@@ -249,8 +274,8 @@ export default function ProjectOverviewPage() {
                   <div className="flex items-center gap-4">
                     <div className="h-4 w-4 border border-zinc-700 rounded-sm flex items-center justify-center bg-zinc-950 group-hover:border-zinc-500 transition-colors" />
                     <div className={cn("h-1.5 w-1.5 rounded-full", task.priority)} />
-                    <span className="font-mono text-xs text-zinc-500 group-hover:text-zinc-400">{task.id}</span>
-                    <span className="text-sm font-medium text-[#E5E1E4] truncate max-w-[280px]">{task.title}</span>
+                    <span className="font-mono text-xs text-muted-foreground group-hover:text-foreground/80">{task.id}</span>
+                    <span className="text-sm font-medium text-foreground truncate max-w-[280px]">{task.title}</span>
                   </div>
                   <div className="flex items-center gap-4">
                     <Badge className={cn("border-none text-[10px] font-bold h-5 uppercase tracking-wide", task.statusColor)}>
@@ -266,7 +291,7 @@ export default function ProjectOverviewPage() {
           </section>
 
           {/* Recent Docs */}
-          <section className="flex flex-col bg-[#1C1B1F] rounded-[28px] border border-zinc-800/30 p-6">
+          <section className="flex flex-col bg-hs-card rounded-[28px] border border-border/30 p-6">
             <div className="flex items-center justify-between mb-4 px-2">
                <h3 className="text-xs font-bold tracking-widest text-zinc-600 uppercase">Recent Docs</h3>
                <Link href="/dashboard/docs" className="text-[10px] font-bold text-zinc-500 hover:text-white transition-colors">ALL DOCS</Link>
@@ -338,7 +363,7 @@ export default function ProjectOverviewPage() {
                   <p className="text-sm text-zinc-400 leading-relaxed">
                     <span className="text-white font-semibold">David K.</span> commented on <span className="text-zinc-200">Database Schema</span>
                   </p>
-                  <div className="bg-[#000000] border-l-2 border-zinc-700 p-2 mt-1 rounded-r-md">
+                  <div className="bg-background border-l-2 border-border p-2 mt-1 rounded-r-md">
                     <p className="text-xs text-zinc-500 italic">&quot;Looks good, but we should index the channel_id column...&quot;</p>
                   </div>
                   <span className="text-[10px] text-zinc-600 font-mono">Yesterday</span>
@@ -352,7 +377,7 @@ export default function ProjectOverviewPage() {
         <div className="col-span-4 flex flex-col gap-8">
           
           {/* GitHub Status */}
-          <section className="flex flex-col bg-[#1C1B1F] rounded-[28px] border border-zinc-800/30 p-6 shadow-2xl shadow-black/40">
+          <section className="flex flex-col bg-hs-card rounded-[28px] border border-border/30 p-6 shadow-2xl shadow-black/10">
             <div className="flex items-center justify-between mb-4 px-2">
                <h3 className="text-xs font-bold tracking-widest text-zinc-600 uppercase">Github</h3>
                <Link href="#" className="text-[10px] font-bold text-zinc-500 hover:text-white transition-colors">VISIT REPO</Link>
@@ -361,8 +386,8 @@ export default function ProjectOverviewPage() {
                <div className="flex items-start justify-between mb-4">
                   <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-2">
-                       <Github className="h-4 w-4 text-zinc-500" />
-                       <span className="font-mono text-sm text-[#E5E1E4]">acme-corp/backend</span>
+                     <Github className="h-4 w-4 text-muted-foreground" />
+                       <span className="font-mono text-sm text-foreground">acme-corp/backend</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                        <Badge className="bg-zinc-800 text-zinc-500 border-zinc-700 font-mono text-[10px] h-5 rounded-md flex items-center gap-1.5 px-2">
@@ -408,39 +433,7 @@ export default function ProjectOverviewPage() {
             </div>
           </section>
 
-          {/* Teams */}
-          <section className="flex flex-col">
-            <div className="flex items-center justify-between mb-4 px-2">
-              <h3 className="text-xs font-bold tracking-widest text-zinc-600 uppercase">Teams</h3>
-              <PlusCircle className="h-4 w-4 text-zinc-500 hover:text-white cursor-pointer transition-colors" strokeWidth={1.5} />
-            </div>
-            <div className="flex flex-col gap-2.5">
-              {teams.length > 0 ? teams.map(team => (
-                <div key={team.id} className="bg-[#1C1B1F] p-4 rounded-[20px] border border-zinc-800/30 hover:bg-[#252429] transition-all cursor-pointer group">
-                   <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 group-hover:opacity-80 transition-colors" style={{ color: themeColor }}>
-                            <Users className="h-4 w-4" strokeWidth={1.5} />
-                          </div>
-                         <div className="flex flex-col">
-                            <span className="text-sm font-semibold text-[#E5E1E4]">{team.name}</span>
-                            <span className="text-[10px] text-zinc-500">{team.membersCount} members</span>
-                         </div>
-                      </div>
-                      <div className="flex items-center">
-                         <div className="h-8 w-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] text-zinc-500 font-medium">
-                           {team.membersCount}
-                         </div>
-                      </div>
-                   </div>
-                </div>
-              )) : (
-                <div className="px-4 py-8 text-center bg-[#272629]/30 rounded-lg border border-dashed border-zinc-800">
-                  <p className="text-xs text-zinc-500">No teams found for this project</p>
-                </div>
-              )}
-            </div>
-          </section>
+
 
           {/* Stakeholder Share */}
           <section className="flex flex-col bg-[#1C1B1F] rounded-[28px] border border-zinc-800/30 p-6 shadow-2xl shadow-black/40">
@@ -454,7 +447,7 @@ export default function ProjectOverviewPage() {
                    <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">Public link active</span>
                 </div>
                 <div className="bg-zinc-950/50 border border-zinc-800 rounded px-3 py-2 flex items-center justify-between mb-4">
-                   <span className="font-mono text-xs text-zinc-600 truncate mr-4">hivespace.io/share/abc123xyz789</span>
+                   <span className="font-mono text-xs text-zinc-600 truncate mr-4">{process.env.NEXT_PUBLIC_APP_DOMAIN || "hivespace.app"}/share/abc123xyz789</span>
                    <button className="text-zinc-500 hover:text-white transition-colors">
                       <PlusCircle className="h-3.5 w-3.5 rotate-45" strokeWidth={1.5} />
                    </button>
@@ -481,6 +474,8 @@ export default function ProjectOverviewPage() {
 
         </div>
       </div>
+      
+
     </ScrollArea>
   );
 }

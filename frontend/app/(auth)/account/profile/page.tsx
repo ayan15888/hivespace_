@@ -16,8 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { CTAButton } from "@/components/common/CTAButton"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/useAuth"
-import { updateProfile } from "@/lib/api/auth"
-import { toast } from "sonner"
+import { useAuthStore } from "@/store/authStore"
 
 const WORKSPACES = [
   { name: "Engineering", org: "Hivespace", role: "Team Lead", color: "bg-blue-500", canLeave: false },
@@ -26,6 +25,7 @@ const WORKSPACES = [
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth()
+  const updateProfile = useAuthStore((state) => state.updateProfile)
   const [fullName, setFullName] = useState("")
   const [jobTitle, setJobTitle] = useState("")
   const [bio, setBio] = useState("")
@@ -47,10 +47,8 @@ export default function ProfilePage() {
         jobTitle,
         bio,
       })
-      toast.success("Profile updated successfully")
     } catch (error) {
       console.error("Failed to update profile:", error)
-      toast.error("Failed to update profile")
     } finally {
       setSaving(false)
     }
@@ -196,7 +194,7 @@ export default function ProfilePage() {
               <div className={cn("h-6 w-6 rounded-sm shrink-0", workspace.color)} />
               <div className="ml-4 flex flex-col items-start">
                 <span className="text-sm font-medium text-[#E5E1E4]">{workspace.name}</span>
-                <span className="text-[10px] text-zinc-500 font-mono tracking-tight">{workspace.org}</span>
+                <span className="text-[10px] text-zinc-500  tracking-tight">{workspace.org}</span>
               </div>
               <Badge className="ml-4 bg-zinc-800 border-zinc-700 text-zinc-400 text-[10px] px-1.5 h-5 rounded-sm font-normal">
                 {workspace.role}

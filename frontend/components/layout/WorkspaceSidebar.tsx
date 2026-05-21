@@ -19,15 +19,16 @@ import { cn } from "@/lib/utils";
 import { CreateOrgModal } from "@/components/features/organizations/CreateOrgModal";
 import { CreateWorkspaceModal } from "@/components/features/workspaces/CreateWorkspaceModal";
 import { CreateProjectModal } from "@/components/features/projects/CreateProjectModal";
+import { CreateTeamModal } from "@/components/features/teams/CreateTeamModal";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOrgs } from "@/hooks/useOrgs";
-import { useOrg } from "@/store/orgStore";
+import { useOrgStore } from "@/store/orgStore";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
-import { useWorkspace } from "@/store/workspaceStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import { useProjects } from "@/hooks/useProjects";
 import { useTeams } from "@/hooks/useTeams";
 
@@ -46,14 +47,19 @@ export function WorkspaceSidebar() {
   const [isCreateWorkspaceModalOpen, setIsCreateWorkspaceModalOpen] = useState(false);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
+  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   
   const { orgs } = useOrgs();
-  const { activeOrg, setActiveOrg } = useOrg();
+  const { activeOrg, setActiveOrg } = useOrgStore();
   
   const { workspaces } = useWorkspaces();
-  const { activeWorkspace, setActiveWorkspace } = useWorkspace();
+  const { activeWorkspace, setActiveWorkspace } = useWorkspaceStore();
   const { projects, loading: projectsLoading } = useProjects();
-  const { teams } = useTeams();
+  const activeProject = projects.find(p => pathname.startsWith(`/dashboard/projects/${p.id}`));
+  const activeProjectId = activeProject?.id || null;
+  
+  const expandedProjectId = manualExpandedId !== null ? manualExpandedId : activeProjectId;
+  const { teams } = useTeams(activeWorkspace?.id || undefined);
 
   // Auto-select first workspace if none active
   useEffect(() => {
@@ -62,9 +68,6 @@ export function WorkspaceSidebar() {
     }
   }, [workspaces, activeWorkspace, setActiveWorkspace]);
 
-  const activeProjectId = projects.find(p => pathname.startsWith(`/dashboard/projects/${p.id}`))?.id || null;
-  const expandedProjectId = manualExpandedId !== null ? manualExpandedId : activeProjectId;
-
   const toggleExpand = (projectId: string) => {
     setManualExpandedId(expandedProjectId === projectId ? "" : projectId);
   };
@@ -72,34 +75,34 @@ export function WorkspaceSidebar() {
   const isProjectLead = true; // Use mock role for now
 
   return (
-    <aside className="fixed top-0 left-[56px] z-40 flex h-full w-[220px] flex-col bg-hs-nav">
+    <aside className="fixed top-0 left-[56px] z-40 flex h-full w-[220px] flex-col bg-hs-nav border-r border-border/50">
       
       {/* 1. WORKSPACE HEADER */}
       <Popover>
         <PopoverTrigger asChild>
-          <div className="flex h-[48px] w-full cursor-pointer items-center justify-between px-4 hover:bg-zinc-800/50 transition-colors">
+          <div className="flex h-[48px] w-full cursor-pointer items-center justify-between px-4 hover:bg-muted/50 transition-colors border-b border-border/50">
             <div className="flex flex-col justify-center">
-              <span className="text-sm font-medium text-hs-text leading-tight">
+              <span className="text-sm font-medium text-foreground leading-tight">
                 {activeWorkspace?.name || "Select Workspace"}
               </span>
-              <span className="text-xs text-zinc-500 leading-tight">
+              <span className="text-xs text-muted-foreground leading-tight">
                 {activeOrg?.name || "Hivespace"}
               </span>
             </div>
-            <ChevronDown className="h-4 w-4 text-zinc-400" strokeWidth={1.5} />
+            <ChevronDown className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
           </div>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-[200px] ml-4 bg-hs-nav/95 backdrop-blur-xl border border-zinc-800 text-hs-text p-1 rounded-md shadow-lg shadow-black/40">
+        <PopoverContent align="start" className="w-[200px] ml-4 bg-sidebar/95 backdrop-blur-xl border border-zinc-800 text-foreground p-1 rounded-md shadow-lg shadow-black/40">
           <div className="flex flex-col gap-1">
             {workspaces.map((workspace) => (
               <div 
                 key={workspace.id}
                 onClick={() => setActiveWorkspace(workspace)}
                 className={cn(
-                  "flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-zinc-800/50 rounded-sm border-l-2 transition-all",
+                  "flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-muted/50 rounded-sm border-l-2 transition-all",
                   activeWorkspace?.id === workspace.id 
-                    ? "border-violet-500 bg-zinc-800/30 text-white" 
-                    : "border-transparent text-zinc-400"
+                    ? "border-primary bg-muted/30 text-foreground" 
+                    : "border-transparent text-muted-foreground"
                 )}
               >
                 <span className={cn("text-sm", activeWorkspace?.id === workspace.id ? "font-medium" : "")}>
@@ -111,17 +114,17 @@ export function WorkspaceSidebar() {
               </div>
             ))}
             
-            {workspaces.length > 0 && <div className="h-px bg-zinc-800 my-1 mx-2" />}
+            {workspaces.length > 0 && <div className="h-px bg-border/50 my-1 mx-2" />}
             <div 
-              className="flex items-center px-2 py-1.5 cursor-pointer hover:bg-zinc-800/50 rounded-sm text-zinc-400"
+              className="flex items-center px-2 py-1.5 cursor-pointer hover:bg-muted/50 rounded-sm text-muted-foreground"
               onClick={() => setIsCreateWorkspaceModalOpen(true)}
             >
               <Plus className="h-4 w-4 mr-2" strokeWidth={1.5} />
               <span className="text-sm">Create Workspace</span>
             </div>
-            <div className="h-px bg-zinc-800 my-1 mx-2" />
+            <div className="h-px bg-border/50 my-1 mx-2" />
             <div className="flex items-center justify-between px-2 py-1 mb-1">
-              <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Organizations</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Organizations</span>
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -139,10 +142,10 @@ export function WorkspaceSidebar() {
                   setActiveWorkspace(null); // Reset workspace when switching org
                 }}
                 className={cn(
-                  "flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-zinc-800/50 rounded-sm border-l-2 transition-all",
+                  "flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-muted/50 rounded-sm border-l-2 transition-all",
                   activeOrg?.id === org.id 
-                    ? "border-blue-500 bg-zinc-800/20 text-white" 
-                    : "border-transparent text-zinc-400"
+                    ? "border-primary bg-muted/20 text-foreground" 
+                    : "border-transparent text-muted-foreground"
                 )}
               >
                 <span className="text-xs">{org.name}</span>
@@ -160,7 +163,7 @@ export function WorkspaceSidebar() {
         {/* 2. + New Project Button */}
         <Button 
           variant="ghost" 
-          className="w-full justify-start text-xs text-zinc-400 hover:text-hs-text hover:bg-zinc-800/50 h-8 px-2 rounded-md border border-zinc-700/15"
+          className="w-full justify-start text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 h-8 px-2 rounded-md border border-border/50"
           onClick={() => setIsCreateProjectModalOpen(true)}
         >
           <Plus strokeWidth={1.5} className="mr-2 h-3.5 w-3.5" />
@@ -168,13 +171,12 @@ export function WorkspaceSidebar() {
         </Button>
 
         <div className="flex flex-col">
-          <span className="px-2 mb-2 text-xs font-semibold text-zinc-600 tracking-widest uppercase">Projects</span>
+          <span className="px-2 mb-2 text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Projects</span>
           
           <div className="flex flex-col gap-0.5">
             <AnimatePresence initial={false}>
               {projects.map(project => {
-                const projectIdentifier = project.slug || project.id;
-                const projectPath = `/dashboard/projects/${projectIdentifier}`;
+                const projectPath = `/dashboard/projects/${project.id}`;
                 const isActive = pathname.startsWith(projectPath);
                 const isExpanded = expandedProjectId === project.id;
                 const dotColor = PROJECT_COLOR_MAP[project.color || ""] || "#7C5CFC";
@@ -193,12 +195,12 @@ export function WorkspaceSidebar() {
                         href={projectPath}
                         className={cn(
                           "group flex h-8 items-center justify-between cursor-pointer rounded-r-md px-2 border-l-2 transition-colors",
-                          !isActive && "border-transparent text-zinc-400 hover:bg-zinc-800/30 hover:text-zinc-200"
+                          !isActive && "border-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                         )}
                         style={isActive ? {
                           backgroundColor: `${dotColor}20`,
                           borderColor: dotColor,
-                          color: "white"
+                          color: "var(--foreground)"
                         } : undefined}
                       >
                         <div className="flex items-center gap-1.5 min-w-0 pl-4">
@@ -282,7 +284,19 @@ export function WorkspaceSidebar() {
 
         {/* 4. TEAMS */}
         <div className="flex flex-col">
-          <span className="px-2 mb-2 text-xs font-semibold text-zinc-600 tracking-widest uppercase">Teams</span>
+          <div className="flex items-center justify-between px-2 mb-2">
+            <span className="text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Teams</span>
+            {activeWorkspace?.id && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-4 w-4 text-zinc-500 hover:text-zinc-300"
+                onClick={() => setIsCreateTeamOpen(true)}
+              >
+                <Plus className="h-3 w-3" strokeWidth={1.5} />
+              </Button>
+            )}
+          </div>
           
           <div className="flex flex-col gap-0.5">
             {teams.length > 0 ? teams.map(team => {
@@ -300,8 +314,8 @@ export function WorkspaceSidebar() {
                     className={cn(
                       "group flex h-8 items-center justify-between cursor-pointer rounded-r-md px-2 border-l-2 transition-colors",
                       isActive 
-                        ? "border-violet-500 bg-zinc-800/50 text-white" 
-                        : "border-transparent text-zinc-400 hover:bg-zinc-800/30 hover:text-zinc-200"
+                        ? "border-primary bg-muted/50 text-foreground" 
+                        : "border-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                     )}
                   >
                     <div className="flex items-center gap-2">
@@ -319,7 +333,7 @@ export function WorkspaceSidebar() {
 
         {/* 5. CHANNELS */}
         <div className="flex flex-col">
-          <span className="px-2 mb-2 text-[10px] font-bold text-zinc-600 tracking-widest uppercase">
+          <span className="px-2 mb-2 text-[10px] font-bold text-muted-foreground/60 tracking-widest uppercase">
             Channels ({activeWorkspace?.name || "No Workspace"})
           </span>
           
@@ -338,12 +352,12 @@ export function WorkspaceSidebar() {
                     key={channel.name}
                     className={cn(
                       "flex h-8 items-center justify-between cursor-pointer rounded-r-md px-2 border-l-2 transition-colors",
-                      !isActive && "border-transparent text-zinc-400 hover:bg-zinc-800/30 hover:text-zinc-200"
+                      !isActive && "border-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                     )}
                     style={isActive ? {
                       backgroundColor: `${channelColor}20`,
                       borderColor: channelColor,
-                      color: "white"
+                      color: "var(--foreground)"
                     } : undefined}
                   >
                     <div className="flex items-center gap-2 truncate">
@@ -386,6 +400,14 @@ export function WorkspaceSidebar() {
         isOpen={isCreateOrgModalOpen}
         onClose={() => setIsCreateOrgModalOpen(false)}
       />
+
+      {activeWorkspace?.id && (
+        <CreateTeamModal 
+          isOpen={isCreateTeamOpen} 
+          workspaceId={activeWorkspace.id}
+          onClose={() => setIsCreateTeamOpen(false)}
+        />
+      )}
     </aside>
   );
 }

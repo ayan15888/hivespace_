@@ -3,10 +3,9 @@ package com.project.hiveSpace.services;
 import com.project.hiveSpace.dto.GitHubUserResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
+import org.springframework.core.ParameterizedTypeReference;
 
 import java.util.Map;
 
@@ -14,15 +13,19 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class GitHubService {
 
-    @Value("${GITHUB_CLIENT_ID}")
+    @Value("${GITHUB_CLIENT_ID:}")
     private String clientId;
 
-    @Value("${GITHUB_CLIENT_SECRET}")
+    @Value("${GITHUB_CLIENT_SECRET:}")
     private String clientSecret;
 
     private final WebClient.Builder webClientBuilder;
 
     public String getAccessToken(String code) {
+        if (clientId == null || clientId.isBlank() || clientSecret == null || clientSecret.isBlank()) {
+            throw new IllegalStateException("GitHub OAuth credentials are not configured (GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET)");
+        }
+
         WebClient webClient = webClientBuilder.baseUrl("https://github.com").build();
 
         Map<String, Object> response = webClient.post()
@@ -34,7 +37,7 @@ public class GitHubService {
                         "code", code
                 ))
                 .retrieve()
-                .bodyToMono(Map.class)
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .block();
 
         if (response == null || !response.containsKey("access_token")) {

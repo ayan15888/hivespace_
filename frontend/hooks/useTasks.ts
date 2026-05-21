@@ -1,35 +1,22 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { getTasksByProject, TaskResponse } from "@/lib/api/tasks";
+import { useEffect, useCallback } from "react";
+import { useTaskStore } from "@/store/taskStore";
 import { useParams } from "next/navigation";
 
-export function useTasks() {
+export function useTasks(projectId?: string) {
   const params = useParams();
-  const [tasks, setTasks] = useState<TaskResponse[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const resolvedProjectId = projectId || (params?.projectSlug as string);
+  
+  const { tasks, loading, error, fetchTasks } = useTaskStore();
 
-  const projectId = params?.projectSlug as string;
-
-  const fetchTasks = useCallback(async () => {
-    if (!projectId) return;
-
-    setLoading(true);
-    try {
-      const data = await getTasksByProject(projectId);
-      setTasks(data);
-      setError(null);
-    } catch (err: unknown) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
+  const refresh = useCallback(() => {
+    return fetchTasks(resolvedProjectId);
+  }, [fetchTasks, resolvedProjectId]);
 
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    refresh();
+  }, [refresh]);
 
-  return { tasks, loading, error, refresh: fetchTasks };
+  return { tasks, loading, error, refresh };
 }

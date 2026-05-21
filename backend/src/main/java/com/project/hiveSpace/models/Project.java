@@ -7,9 +7,7 @@ import java.util.Date;
 import java.util.UUID;
 
 @Entity
-@Table(name = "projects", uniqueConstraints = {
-        @UniqueConstraint(columnNames = { "name", "workspace_id" })
-})
+@Table(name = "projects")
 @Getter
 @Setter
 @AllArgsConstructor
@@ -28,7 +26,9 @@ public class Project {
     private String description;
 
     @Column(name = "status", nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private ProjectStatus status = ProjectStatus.ACTIVE;
 
     @Builder.Default
     @Column(name = "teams_count", nullable = false)
@@ -42,9 +42,45 @@ public class Project {
     @JoinColumn(name = "workspace_id", nullable = false)
     private Workspace workspace;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private User createdBy;
+
+    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false)
     private Date createdAt;
 
+    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at", nullable = false)
     private Date updatedAt;
+
+    @Column(name = "color")
+    private String color;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "start_date")
+    private Date startDate;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "end_date")
+    private Date endDate;
+
+    @PrePersist
+    void prePersist() {
+        Date now = new Date();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+        if (status == null) {
+            status = ProjectStatus.ACTIVE;
+        }
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        updatedAt = new Date();
+    }
 }
