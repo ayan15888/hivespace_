@@ -9,7 +9,9 @@ import {
   Link as LinkIcon, 
   ExternalLink, 
   RefreshCw, 
-  Plus 
+  Plus,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -58,6 +60,14 @@ export default function MembersSettings() {
   // Dynamic Invite Links
   const [inviteLinks, setInviteLinks] = useState<InviteResponse[]>([]);
   const [invitesLoading, setInvitesLoading] = useState(false);
+  const [visiblePins, setVisiblePins] = useState<Record<string, boolean>>({});
+
+  const togglePinVisibility = (id: string) => {
+    setVisiblePins((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   // Popover States
   const [popoverRole, setPopoverRole] = useState("Member");
@@ -136,7 +146,7 @@ export default function MembersSettings() {
         <div className="ml-auto">
           <InviteModal
             trigger={
-              <CTAButton className="flex items-center gap-2">
+              <CTAButton className="flex items-center gap-2 !bg-none !bg-emerald-600 hover:!bg-emerald-500 hover:opacity-100 transition-colors">
                 <UserPlus className="h-3.5 w-3.5" />
                 Invite Member
               </CTAButton>
@@ -342,23 +352,37 @@ export default function MembersSettings() {
                         {inviteUrl}
                       </p>
                     </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(inviteUrl);
-                        toast.success("Invite link copied!");
-                      }}
-                      className="text-[10px] font-bold text-[#7C5CFC] uppercase tracking-wider hover:opacity-80 transition-opacity ml-2 shrink-0 cursor-pointer"
-                    >
-                      Copy Link
-                    </button>
-                    {isActive && link.pin && (
-                      <div className="flex items-center gap-1.5 ml-2">
-                        <span className="text-[9px] text-zinc-500">PIN:</span>
-                        <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono text-[9px] rounded-sm px-1.5 py-0.5 tracking-wider">
-                          {link.pin}
-                        </span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-3.5 shrink-0">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(inviteUrl);
+                          toast.success("Invite link copied!");
+                        }}
+                        className="text-[10px] font-bold text-[#7C5CFC] uppercase tracking-wider hover:opacity-80 transition-opacity cursor-pointer"
+                      >
+                        Copy Link
+                      </button>
+                      {link.pin && link.pin.length < 20 && (
+                        <div className="flex items-center gap-1.5 border-l border-zinc-850 pl-3">
+                          <span className="text-[9px] text-zinc-550">PIN:</span>
+                          <span className="bg-amber-500/10 border-amber-500/20 text-amber-400 font-mono text-[9px] rounded-sm px-1.5 py-0.5 tracking-wider min-w-[45px] text-center">
+                            {visiblePins[link.id] ? link.pin : "••••••"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => togglePinVisibility(link.id)}
+                            className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-zinc-200 cursor-pointer ml-0.5 shrink-0 flex items-center justify-center"
+                            title={visiblePins[link.id] ? "Hide PIN" : "Show PIN"}
+                          >
+                            {visiblePins[link.id] ? (
+                              <EyeOff className="h-3 w-3" />
+                            ) : (
+                              <Eye className="h-3 w-3" />
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="mt-4 flex items-center gap-5 text-[10px] font-medium text-zinc-600">
@@ -383,79 +407,6 @@ export default function MembersSettings() {
             })
           )}
         </div>
-
-        <Popover>
-          {/* <PopoverTrigger asChild>
-            <button className="mt-4 w-full h-11 flex items-center justify-center gap-2 border border-dashed border-zinc-700 rounded-lg text-xs text-zinc-400 hover:border-zinc-600 hover:text-zinc-300 transition-all cursor-pointer">
-              <Plus className="h-3.5 w-3.5" />
-              Create invite link
-            </button>
-          </PopoverTrigger> */}
-          <PopoverContent className="bg-zinc-900 border border-zinc-700 rounded-lg p-5 w-72 shadow-2xl z-50">
-            <h3 className="text-sm font-medium text-[#E5E1E4] mb-4">
-              Create Invite Link
-            </h3>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">
-                  Invite as
-                </label>
-                <Select value={popoverRole} onValueChange={setPopoverRole}>
-                  <SelectTrigger className="w-full bg-zinc-800 border-zinc-700 h-9 text-xs text-zinc-300">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-300">
-                    <SelectItem value="Member">Member</SelectItem>
-                    <SelectItem value="Workspace Admin">Workspace Admin</SelectItem>
-                    <SelectItem value="Team Lead">Team Lead</SelectItem>
-                    <SelectItem value="Viewer">Viewer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between py-1.5 border-t border-b border-zinc-800/60">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">
-                  Limit uses
-                </label>
-                <Switch
-                  checked={popoverLimitUses}
-                  onCheckedChange={setPopoverLimitUses}
-                  className="data-[state=checked]:bg-[#7C5CFC]"
-                />
-              </div>
-
-              {popoverLimitUses && (
-                <div className="animate-in fade-in slide-in-from-top-1.5 duration-200">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">
-                    Max uses
-                  </label>
-                  <Input
-                    type="number"
-                    value={popoverMaxUses}
-                    onChange={(e) => setPopoverMaxUses(Number(e.target.value))}
-                    className="bg-zinc-800 border-zinc-700 h-9 text-xs w-24 focus-visible:ring-[#7C5CFC]/30 text-zinc-300"
-                  />
-                </div>
-              )}
-
-              <CTAButton
-                onClick={handleCreateInviteLink}
-                disabled={popoverGenerating}
-                className="w-full h-10 mt-2 flex items-center justify-center shrink-0"
-              >
-                {popoverGenerating ? (
-                  <>
-                    <RefreshCw className="h-3 w-3 animate-spin mr-1.5" />
-                    Generating...
-                  </>
-                ) : (
-                  "Generate Link"
-                )}
-              </CTAButton>
-            </div>
-          </PopoverContent>
-        </Popover>
       </div>
     </div>
   );
