@@ -236,7 +236,7 @@ export function InviteModal({ trigger }: InviteModalProps) {
                 </label>
                 <div className="bg-[#272629] border border-zinc-700 rounded-md h-10 px-3 flex items-center gap-2">
                   <span className="font-mono text-xs text-zinc-400 flex-1 truncate min-w-0">
-                    {shareableInvite && activeOrg ? `${window.location.origin.replace(/^https?:\/\//, "")}/invite/${activeOrg.slug}/${shareableInvite.token}` : "hivespace.io/invite/..."}
+                    {shareableInvite && activeOrg ? `${window.location.origin.replace(/^https?:\/\//, "")}/invite/${activeOrg.slug}/${shareableInvite.token}` : `${process.env.NEXT_PUBLIC_APP_DOMAIN || "hivespace.app"}/invite/...`}
                   </span>
                   <button 
                     type="button"

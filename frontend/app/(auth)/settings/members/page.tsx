@@ -35,10 +35,12 @@ import { useOrgStore } from "@/store/orgStore";
 
 const pendingInvites: Array<{ email: string; role: string; expires: string }> = []
 
+const domain = process.env.NEXT_PUBLIC_APP_DOMAIN || "hivespace.app";
+
 const inviteLinks = [
-  { id: 1, role: "Member", used: 3, createdBy: "JD", status: "Active", url: "hivespace.io/invite/xK9mP2...", expires: "Apr 22, 2026", daysLeft: 3, maxUses: "Unlimited" },
-  { id: 2, role: "Viewer", used: 0, createdBy: "MV", status: "Active", url: "hivespace.io/invite/qR7nL5...", expires: "Apr 20, 2026", daysLeft: 1, maxUses: "10 (0 used)" },
-  { id: 3, role: "Team Lead", used: 1, createdBy: "JD", status: "Expired", url: "hivespace.io/invite/mT3kJ8...", expires: "Apr 8, 2026", daysLeft: 0, maxUses: "5 (1 used)" },
+  { id: 1, role: "Member", used: 3, createdBy: "JD", status: "Active", url: `${domain}/invite/xK9mP2...`, expires: "Apr 22, 2026", daysLeft: 3, maxUses: "Unlimited" },
+  { id: 2, role: "Viewer", used: 0, createdBy: "MV", status: "Active", url: `${domain}/invite/qR7nL5...`, expires: "Apr 20, 2026", daysLeft: 1, maxUses: "10 (0 used)" },
+  { id: 3, role: "Team Lead", used: 1, createdBy: "JD", status: "Expired", url: `${domain}/invite/mT3kJ8...`, expires: "Apr 8, 2026", daysLeft: 0, maxUses: "5 (1 used)" },
 ]
 
 const roleColors: Record<string, string> = {

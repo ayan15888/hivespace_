@@ -94,7 +94,7 @@ export function CreateOrgModal({ isOpen, onClose }: CreateOrgModalProps) {
             <div className="flex items-center">
               <div className="flex h-10 items-center rounded-l-md border border-r-0 border-zinc-800 bg-zinc-950 px-3 text-zinc-500 text-sm">
                 <Globe className="mr-2 h-4 w-4" />
-                hivespace.app/
+                {process.env.NEXT_PUBLIC_APP_DOMAIN || "hivespace.app"}/
               </div>
               <Input 
                 id="slug" 
