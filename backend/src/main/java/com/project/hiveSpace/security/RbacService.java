@@ -87,26 +87,21 @@ public class RbacService {
                 .orElse(false);
     }
 
-    // Utility mapping logic to check role hierarchy if needed. 
-    // E.g., OWNER > ADMIN > MEMBER > VIEWER
+    // Role hierarchy: OWNER > ADMIN > BILLING_ADMIN > LEAD > MEMBER > VIEWER
     private boolean hasSufficientRole(String actualRole, String requiredRole) {
         if (actualRole == null || requiredRole == null) return false;
-        
-        // Exact match
-        if (actualRole.equalsIgnoreCase(requiredRole)) return true;
-        
-        // Hierarchy rules
-        switch (actualRole.toUpperCase()) {
-            case "OWNER":
-                return true; // Owner can do anything
-            case "ADMIN":
-                return requiredRole.equalsIgnoreCase("MEMBER") || requiredRole.equalsIgnoreCase("VIEWER");
-            case "LEAD":
-                return requiredRole.equalsIgnoreCase("MEMBER") || requiredRole.equalsIgnoreCase("VIEWER");
-            case "MEMBER":
-                return requiredRole.equalsIgnoreCase("VIEWER");
-            default:
-                return false;
-        }
+        return roleRank(actualRole) >= roleRank(requiredRole);
+    }
+
+    private int roleRank(String role) {
+        return switch (role.toUpperCase()) {
+            case "OWNER" -> 5;
+            case "ADMIN" -> 4;
+            case "BILLING_ADMIN" -> 3;
+            case "LEAD" -> 3;
+            case "MEMBER" -> 2;
+            case "VIEWER" -> 1;
+            default -> 0;
+        };
     }
 }

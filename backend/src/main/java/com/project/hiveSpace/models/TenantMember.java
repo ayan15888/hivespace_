@@ -6,6 +6,7 @@ import lombok.*;
 import java.util.Date;
 import java.util.UUID;
 
+/** Maps to HIveSpaceSchema.sql tenant_members (role: OWNER, ADMIN, BILLING_ADMIN, MEMBER). */
 @Entity
 @Table(name = "tenant_members", uniqueConstraints = {
         @UniqueConstraint(columnNames = { "tenant_id", "user_id" })

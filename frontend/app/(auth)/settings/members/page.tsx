@@ -40,6 +40,11 @@ import { InviteResponse } from "@/types/invite";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { InviteModal } from "@/components/common/InviteModal";
 import { TENANT_ROLES, type TenantRole, roleLabel } from "@/types/roles";
+import {
+  canManageOrgMembers,
+  canViewOrgMemberDirectory,
+  normalizeTenantRole,
+} from "@/lib/permissions/tenant";
 
 const pendingInvites: Array<{ email: string; role: string; expires: string }> = [];
 
@@ -50,11 +55,19 @@ const roleColors: Record<string, string> = {
   MEMBER: "text-zinc-400 bg-zinc-800 border-zinc-700",
 };
 
-const normalizeTenantRole = (value: string): TenantRole => {
-  const role = value?.toUpperCase?.() ?? "";
-  return (TENANT_ROLES as readonly string[]).includes(role) ? (role as TenantRole) : "MEMBER";
-};
-
+function TenantRoleChip({ role }: { role: TenantRole }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "h-7 shrink-0 text-[10px] px-2.5 py-0 font-medium rounded-sm border uppercase tracking-wide",
+        roleColors[role],
+      )}
+    >
+      {roleLabel(role)}
+    </Badge>
+  );
+}
 
 export default function MembersSettings() {
   const { members, loading } = useMembers();
@@ -92,14 +105,16 @@ export default function MembersSettings() {
     }
   };
 
-  useEffect(() => {
-    fetchInvitations();
-  }, [activeOrg?.id]);
+  const canViewMembers = canViewOrgMemberDirectory(members, user?.email, activeOrg);
+  const canManageMembers = canManageOrgMembers(members, user?.email, activeOrg);
 
-  // Only Org Owners and Admins can invite new members
-  const isOwner = !!user && !!activeOrg && user.email === activeOrg.ownerEmail;
-  const currentUserMember = members.find(m => m.email === user?.email);
-  const canInvite = isOwner || currentUserMember?.role === "ADMIN" || currentUserMember?.role === "BILLING_ADMIN";
+  useEffect(() => {
+    if (!activeOrg?.id || !canManageMembers) {
+      setInviteLinks([]);
+      return;
+    }
+    fetchInvitations();
+  }, [activeOrg?.id, canManageMembers]);
 
   const handleCreateInviteLink = async () => {
     if (!activeOrg?.id) return;
@@ -121,6 +136,22 @@ export default function MembersSettings() {
       setPopoverGenerating(false);
     }
   };
+
+  if (!loading && !canViewMembers) {
+    return (
+      <div className="max-w-4xl px-8 py-6">
+        <header className="mb-6">
+          <h1 className="text-xl font-semibold text-[#E5E1E4]">Members</h1>
+          <p className="text-sm text-zinc-400 mt-1">
+            Member directory access is limited to organization owners, admins, and members.
+          </p>
+        </header>
+        <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 px-4 py-8 text-center text-sm text-zinc-500">
+          You do not have permission to view the full member list for this organization.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl px-8 py-6">
@@ -153,7 +184,7 @@ export default function MembersSettings() {
           </SelectContent>
         </Select>
         <div className="ml-auto">
-          {canInvite && (
+          {canManageMembers && (
             <InviteModal
               trigger={
                 <CTAButton className="flex items-center gap-2 !bg-none !bg-emerald-600 hover:!bg-emerald-500 hover:opacity-100 transition-colors">
@@ -214,24 +245,7 @@ export default function MembersSettings() {
               </div>
 
               <div className="ml-6">
-                <Select
-                  defaultValue={memberRole}
-                >
-                  <SelectTrigger
-                    className={cn(
-                      "h-7 text-[10px] px-2 py-0 min-w-[110px] border font-medium rounded-sm bg-transparent",
-                      roleColors[memberRole]
-                    )}
-                  >
-                    <SelectValue>{roleLabel(memberRole)}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-300">
-                    <SelectItem value="OWNER">{roleLabel("OWNER")}</SelectItem>
-                    <SelectItem value="ADMIN">{roleLabel("ADMIN")}</SelectItem>
-                    <SelectItem value="BILLING_ADMIN">{roleLabel("BILLING_ADMIN")}</SelectItem>
-                    <SelectItem value="MEMBER">{roleLabel("MEMBER")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <TenantRoleChip role={memberRole} />
               </div>
 
               <div className="ml-auto text-xs text-zinc-500">Just now</div>
@@ -246,6 +260,7 @@ export default function MembersSettings() {
         )}
       </div>
 
+      {canManageMembers && (
       <div className="mt-10">
         <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-4 px-4">
           PENDING INVITES
@@ -288,7 +303,9 @@ export default function MembersSettings() {
           )}
         </div>
       </div>
+      )}
 
+      {canManageMembers && (
       <div className="mt-10">
         <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-3 px-4">
           INVITE LINKS
@@ -341,7 +358,7 @@ export default function MembersSettings() {
                         variant="outline"
                         className="bg-zinc-800 border-zinc-700 text-[10px] font-medium px-2 py-0.5 text-zinc-300 rounded-sm"
                       >
-                        {link.role}
+                        {roleLabel(normalizeTenantRole(link.role))}
                       </Badge>
                       <span className="text-[11px] text-zinc-500 ml-3 font-medium">
                         Used {link.currentUses} times
@@ -424,6 +441,7 @@ export default function MembersSettings() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

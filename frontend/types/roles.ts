@@ -1,3 +1,4 @@
+/** Matches HIveSpaceSchema.sql tenant_members.role CHECK constraint */
 export const TENANT_ROLES = ["OWNER", "ADMIN", "BILLING_ADMIN", "MEMBER"] as const
 export type TenantRole = (typeof TENANT_ROLES)[number]
 
