@@ -2,6 +2,7 @@
 
 import { Crown, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { roleLabel } from "@/types/roles";
 
 export function TeamHeader({ teamName }: { teamName: string }) {
   return (
@@ -41,7 +42,7 @@ export function TeamHeader({ teamName }: { teamName: string }) {
       </div>
 
       <div className="mt-6 flex flex-col gap-2">
-        <span className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold">Team Lead</span>
+        <span className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold">{roleLabel("LEAD")}</span>
         <div className="flex items-center gap-2">
           <Avatar className="h-7 w-7 border border-zinc-700/50">
             <AvatarImage src="https://github.com/nutlope.png" />

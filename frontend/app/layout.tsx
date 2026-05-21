@@ -4,6 +4,7 @@ import { Plus_Jakarta_Sans } from "next/font/google"
 import { ThemeProvider } from "@/components/common/theme-provider"
 import React from "react"
 import { GooeyToaster } from "@/components/ui/goey-toaster"
+import { QueryProvider } from "@/components/common/query-provider"
 
 const plusJakartaSans = Plus_Jakarta_Sans({ 
   subsets: ["latin"],
@@ -29,7 +30,9 @@ export default function RootLayout({
       </head>
       <body className={`${plusJakartaSans.variable} font-sans tracking-tight`} suppressHydrationWarning>
         <GooeyToaster />
-        <ThemeProvider>{children}</ThemeProvider>
+        <QueryProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   )

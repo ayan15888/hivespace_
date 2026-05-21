@@ -25,11 +25,13 @@ CREATE TABLE public.invitations (
   status character varying NOT NULL DEFAULT 'ACTIVE'::character varying CHECK (status::text = ANY (ARRAY['ACTIVE'::character varying, 'EXPIRED'::character varying, 'EXHAUSTED'::character varying, 'REVOKED'::character varying]::text[])),
   expires_at timestamp without time zone NOT NULL,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
+  project_id uuid,
   CONSTRAINT invitations_pkey PRIMARY KEY (id),
   CONSTRAINT invitations_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
   CONSTRAINT invitations_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
   CONSTRAINT invitations_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
-  CONSTRAINT invitations_inviter_id_fkey FOREIGN KEY (inviter_id) REFERENCES public.users(id)
+  CONSTRAINT invitations_inviter_id_fkey FOREIGN KEY (inviter_id) REFERENCES public.users(id),
+  CONSTRAINT invitations_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
 );
 CREATE TABLE public.project_members (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -51,6 +53,10 @@ CREATE TABLE public.projects (
   created_by uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  members_count integer NOT NULL,
+  teams_count integer NOT NULL,
+  start_date timestamp without time zone,
+  end_date timestamp without time zone,
   CONSTRAINT projects_pkey PRIMARY KEY (id),
   CONSTRAINT projects_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
   CONSTRAINT projects_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
@@ -92,11 +98,13 @@ CREATE TABLE public.tasks (
   parent_id uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  assignee_id uuid,
   CONSTRAINT tasks_pkey PRIMARY KEY (id),
   CONSTRAINT tasks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
   CONSTRAINT tasks_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
   CONSTRAINT tasks_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
-  CONSTRAINT tasks_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.tasks(id)
+  CONSTRAINT tasks_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.tasks(id),
+  CONSTRAINT fkekr1dgiqktpyoip3qmp6lxsit FOREIGN KEY (assignee_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.team_members (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -117,6 +125,7 @@ CREATE TABLE public.teams (
   created_by uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  members_count integer NOT NULL,
   CONSTRAINT teams_pkey PRIMARY KEY (id),
   CONSTRAINT teams_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
   CONSTRAINT teams_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
@@ -135,13 +144,15 @@ CREATE TABLE public.tenant_members (
 CREATE TABLE public.tenants (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name character varying NOT NULL UNIQUE,
-  slug character varying NOT NULL UNIQUE,
+  slug character varying NOT NULL UNIQUE CHECK (slug::text <> ALL (ARRAY['api'::character varying, 'app'::character varying, 'auth'::character varying, 'invite'::character varying, 'share'::character varying, 'admin'::character varying, 'billing'::character varying, 'settings'::character varying, 'health'::character varying, 'static'::character varying, 'support'::character varying, 'www'::character varying, 'dashboard'::character varying, 'signin'::character varying, 'signup'::character varying, 'public'::character varying]::text[])),
   description character varying,
   owner_email character varying NOT NULL,
   plan character varying NOT NULL DEFAULT 'FREE'::character varying CHECK (plan::text = ANY (ARRAY['FREE'::character varying, 'PRO'::character varying, 'ULTIMATE'::character varying, 'ENTERPRISE'::character varying]::text[])),
   active boolean NOT NULL DEFAULT true,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  members_count integer NOT NULL,
+  workspaces_count integer NOT NULL,
   CONSTRAINT tenants_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.users (
@@ -180,6 +191,7 @@ CREATE TABLE public.workspaces (
   created_by uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  members_count integer NOT NULL,
   CONSTRAINT workspaces_pkey PRIMARY KEY (id),
   CONSTRAINT workspaces_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
   CONSTRAINT workspaces_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
