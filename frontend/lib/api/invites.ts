@@ -15,6 +15,12 @@ export async function joinInvite(data: JoinRequest): Promise<{ message: string }
     });
 }
 
+export async function getTenantInvitations(tenantId: string): Promise<InviteResponse[]> {
+    return apiFetch(`/api/i/t/${tenantId}`, {
+        method: 'GET',
+    });
+}
+
 export async function getInviteDetails(token: string): Promise<InviteResponse> {
     return apiFetch(`/api/i/${token}`);
 }

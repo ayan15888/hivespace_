@@ -250,6 +250,13 @@ public class InvitationService {
         return mapToResponse(invitation);
     }
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public java.util.List<InviteResponse> getInvitationsByTenant(UUID tenantId) {
+        return invitationRepository.findByTenantIdOrderByCreatedAtDesc(tenantId).stream()
+                .map(this::mapToResponse)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         if (principal instanceof User) {

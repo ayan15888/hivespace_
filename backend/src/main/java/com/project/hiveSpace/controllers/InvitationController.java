@@ -39,6 +39,11 @@ public class InvitationController {
         return ResponseEntity.ok(invitationService.getInvite(token));
     }
 
+    @GetMapping("/t/{tenantId}")
+    public ResponseEntity<java.util.List<InviteResponse>> getInvitationsByTenant(@PathVariable java.util.UUID tenantId) {
+        return ResponseEntity.ok(invitationService.getInvitationsByTenant(tenantId));
+    }
+
     @PostMapping("/join")
     public ResponseEntity<Map<String, String>> acceptInvite(@Valid @RequestBody JoinRequest request) {
         invitationService.acceptInvite(request);
