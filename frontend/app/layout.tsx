@@ -15,6 +15,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "HiveSpace",
   description: "Advanced Agentic Coding Platform",
+  manifest: "/manifest.json",
 }
 
 export default function RootLayout({
