@@ -15,7 +15,7 @@ export function getCurrentOrgMembership(
   return members.find((m) => m.email.toLowerCase() === userEmail.toLowerCase())
 }
 
-export function isOrgOwner(userEmail: string | undefined, org: OrgResponse | null) {
+export function isOrgOwner(userEmail: string | null | undefined, org: OrgResponse | null) {
   return !!userEmail && !!org && userEmail.toLowerCase() === org.ownerEmail.toLowerCase()
 }
 
