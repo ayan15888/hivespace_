@@ -5,6 +5,7 @@ export interface InviteRequest {
     role?: string;
     maxUses?: number;
     pin?: string;
+    email?: string;
 }
 
 export interface InviteResponse {

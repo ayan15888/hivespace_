@@ -24,6 +24,8 @@ public class InviteResponse {
     private String workspaceName;
     private UUID teamId;
     private String teamName;
+    private UUID projectId;
+    private String projectName;
     private String inviterUsername;
     private String role;
     private int maxUses;
