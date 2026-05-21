@@ -52,6 +52,14 @@ const roleColors: Record<string, string> = {
   "Billing Admin": "text-green-400 bg-green-400/10 border-green-400/20",
 };
 
+const getUiRole = (dbRole: string): string => {
+  const role = dbRole?.toUpperCase();
+  if (role === "OWNER" || role === "ADMIN") return "Org Owner";
+  if (role === "LEAD" || role === "TEAM_LEAD") return "Team Lead";
+  return "Member";
+};
+
+
 export default function MembersSettings() {
   const { members, loading } = useMembers();
   const { user } = useAuth();
@@ -201,12 +209,12 @@ export default function MembersSettings() {
 
               <div className="ml-6">
                 <Select
-                  defaultValue={member.role === "ADMIN" ? "Org Owner" : "Member"}
+                  defaultValue={getUiRole(member.role)}
                 >
                   <SelectTrigger
                     className={cn(
                       "h-7 text-[10px] px-2 py-0 min-w-[110px] border font-medium rounded-sm bg-transparent",
-                      roleColors[member.role === "ADMIN" ? "Org Owner" : "Member"]
+                      roleColors[getUiRole(member.role)]
                     )}
                   >
                     <SelectValue />

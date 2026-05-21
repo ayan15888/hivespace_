@@ -38,6 +38,7 @@ import { useWorkspaceStore } from "@/store/workspaceStore"
 import { generateInvite } from "@/lib/api/invites"
 import { InviteResponse } from "@/types/invite"
 import { gooeyToast as toast } from "@/components/ui/goey-toaster"
+import { useTeams } from "@/hooks/useTeams"
 
 interface InviteModalProps {
   trigger: React.ReactNode
@@ -46,15 +47,18 @@ interface InviteModalProps {
 export function InviteModal({ trigger }: InviteModalProps) {
   const [open, setOpen] = React.useState(false)
   const { activeOrg } = useOrgStore()
-  const { activeWorkspace } = useWorkspaceStore()
+  const { workspaces, activeWorkspace } = useWorkspaceStore()
+  
+  const { teams: dbTeams, loading: teamsLoading } = useTeams(activeWorkspace?.id)
   
   const [step, setStep] = React.useState<"form" | "success">("form")
   const [emails, setEmails] = React.useState<string[]>([])
   const [emailInput, setEmailInput] = React.useState("")
   const [role, setRole] = React.useState("Member")
   const [message, setMessage] = React.useState("")
-  const [workspaces, setWorkspaces] = React.useState(["Engineering"])
-  const [teams, setTeams] = React.useState<string[]>([])
+  
+  const [selectedWorkspaces, setSelectedWorkspaces] = React.useState<string[]>([])
+  const [selectedTeams, setSelectedTeams] = React.useState<string[]>([])
   
   const [loading, setLoading] = React.useState(false)
   const [generatedInvite, setGeneratedInvite] = React.useState<InviteResponse | null>(null)
@@ -135,8 +139,8 @@ export function InviteModal({ trigger }: InviteModalProps) {
     setEmailInput("")
     setRole("Member")
     setMessage("")
-    setWorkspaces(["Engineering"])
-    setTeams([])
+    setSelectedWorkspaces([])
+    setSelectedTeams([])
     setGeneratedInvite(null)
   }
   const handleGenerateShareable = async () => {
@@ -206,7 +210,7 @@ export function InviteModal({ trigger }: InviteModalProps) {
           <div className="flex flex-col flex-1 min-h-0">
             {/* Header */}
             <div className="px-6 pt-6 pb-4 border-b border-zinc-800/60 relative">
-              <DialogTitle className="text-xl font-semibold text-[#E5E1E4]">Invite to Engineering</DialogTitle>
+              <DialogTitle className="text-xl font-semibold text-[#E5E1E4]">Invite to {activeWorkspace?.name || "Workspace"}</DialogTitle>
               <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
                 Invited users will join as org members first, then gain access to this workspace.
               </p>
@@ -372,25 +376,36 @@ export function InviteModal({ trigger }: InviteModalProps) {
                     <div className="w-4 h-4 flex items-center justify-center shrink-0">
                       <Lock className="h-2.5 w-2.5 text-zinc-600" />
                     </div>
-                    <span className="text-sm text-zinc-300">Engineering</span>
+                    <span className="text-sm text-zinc-300">{activeWorkspace?.name || "Engineering"}</span>
                     <span className="text-xs text-zinc-600">(current)</span>
                   </div>
                   
-                  <label htmlFor="ws-design" className="h-9 flex items-center gap-3 hover:bg-zinc-800/30 rounded-md px-2 cursor-pointer w-full">
-                    <Checkbox 
-                      id="ws-design" 
-                      className="border-zinc-600 bg-transparent data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600" 
-                    />
-                    <span className="text-sm text-zinc-300">Design</span>
-                  </label>
-
-                  <label htmlFor="ws-marketing" className="h-9 flex items-center gap-3 hover:bg-zinc-800/30 rounded-md px-2 cursor-pointer w-full">
-                    <Checkbox 
-                      id="ws-marketing" 
-                      className="border-zinc-600 bg-transparent data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600" 
-                    />
-                    <span className="text-sm text-zinc-300">Marketing</span>
-                  </label>
+                  {workspaces
+                    .filter((ws) => ws.id !== activeWorkspace?.id)
+                    .map((ws) => {
+                      const isChecked = selectedWorkspaces.includes(ws.id);
+                      return (
+                        <label
+                          key={ws.id}
+                          htmlFor={`ws-${ws.id}`}
+                          className="h-9 flex items-center gap-3 hover:bg-zinc-800/30 rounded-md px-2 cursor-pointer w-full"
+                        >
+                          <Checkbox 
+                            id={`ws-${ws.id}`}
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedWorkspaces([...selectedWorkspaces, ws.id]);
+                              } else {
+                                setSelectedWorkspaces(selectedWorkspaces.filter(id => id !== ws.id));
+                              }
+                            }}
+                            className="border-zinc-600 bg-transparent data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600" 
+                          />
+                          <span className="text-sm text-zinc-300">{ws.name}</span>
+                        </label>
+                      );
+                    })}
                 </div>
               </section>
 
@@ -400,21 +415,36 @@ export function InviteModal({ trigger }: InviteModalProps) {
                   ADD TO TEAM (OPTIONAL)
                 </label>
                 <div className="space-y-1">
-                  <label htmlFor="team-be" className="h-9 flex items-center gap-3 hover:bg-zinc-800/30 rounded-md px-2 cursor-pointer w-full">
-                    <Checkbox 
-                      id="team-be" 
-                      className="border-zinc-600 bg-transparent data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600" 
-                    />
-                    <span className="text-sm text-zinc-300">Backend Team</span>
-                  </label>
-                  
-                  <label htmlFor="team-fe" className="h-9 flex items-center gap-3 hover:bg-zinc-800/30 rounded-md px-2 cursor-pointer w-full">
-                    <Checkbox 
-                      id="team-fe" 
-                      className="border-zinc-600 bg-transparent data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600" 
-                    />
-                    <span className="text-sm text-zinc-300">Frontend Team</span>
-                  </label>
+                  {teamsLoading ? (
+                    <div className="text-xs text-zinc-550 py-2">Loading teams...</div>
+                  ) : dbTeams.length === 0 ? (
+                    <div className="text-xs text-zinc-600 py-2 italic">No teams found in this workspace</div>
+                  ) : (
+                    dbTeams.map((team) => {
+                      const isChecked = selectedTeams.includes(team.id);
+                      return (
+                        <label
+                          key={team.id}
+                          htmlFor={`team-${team.id}`}
+                          className="h-9 flex items-center gap-3 hover:bg-zinc-800/30 rounded-md px-2 cursor-pointer w-full"
+                        >
+                          <Checkbox 
+                            id={`team-${team.id}`}
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedTeams([...selectedTeams, team.id]);
+                              } else {
+                                setSelectedTeams(selectedTeams.filter(id => id !== team.id));
+                              }
+                            }}
+                            className="border-zinc-600 bg-transparent data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600" 
+                          />
+                          <span className="text-sm text-zinc-300">{team.name}</span>
+                        </label>
+                      );
+                    })
+                  )}
                 </div>
               </section>
 
