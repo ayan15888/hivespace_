@@ -165,6 +165,7 @@ CREATE TABLE invitations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   token VARCHAR NOT NULL UNIQUE,
   pin_hash VARCHAR NOT NULL,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
   tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
   team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
