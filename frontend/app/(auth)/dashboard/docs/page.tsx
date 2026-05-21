@@ -246,10 +246,10 @@ function DocsHome({
   ]
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#201F21] p-10">
+    <div className="flex-1 overflow-y-auto bg-hs-main p-10">
       <div className="mx-auto max-w-4xl">
-        <h1 className="text-xl font-semibold text-[#E5E1E4]">Docs</h1>
-        <p className="mt-1 text-sm text-zinc-400">
+        <h1 className="text-xl font-semibold text-foreground">Docs</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Your knowledge bases across all projects
         </p>
 
@@ -258,16 +258,16 @@ function DocsHome({
             <div
               key={project.id}
               onClick={() => onSelectProject(project.id)}
-              className="group cursor-pointer rounded-lg border border-zinc-800/50 bg-[#272629] p-4 transition-all hover:border-zinc-700"
+              className="group cursor-pointer rounded-lg border border-border/50 bg-hs-card p-4 transition-all hover:border-border/80"
             >
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className={cn("h-2 w-2 rounded-full", project.color)} />
-                  <span className="text-sm font-medium text-[#E5E1E4]">
+                  <span className="text-sm font-medium text-foreground">
                     {project.name}
                   </span>
                 </div>
-                <Badge className="border-none bg-zinc-800 text-[10px] font-normal text-zinc-500">
+                <Badge className="border-none bg-muted text-[10px] font-normal text-muted-foreground">
                   {project.workspace}
                 </Badge>
               </div>
@@ -279,18 +279,18 @@ function DocsHome({
                     <span className="text-xs text-zinc-400 transition-colors group-hover:text-zinc-300">
                       {page.title}
                     </span>
-                    <span className="ml-auto font-mono text-[10px] text-zinc-600">
+                    <span className="ml-auto  text-[10px] text-zinc-600">
                       {page.edited}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-auto flex items-center justify-between border-t border-zinc-800/50 pt-4">
-                <span className="text-xs text-zinc-500">
+              <div className="mt-auto flex items-center justify-between border-t border-border/50 pt-4">
+                <span className="text-xs text-muted-foreground">
                   {project.pages} pages
                 </span>
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-400 transition-transform group-hover:translate-x-1">
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform group-hover:translate-x-1">
                   Open docs <ChevronRight className="h-3 w-3" />
                 </span>
               </div>
@@ -319,9 +319,9 @@ export default function KnowledgeBasePage() {
 
   if (!selectedProject) {
     return (
-      <div className="flex h-screen flex-col overflow-hidden bg-[#0E0E10] text-[#E5E1E4]">
-        <header className="flex h-[44px] items-center border-b border-zinc-800/50 bg-[#0E0E10] px-4">
-          <span className="text-[11px] font-bold tracking-widest text-zinc-500 uppercase">
+      <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+        <header className="flex h-[44px] items-center border-b border-border/50 bg-background px-4">
+          <span className="text-[11px] font-bold tracking-widest text-muted-foreground uppercase">
             Knowledge Base Home
           </span>
         </header>
@@ -331,9 +331,9 @@ export default function KnowledgeBasePage() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#0E0E10] text-[#E5E1E4]">
+    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       {/* --- TOP BAR --- */}
-      <header className="sticky top-0 z-30 flex h-[44px] shrink-0 items-center justify-between border-b border-zinc-800/50 bg-[#0E0E10]/80 px-4 backdrop-blur-md">
+      <header className="sticky top-0 z-30 flex h-[44px] shrink-0 items-center justify-between border-b border-border/50 bg-background/80 px-4 backdrop-blur-md">
         <div className="flex items-center gap-0.5">
           <Button
             variant="ghost"
@@ -427,7 +427,7 @@ export default function KnowledgeBasePage() {
       {/* --- CONTENT AREA --- */}
       <div className="relative flex flex-1 overflow-hidden">
         {view === "graph" ? (
-          <div className="flex-1 animate-in bg-[#0E0E10] duration-500 fade-in">
+          <div className="flex-1 animate-in bg-background duration-500 fade-in">
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -452,17 +452,17 @@ export default function KnowledgeBasePage() {
           </div>
         ) : (
           <>
-            <main className="scrollbar-none flex-1 overflow-y-auto scroll-smooth bg-[#201F21] px-10 py-16">
+            <main className="scrollbar-none flex-1 overflow-y-auto scroll-smooth bg-hs-main px-10 py-16">
               <div className="mx-auto flex max-w-[700px] flex-col gap-6">
                 {/* HEADER */}
                 <div className="flex flex-col gap-4">
-                  <div className="w-fit cursor-pointer rounded-lg p-2 text-4xl transition-colors hover:bg-zinc-800/50">
+                  <div className="w-fit cursor-pointer rounded-lg p-2 text-4xl transition-colors hover:bg-muted/50">
                     {MOCK_PAGE.icon}
                   </div>
                   <input
                     defaultValue={MOCK_PAGE.title}
                     placeholder="Untitled"
-                    className="w-full border-none bg-transparent text-4xl font-semibold text-[#E5E1E4] outline-none placeholder:text-zinc-700"
+                    className="w-full border-none bg-transparent text-4xl font-semibold text-foreground outline-none placeholder:text-muted-foreground/30"
                   />
                   <div className="flex items-center gap-2 text-xs text-zinc-500">
                     <span>
@@ -504,7 +504,7 @@ export default function KnowledgeBasePage() {
             </main>
 
             {/* RIGHT PANEL */}
-            <aside className="flex w-[280px] shrink-0 animate-in flex-col overflow-y-auto border-l border-zinc-800/50 bg-[#1B1B1D] duration-300 slide-in-from-right">
+            <aside className="flex w-[280px] shrink-0 animate-in flex-col overflow-y-auto border-l border-border/50 bg-hs-nav duration-300 slide-in-from-right">
               <div className="flex flex-col gap-8 p-6">
                 <section className="flex flex-col gap-4">
                   <h3 className="text-[10px] font-bold tracking-widest text-zinc-600 uppercase">

@@ -1,15 +1,10 @@
 package com.project.hiveSpace.services;
 
 import com.project.hiveSpace.dto.UserResponse;
-import com.project.hiveSpace.models.Role;
 import com.project.hiveSpace.models.User;
-import com.project.hiveSpace.repository.EmployeeRepository;
-import com.project.hiveSpace.repository.TenantRepository;
 import com.project.hiveSpace.repository.UserRepository;
-import com.project.hiveSpace.security.JwtService;
 import com.project.hiveSpace.utils.UserMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service

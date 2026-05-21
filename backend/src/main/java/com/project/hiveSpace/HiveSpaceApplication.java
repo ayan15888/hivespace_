@@ -12,8 +12,11 @@ import java.sql.Connection;
 public class HiveSpaceApplication {
 
 	public static void main(String[] args) {
+		String userDir = System.getProperty("user.dir");
+		String envDir = userDir.endsWith("backend") ? "." : "./backend";
+
 		Dotenv dotenv = Dotenv.configure()
-				.directory("..") // Point to root since we are in backend/
+				.directory(envDir)
 				.ignoreIfMalformed()
 				.ignoreIfMissing()
 				.load();
@@ -28,6 +31,12 @@ public class HiveSpaceApplication {
 		return args -> {
 			try (Connection connection = dataSource.getConnection()) {
 				System.out.println("✅ SUPABASE CONNECTED: " + connection.getMetaData().getURL());
+				try (java.sql.Statement statement = connection.createStatement()) {
+					statement.execute("ALTER TABLE users DROP COLUMN IF EXISTS role");
+					System.out.println("🚀 DATABASE RESTRUCTURED: dropped 'role' column from 'users' table successfully.");
+				} catch (Exception ex) {
+					System.err.println("⚠️ Could not drop legacy role column: " + ex.getMessage());
+				}
 			} catch (Exception e) {
 				System.err.println("❌ SUPABASE CONNECTION FAILED: " + e.getMessage());
 			}

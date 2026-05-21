@@ -5,8 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
+    --font-serif: "Instrument Serif", Georgia, serif;
+    --font-heading: "Google Sans", "Product Sans", var(--font-sans), sans-serif;
+    --font-sans: "Google Sans", "Product Sans", var(--font-sans), sans-serif;
+    --font-mono: "Geist Mono", SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -46,56 +48,56 @@
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
 
-    /* Hivespace Design System Theme Tokens */
+    /* Hivespace Design System */
     --color-hs-base: var(--hs-base);
     --color-hs-nav: var(--hs-nav);
     --color-hs-main: var(--hs-main);
     --color-hs-card: var(--hs-card);
     --color-hs-text: var(--hs-text);
     --color-hs-accent: var(--hs-accent);
-    --bg-cta-gradient: var(--cta-gradient);
+    --bg-cta-gradient: linear-gradient(145deg, #CABEFF, #947DFF);
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --background: oklch(0.975 0.02 85);
+    --foreground: oklch(0.25 0.05 50);
+    --card: oklch(0.985 0.015 85);
+    --card-foreground: oklch(0.25 0.05 50);
+    --popover: oklch(0.985 0.015 85);
+    --popover-foreground: oklch(0.25 0.05 50);
+    --primary: oklch(0.25 0.05 50);
+    --primary-foreground: oklch(0.975 0.02 85);
+    --secondary: oklch(0.95 0.025 85);
+    --secondary-foreground: oklch(0.25 0.05 50);
+    --muted: oklch(0.95 0.025 85);
+    --muted-foreground: oklch(0.45 0.04 50);
+    --accent: oklch(0.95 0.025 85);
+    --accent-foreground: oklch(0.25 0.05 50);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    --border: oklch(0.91 0.02 85);
+    --input: oklch(0.91 0.02 85);
+    --ring: oklch(0.7 0.05 50);
+    --chart-1: oklch(0.6 0.15 30);
+    --chart-2: oklch(0.5 0.15 150);
+    --chart-3: oklch(0.4 0.15 250);
+    --chart-4: oklch(0.7 0.15 80);
+    --chart-5: oklch(0.6 0.15 330);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar: oklch(0.96 0.035 85);
+    --sidebar-foreground: oklch(0.25 0.05 50);
+    --sidebar-primary: oklch(0.25 0.05 50);
+    --sidebar-primary-foreground: oklch(0.975 0.02 85);
+    --sidebar-accent: oklch(0.94 0.04 85);
+    --sidebar-accent-foreground: oklch(0.25 0.05 50);
+    --sidebar-border: oklch(0.91 0.03 85);
+    --sidebar-ring: oklch(0.7 0.04 50);
 
-    /* Hivespace Light Theme (The Digital Architect) */
-    --hs-base: #fcf8fb;
-    --hs-nav: #f6f3f5;
-    --hs-main: #f0edf0;
-    --hs-card: #eae7ea;
-    --hs-text: #1b1b1d;
+    /* Hivespace Light Theme Design System Mapping */
+    --hs-base: var(--background);
+    --hs-nav: oklch(0.96 0.035 85);
+    --hs-main: oklch(0.94 0.03 85);
+    --hs-card: var(--card);
+    --hs-text: var(--foreground);
     --hs-accent: #5f3add;
     --cta-gradient: linear-gradient(145deg, #7857f8, #5f3add);
 }
@@ -142,16 +144,80 @@
     --hs-accent: #7C5CFC;
     --cta-gradient: linear-gradient(145deg, #CABEFF, #947DFF);
 }
+.dark-blue {
+    /* Base */
+    --background: oklch(8.897% 0.03326 258.227);
+    --foreground: oklch(0.96 0.02 250);
 
+    /* Surfaces */
+    --card: oklch(0.18 0.05 255);
+    --card-foreground: oklch(0.96 0.02 250);
+
+    --popover: oklch(0.20 0.05 255);
+    --popover-foreground: oklch(0.96 0.02 250);
+
+    /* Primary (more vibrant blue) */
+    --primary: oklch(0.68 0.18 255);
+    --primary-foreground: oklch(0.98 0.01 250);
+
+    /* Secondary (indigo tone) */
+    --secondary: oklch(0.26 0.06 245);
+    --secondary-foreground: oklch(0.95 0.02 250);
+
+    /* Muted */
+    --muted: oklch(0.22 0.04 250);
+    --muted-foreground: oklch(0.70 0.03 250);
+
+    /* Accent (slight violet shift for contrast) */
+    --accent: oklch(0.30 0.08 270);
+    --accent-foreground: oklch(0.96 0.02 250);
+
+    /* Destructive */
+    --destructive: oklch(0.68 0.20 25);
+
+    /* UI Elements */
+    --border: oklch(0% 0 0 / 0.4);
+    --input: oklch(0.28 0.02 250 / 50%);
+    --ring: oklch(0.68 0.18 255);
+
+    /* Charts (better separation) */
+    --chart-1: oklch(0.75 0.12 250);
+    --chart-2: oklch(0.65 0.10 270);
+    --chart-3: oklch(0.55 0.08 290);
+    --chart-4: oklch(0.45 0.06 260);
+    --chart-5: oklch(0.35 0.04 240);
+
+    /* Sidebar */
+    --sidebar: oklch(0% 0 0);
+    --sidebar-foreground: oklch(0.96 0.02 250);
+
+    --sidebar-primary: oklch(0.68 0.18 255);
+    --sidebar-primary-foreground: oklch(0.98 0.01 250);
+
+    --sidebar-accent: oklch(0.28 0.07 270);
+    --sidebar-accent-foreground: oklch(0.96 0.02 250);
+
+    --sidebar-border: oklch(0.30 0.02 250 / 40%);
+    --sidebar-ring: oklch(0.68 0.18 255);
+
+    /* Hivespace Dark Blue Design System Mapping */
+    --hs-base: var(--background);
+    --hs-nav: oklch(0.15 0.04 250);
+    --hs-main: oklch(0.12 0.03 250);
+    --hs-card: var(--card);
+    --hs-text: var(--foreground);
+    --hs-accent: var(--primary);
+    --cta-gradient: linear-gradient(145deg, #4f46e5, #0ea5e9);
+}
 @layer base {
   * {
     @apply border-border outline-ring/50;
     }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground tracking-tight;
     }
   html {
-    @apply font-sans;
+    @apply font-sans tracking-tight;
     }
 }
 

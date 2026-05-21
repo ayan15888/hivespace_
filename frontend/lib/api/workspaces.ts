@@ -3,19 +3,17 @@ import { apiFetch } from "./client";
 export interface WorkspaceRequest {
   name: string;
   tenantId: string;
-  plan: string;
   description?: string;
-  slug?: string; // Optional for frontend internal use
 }
 
 export interface WorkspaceResponse {
   id: string;
   name: string;
-  slug: string;
   description: string;
   tenantId: string;
   plan: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export async function createWorkspace(data: WorkspaceRequest): Promise<WorkspaceResponse> {

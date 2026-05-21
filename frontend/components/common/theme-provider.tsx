@@ -13,6 +13,7 @@ function ThemeProvider({
       defaultTheme="system"
       enableSystem
       disableTransitionOnChange
+      themes={["light", "dark", "dark-blue"]}
       {...props}
     >
       <ThemeHotkey />

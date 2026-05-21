@@ -1,21 +1,22 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginWithGithub } from "@/lib/api/auth";
 import { Loader2 } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
 
-export default function GitHubCallbackPage() {
+function GitHubCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const login = useAuthStore((state) => state.login);
   const [error, setError] = useState<string | null>(null);
 
   const handleGitHubLogin = useCallback(async (code: string) => {
     try {
       const response = await loginWithGithub(code);
       
-      // Store token
-      localStorage.setItem("token", response.token);
+      login(response.token, response);
       
       if (response.hasTenants) {
         router.push("/dashboard");
@@ -26,7 +27,7 @@ export default function GitHubCallbackPage() {
       const message = (err as Error).message || "Failed to authenticate with GitHub";
       queueMicrotask(() => setError(message));
     }
-  }, [router]);
+  }, [router, login]);
 
   useEffect(() => {
     const code = searchParams.get("code");
@@ -76,5 +77,23 @@ export default function GitHubCallbackPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function GitHubCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-[#0E0E10] text-[#E5E1E4]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-[#7C5CFC]" />
+          <div className="text-center">
+            <h1 className="text-lg font-semibold">Loading</h1>
+            <p className="text-xs text-zinc-500 mt-1">Preparing authentication context...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <GitHubCallbackContent />
+    </Suspense>
   );
 }

@@ -71,7 +71,7 @@ export function NavRail() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <aside className="fixed top-0 left-0 z-50 flex h-full w-[56px] flex-col items-center justify-between bg-[#1B1B1D] py-4">
+      <aside className="fixed top-0 left-0 z-50 flex h-full w-[56px] flex-col items-center justify-between bg-sidebar py-4">
         {/* Top Section */}
         <div className="flex w-full flex-col items-center gap-4 px-2">
           <DropdownMenu>
@@ -84,7 +84,7 @@ export function NavRail() {
                 </Avatar>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="right" className="ml-2 bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 text-[#E5E1E4] rounded-md min-w-[200px]">
+            <DropdownMenuContent align="end" side="right" className="ml-2 bg-sidebar/95 backdrop-blur-xl border border-zinc-800 text-foreground rounded-md min-w-[200px]">
               <DropdownMenuLabel className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">Organizations</DropdownMenuLabel>
               
               {orgsLoading ? (
@@ -164,7 +164,7 @@ export function NavRail() {
                 </TooltipTrigger>
                 <TooltipContent
                   side="right"
-                  className="ml-2 border border-[#484555]/15 bg-[#201F21]/70 text-[#E5E1E4] backdrop-blur-[20px] rounded-md"
+                  className="ml-2 border border-[#484555]/15 bg-background/70 text-foreground backdrop-blur-[20px] rounded-md"
                 >
                   <div className="flex items-center gap-2">
                     {item.name}
@@ -200,7 +200,7 @@ export function NavRail() {
             </TooltipTrigger>
             <TooltipContent
               side="right"
-              className="ml-2 border border-[#484555]/15 bg-[#201F21]/70 text-[#E5E1E4] backdrop-blur-[20px] rounded-md"
+              className="ml-2 border border-[#484555]/15 bg-background/70 text-foreground backdrop-blur-[20px] rounded-md"
             >
               Settings
             </TooltipContent>
@@ -219,7 +219,7 @@ export function NavRail() {
                 </Avatar>
               </Link>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="right" className="ml-2 bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 text-[#E5E1E4] rounded-md">
+            <DropdownMenuContent align="end" side="right" className="ml-2 bg-sidebar/95 backdrop-blur-xl border border-zinc-800 text-foreground rounded-md">
               <DropdownMenuLabel className="text-zinc-400">My Account</DropdownMenuLabel>
               <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer" asChild>
                 <Link href="/account/profile">Profile</Link>

@@ -80,7 +80,7 @@ export default function AIAssistantPage() {
   const [state, setState] = useState<"home" | "conversation">("home");
 
   return (
-    <div className="flex h-full bg-[#201F21] overflow-hidden">
+    <div className="flex h-full bg-hs-main overflow-hidden">
       {state === "home" ? (
         <AIHome onStart={() => setState("conversation")} />
       ) : (
@@ -96,11 +96,11 @@ function AIHome({ onStart }: { onStart: () => void }) {
       <div className="max-w-3xl w-full flex flex-col items-center">
         {/* Header */}
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center mb-4 border border-violet-500/20">
-            <Sparkles className="h-7 w-7 text-[#7C5CFC]" strokeWidth={1.5} />
+          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 border border-primary/20">
+            <Sparkles className="h-7 w-7 text-primary" strokeWidth={1.5} />
           </div>
-          <h1 className="text-2xl font-semibold text-[#E5E1E4]">Hivespace AI</h1>
-          <p className="text-sm text-zinc-400 mt-1">Your intelligent workspace assistant</p>
+          <h1 className="text-2xl font-semibold text-foreground">Hivespace AI</h1>
+          <p className="text-sm text-muted-foreground mt-1">Your intelligent workspace assistant</p>
         </div>
 
         {/* Quick Action Cards Grid */}
@@ -109,14 +109,14 @@ function AIHome({ onStart }: { onStart: () => void }) {
             <div 
               key={i} 
               onClick={onStart}
-              className="group bg-[#272629] border border-zinc-800/50 rounded-lg p-5 hover:border-[#7C5CFC]/30 hover:bg-[#7C5CFC]/5 cursor-pointer transition-all duration-200"
+              className="group bg-hs-card border border-border/50 rounded-lg p-5 hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-all duration-200"
             >
-              <div className="h-9 w-9 rounded-md bg-[#7C5CFC]/10 flex items-center justify-center text-[#7C5CFC]">
+              <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center text-primary">
                 <card.icon className="h-5 w-5" strokeWidth={1.5} />
               </div>
-              <h3 className="text-sm font-medium text-[#E5E1E4] mt-4">{card.title}</h3>
-              <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">{card.desc}</p>
-              <span className="text-[10px] uppercase font-bold tracking-wider text-[#7C5CFC] mt-4 block opacity-0 group-hover:opacity-100 transition-opacity">
+              <h3 className="text-sm font-medium text-foreground mt-4">{card.title}</h3>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{card.desc}</p>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-primary mt-4 block opacity-0 group-hover:opacity-100 transition-opacity">
                 Try it →
               </span>
             </div>
@@ -125,17 +125,17 @@ function AIHome({ onStart }: { onStart: () => void }) {
 
         {/* Prompt Bar */}
         <div className="mt-10 w-full max-w-2xl">
-          <div className="bg-zinc-800 border border-zinc-700/50 rounded-xl px-4 h-12 flex items-center gap-3 focus-within:border-[#7C5CFC]/50 transition-colors shadow-xl shadow-black/20">
-            <Sparkles className="h-4 w-4 text-[#7C5CFC]/60" />
+          <div className="bg-muted border border-border/50 rounded-xl px-4 h-12 flex items-center gap-3 focus-within:border-primary/50 transition-colors shadow-xl shadow-black/5">
+            <Sparkles className="h-4 w-4 text-primary/60" />
             <input 
               type="text" 
               placeholder="Ask anything, generate tasks, search docs..." 
-              className="bg-transparent border-none outline-none text-sm text-[#E5E1E4] placeholder:text-zinc-500 flex-1"
+              className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/50 flex-1"
               onKeyDown={(e) => e.key === 'Enter' && onStart()}
             />
             <div className="flex items-center gap-1.5 bg-zinc-700 rounded px-1.5 py-0.5 border border-zinc-600/50">
-               <span className="text-[10px] text-zinc-500 font-mono">⌘</span>
-               <span className="text-[10px] text-zinc-500 font-mono">K</span>
+               <span className="text-[10px] text-zinc-500 ">⌘</span>
+               <span className="text-[10px] text-zinc-500 ">K</span>
             </div>
           </div>
 
@@ -175,14 +175,14 @@ function AIConversation({ onBack }: { onBack: () => void }) {
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* Thread */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#201F21]">
+      <div className="flex-1 flex flex-col min-w-0 bg-hs-main">
         {/* Header */}
-        <header className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-4 flex-shrink-0">
+        <header className="h-12 border-b border-border/50 flex items-center justify-between px-4 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-400">
+            <button onClick={onBack} className="p-1 hover:bg-muted rounded transition-colors text-muted-foreground">
                <ArrowLeft className="h-4 w-4" />
             </button>
-            <h2 className="text-sm font-medium text-[#E5E1E4]">Generate tasks for Tiptap editor</h2>
+            <h2 className="text-sm font-medium text-foreground">Generate tasks for Tiptap editor</h2>
           </div>
           <div className="flex items-center gap-2">
             <button className="text-xs text-zinc-500 hover:text-zinc-300 font-medium px-2 py-1">New conversation</button>
@@ -196,8 +196,8 @@ function AIConversation({ onBack }: { onBack: () => void }) {
         <div className="flex-1 overflow-y-auto px-6 py-8 space-y-8 scrollbar-none">
           {/* User Message */}
           <div className="flex flex-col items-end gap-2 max-w-2xl ml-auto">
-            <div className="bg-zinc-800 border border-zinc-700 rounded-xl rounded-tr-sm px-4 py-3 shadow-lg shadow-black/10">
-              <p className="text-sm text-[#E5E1E4] leading-relaxed">
+            <div className="bg-muted border border-border rounded-xl rounded-tr-sm px-4 py-3 shadow-lg shadow-black/5">
+              <p className="text-sm text-foreground leading-relaxed">
                 I need to implement the Tiptap rich text editor for the docs module. Can you break this into tasks?
               </p>
             </div>
@@ -209,10 +209,10 @@ function AIConversation({ onBack }: { onBack: () => void }) {
           {/* AI Message */}
           <div className="flex flex-col gap-2 max-w-3xl">
             <div className="flex items-center gap-1.5 mb-1 px-1">
-               <Sparkles className="h-3 w-3 text-[#7C5CFC]" />
-               <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Hivespace AI</span>
+               <Sparkles className="h-3 w-3 text-primary" />
+               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Hivespace AI</span>
             </div>
-            <div className="bg-[#7C5CFC]/5 border-l-2 border-[#7C5CFC] rounded-r-xl px-5 py-4 space-y-4">
+            <div className="bg-primary/5 border-l-2 border-primary rounded-r-xl px-5 py-4 space-y-4">
               <p className="text-sm text-zinc-300 leading-relaxed">
                 Here are the structured tasks I&apos;ve generated for the Tiptap editor implementation. I&apos;ve broken this into 6 tasks across 2 phases:
               </p>
@@ -243,9 +243,9 @@ function AIConversation({ onBack }: { onBack: () => void }) {
                  ))}
               </div>
 
-              <div className="pt-2 text-sm text-zinc-300">
+              <div className="pt-2 text-sm text-foreground/70">
                  <p className="mb-4">
-                   Total estimate: <span className="text-[#E5E1E4] font-medium">21 story points</span>. Suggested sprint: <span className="text-[#7C5CFC] font-medium">Sprint 3</span> (has capacity). Suggested assignees based on past ownership.
+                   Total estimate: <span className="text-foreground font-medium">21 story points</span>. Suggested sprint: <span className="text-primary font-medium">Sprint 3</span> (has capacity). Suggested assignees based on past ownership.
                  </p>
                  <p className="text-zinc-500 italic">Ready to add these to Sprint 3?</p>
               </div>
@@ -279,8 +279,8 @@ function AIConversation({ onBack }: { onBack: () => void }) {
 
           {/* User Success Reply */}
           <div className="flex flex-col items-end gap-2 max-w-2xl ml-auto">
-            <div className="bg-zinc-800 border border-zinc-700 rounded-xl rounded-tr-sm px-4 py-3 shadow-lg shadow-black/10">
-              <p className="text-sm text-[#E5E1E4]">Add all to Sprint 3 and assign to the suggested people</p>
+            <div className="bg-muted border border-border rounded-xl rounded-tr-sm px-4 py-3 shadow-lg shadow-black/5">
+              <p className="text-sm text-foreground">Add all to Sprint 3 and assign to the suggested people</p>
             </div>
           </div>
 
@@ -292,7 +292,7 @@ function AIConversation({ onBack }: { onBack: () => void }) {
             </div>
             <div className="bg-[#7C5CFC]/5 border-l-2 border-[#7C5CFC] rounded-r-xl px-5 py-4 space-y-4">
                <p className="text-sm text-zinc-300">
-                 Done! I&apos;ve created 6 tasks in Sprint 3. <span className="font-mono text-xs text-zinc-400">HS-046</span> through <span className="font-mono text-xs text-zinc-400">HS-051</span> are now in your Backlog with suggested assignees.
+                 Done! I&apos;ve created 6 tasks in Sprint 3. <span className=" text-xs text-zinc-400">HS-046</span> through <span className=" text-xs text-zinc-400">HS-051</span> are now in your Backlog with suggested assignees.
                </p>
                
                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 flex items-start gap-3 max-w-sm shadow-lg shadow-green-950/10">
@@ -311,16 +311,16 @@ function AIConversation({ onBack }: { onBack: () => void }) {
         </div>
 
         {/* Compose Bar */}
-        <div className="p-6 bg-gradient-to-t from-[#201F21] via-[#201F21] to-transparent">
+        <div className="p-6 bg-gradient-to-t from-hs-main via-hs-main to-transparent">
           <div className="max-w-3xl mx-auto w-full">
-            <div className="bg-zinc-800 border border-[#7C5CFC]/20 rounded-xl px-4 py-2 flex items-center gap-3 focus-within:border-[#7C5CFC]/40 transition-colors shadow-2xl shadow-black/30">
-              <Sparkles className="h-4 w-4 text-[#7C5CFC]/40" />
+            <div className="bg-muted border border-primary/20 rounded-xl px-4 py-2 flex items-center gap-3 focus-within:border-primary/40 transition-colors shadow-2xl shadow-black/5">
+              <Sparkles className="h-4 w-4 text-primary/40" />
               <input 
                 type="text" 
                 placeholder="Follow up, ask for changes..." 
-                className="bg-transparent border-none outline-none text-sm text-[#E5E1E4] placeholder:text-zinc-600 flex-1 py-1"
+                className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/40 flex-1 py-1"
               />
-              <button className="h-7 w-7 rounded-md bg-[#7C5CFC] flex items-center justify-center text-white hover:bg-[#947DFF] transition-colors">
+              <button className="h-7 w-7 rounded-md bg-primary flex items-center justify-center text-white hover:opacity-90 transition-colors">
                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
               </button>
             </div>
@@ -332,7 +332,7 @@ function AIConversation({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Context Panel (Right) */}
-      <aside className="w-[280px] bg-[#1B1B1D] border-l border-zinc-800/50 p-5 flex flex-col gap-6 overflow-y-auto scrollbar-none">
+      <aside className="w-[280px] bg-hs-nav border-l border-border/50 p-5 flex flex-col gap-6 overflow-y-auto scrollbar-none">
         <section>
           <h4 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-4 flex items-center gap-2">
              <Activity className="h-3 w-3" /> Context
@@ -343,7 +343,7 @@ function AIConversation({ onBack }: { onBack: () => void }) {
               <p className="text-[10px] font-bold text-zinc-700 uppercase tracking-tight mb-2">Tasks Referenced</p>
               <div className="flex items-center gap-2 py-1 px-1.5 hover:bg-zinc-800/50 rounded transition-colors group cursor-pointer border border-transparent hover:border-zinc-800">
                 <div className="h-1 w-1 rounded-full bg-red-500" />
-                <span className="font-mono text-[10px] text-zinc-600">HS-044</span>
+                <span className=" text-[10px] text-zinc-600">HS-044</span>
                 <span className="text-[10px] text-zinc-400 truncate flex-1">STOMP WebSocket chat...</span>
               </div>
             </div>
@@ -360,7 +360,7 @@ function AIConversation({ onBack }: { onBack: () => void }) {
               <p className="text-[10px] font-bold text-zinc-700 uppercase tracking-tight mb-2">Tasks Created</p>
               <div className="bg-green-500/5 border border-green-500/10 rounded-md p-3">
                  <p className="text-xs font-semibold text-green-500 mb-1">6 tasks added</p>
-                 <p className="font-mono text-[9px] text-zinc-600 leading-relaxed">
+                 <p className=" text-[9px] text-zinc-600 leading-relaxed">
                    HS-046, HS-047, HS-048, HS-049, HS-050, HS-051
                  </p>
               </div>

@@ -63,7 +63,7 @@ export default function ConnectedAccountsPage() {
                        </span>
                     </div>
                     {conn.subDetails && (
-                      <span className="text-[10px] text-zinc-600 font-mono italic mt-1">{conn.subDetails}</span>
+                      <span className="text-[10px] text-zinc-600  italic mt-1">{conn.subDetails}</span>
                     )}
                   </div>
                 </div>

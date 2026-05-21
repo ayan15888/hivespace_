@@ -1,10 +1,7 @@
 package com.project.hiveSpace.services;
 
 import com.project.hiveSpace.dto.UserResponse;
-import com.project.hiveSpace.models.Role;
 import com.project.hiveSpace.models.User;
-import com.project.hiveSpace.repository.EmployeeRepository;
-import com.project.hiveSpace.repository.TenantRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.security.JwtService;
 import com.project.hiveSpace.utils.UserMapper;
@@ -33,7 +30,8 @@ public class AuthService {
                 .username(username)
                 .password(passwordEncoder.encode(password))
                 .active(true)
-                .role(Role.USER)
+                .createdAt(new java.util.Date())
+                .updatedAt(new java.util.Date())
                 .build();
 
         userRepository.save(user);
@@ -77,7 +75,8 @@ public class AuthService {
                     .avatarUrl(avatarUrl)
                     .password(passwordEncoder.encode("GITHUB_OAUTH_USER_" + UUID.randomUUID()))
                     .active(true)
-                    .role(Role.USER)
+                    .createdAt(new java.util.Date())
+                    .updatedAt(new java.util.Date())
                     .build();
             userRepository.save(user);
         }

@@ -5,17 +5,19 @@ import {
   X, 
   RefreshCw, 
   Mail, 
-  CheckCircle, 
-  Plus, 
+  CheckCircle,
   Copy,
-  ChevronDown
+  Info,
+  ChevronDown,
+  Lock
 } from "lucide-react"
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger 
+  DialogTrigger,
+  DialogClose
 } from "@/components/ui/dialog"
 import { 
   Select, 
@@ -30,6 +32,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CTAButton } from "@/components/common/CTAButton"
 import { cn } from "@/lib/utils"
+import { useOrgStore } from "@/store/orgStore"
+import { useWorkspaceStore } from "@/store/workspaceStore"
+import { generateInvite } from "@/lib/api/invites"
+import { InviteResponse } from "@/types/invite"
+import { gooeyToast as toast } from "@/components/ui/goey-toaster"
 
 interface InviteModalProps {
   trigger: React.ReactNode
@@ -37,6 +44,9 @@ interface InviteModalProps {
 
 export function InviteModal({ trigger }: InviteModalProps) {
   const [open, setOpen] = React.useState(false)
+  const { activeOrg } = useOrgStore()
+  const { activeWorkspace } = useWorkspaceStore()
+  
   const [step, setStep] = React.useState<"form" | "success">("form")
   const [emails, setEmails] = React.useState<string[]>([])
   const [emailInput, setEmailInput] = React.useState("")
@@ -44,6 +54,10 @@ export function InviteModal({ trigger }: InviteModalProps) {
   const [message, setMessage] = React.useState("")
   const [workspaces, setWorkspaces] = React.useState(["Engineering"])
   const [teams, setTeams] = React.useState<string[]>([])
+  
+  const [loading, setLoading] = React.useState(false)
+  const [generatedInvite, setGeneratedInvite] = React.useState<InviteResponse | null>(null)
+  const [shareableInvite, setShareableInvite] = React.useState<{ token: string, pin: string } | null>(null)
 
   const addEmail = (e?: React.KeyboardEvent) => {
     if (e && e.key !== 'Enter') return
@@ -60,8 +74,45 @@ export function InviteModal({ trigger }: InviteModalProps) {
     setEmails(emails.filter(e => e !== email))
   }
 
-  const handleSend = () => {
-    setStep("success")
+  const handleSend = async () => {
+    if (!activeOrg) {
+      toast.error("No active organization found");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const backendRole = role === "Member" ? "MEMBER" :
+                          role === "Workspace Admin" ? "ADMIN" :
+                          role === "Team Lead" ? "LEAD" :
+                          role === "Project Lead" ? "LEAD" :
+                          role === "Viewer" ? "VIEWER" :
+                          role === "Billing Admin" ? "ADMIN" : "MEMBER";
+
+      const response = await generateInvite({
+        tenantId: activeOrg.id,
+        workspaceId: activeWorkspace?.id,
+        role: backendRole,
+        maxUses: Math.max(1, emails.length),
+      });
+
+      setGeneratedInvite(response);
+
+      if (emails.length > 0) {
+        const inviteUrl = `${window.location.origin}/invite/${activeOrg.slug}/${response.token}`;
+        const subject = `Invitation to join ${activeOrg.name} on HiveSpace`;
+        const body = `Hi there,\n\nYou have been invited to join the ${activeOrg.name} organization on HiveSpace as a ${role}.\n\nClick this link to accept the invitation:\n${inviteUrl}\n\nFor security, please use the following PIN to complete the join process:\nPIN: ${response.pin}\n\n${message ? `Personal message from sender:\n"${message}"\n\n` : ""}Looking forward to collaborating with you!\n\nBest regards,\nThe HiveSpace Team`;
+
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(emails.join(','))}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.open(gmailUrl, "_blank");
+      }
+
+      setStep("success");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send invites");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const handleReset = () => {
@@ -72,6 +123,54 @@ export function InviteModal({ trigger }: InviteModalProps) {
     setMessage("")
     setWorkspaces(["Engineering"])
     setTeams([])
+    setGeneratedInvite(null)
+  }
+  const handleGenerateShareable = async () => {
+    if (!activeOrg) return;
+    try {
+      const response = await generateInvite({
+        tenantId: activeOrg.id,
+        workspaceId: activeWorkspace?.id,
+        role: "MEMBER",
+        maxUses: 100
+      });
+      setShareableInvite({ token: response.token, pin: response.pin });
+      
+      const link = `${window.location.origin}/invite/${activeOrg.slug}/${response.token}`;
+      navigator.clipboard.writeText(`Invite Link: ${link}\nSecurity PIN: ${response.pin}`);
+      toast.success("Link and PIN copied!");
+    } catch (err: any) {
+      toast.error("Failed to generate link");
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (shareableInvite) {
+      const link = `${window.location.origin}/invite/${activeOrg?.slug}/${shareableInvite.token}`;
+      navigator.clipboard.writeText(link);
+      toast.success("Link copied!");
+    } else {
+      handleGenerateShareable();
+    }
+  }
+
+  const getRoleDescription = (selectedRole: string) => {
+    switch (selectedRole) {
+      case "Member":
+        return "Can be assigned tasks, join channels, edit docs";
+      case "Workspace Admin":
+        return "Manages workspace settings and members";
+      case "Team Lead":
+        return "Manages team membership and tasks";
+      case "Project Lead":
+        return "Manages project board and access";
+      case "Viewer":
+        return "Read-only access to workspace content";
+      case "Billing Admin":
+        return "Billing portal access only";
+      default:
+        return "";
+    }
   }
 
   return (
@@ -79,28 +178,42 @@ export function InviteModal({ trigger }: InviteModalProps) {
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="max-w-lg w-full p-0 bg-[#272629] border border-zinc-700 rounded-xl overflow-hidden shadow-2xl">
+      <DialogContent 
+        showCloseButton={false}
+        className="sm:max-w-lg w-full p-0 bg-[#1B1B1D] border border-zinc-800 rounded-xl overflow-hidden shadow-[0_0_64px_rgba(0,0,0,0.4)] backdrop-blur max-h-[85vh] flex flex-col"
+      >
+        <DialogClose asChild>
+          <button className="absolute top-6 right-6 text-zinc-400 hover:text-zinc-200 transition-colors p-1.5 rounded-full hover:bg-zinc-800/30 z-50">
+            <X className="h-4 w-4" />
+          </button>
+        </DialogClose>
+
         {step === "form" ? (
-          <div className="flex flex-col">
+          <div className="flex flex-col flex-1 min-h-0">
             {/* Header */}
-            <div className="p-6 pb-0 relative">
-              <h2 className="text-lg font-semibold text-[#E5E1E4]">Invite to Engineering</h2>
-              <p className="text-xs text-zinc-400 mt-1">
+            <div className="px-6 pt-6 pb-4 border-b border-zinc-800/60 relative">
+              <DialogTitle className="text-xl font-semibold text-[#E5E1E4]">Invite to Engineering</DialogTitle>
+              <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
                 Invited users will join as org members first, then gain access to this workspace.
               </p>
             </div>
 
-            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-none">
-              {/* Step 1: Email Input */}
+            {/* Body */}
+            <div className="px-6 py-5 flex flex-col gap-5 overflow-y-auto scrollbar-none flex-1 min-h-0">
+              {/* SECTION 1: EMAIL ADDRESSES */}
               <section>
-                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">
-                  Email addresses
+                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-2 block">
+                  EMAIL ADDRESSES
                 </label>
-                <div className="bg-zinc-800 border border-zinc-700 rounded-md min-h-20 p-3 flex flex-wrap gap-2 focus-within:border-zinc-600 transition-colors">
+                <div className="bg-[#272629] border border-zinc-700 rounded-md min-h-12 max-h-32 p-3 flex flex-wrap gap-1.5 overflow-y-auto focus-within:border-violet-500/50 transition-colors">
                   {emails.map(email => (
-                    <div key={email} className="bg-zinc-700 rounded-full px-2.5 py-1 flex items-center gap-1.5 shadow-sm">
-                      <span className="text-xs text-zinc-300">{email}</span>
-                      <button onClick={() => removeEmail(email)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+                    <div key={email} className="bg-zinc-700 rounded-full px-2.5 py-1 text-xs text-zinc-200 flex items-center gap-1.5">
+                      <span>{email}</span>
+                      <button 
+                        type="button"
+                        onClick={() => removeEmail(email)} 
+                        className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                      >
                         <X className="h-3 w-3" />
                       </button>
                     </div>
@@ -110,130 +223,182 @@ export function InviteModal({ trigger }: InviteModalProps) {
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
                     onKeyDown={addEmail}
-                    placeholder={emails.length === 0 ? "Add email and press Enter..." : ""}
+                    placeholder={emails.length === 0 ? "Add email addresses and press Enter..." : ""}
                     className="bg-transparent border-none outline-none text-sm text-[#E5E1E4] placeholder:text-zinc-500 flex-1 min-w-[120px]"
                   />
                 </div>
+              </section>
 
-                <div className="mt-4">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">
-                    Or share an invite link
-                  </label>
-                  <div className="bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 flex items-center gap-2">
-                    <span className="font-mono text-[10px] text-zinc-400 flex-1 truncate">
-                      hivespace.io/invite/abc123xyz
-                    </span>
-                    <button className="text-[10px] font-bold text-[#7C5CFC] uppercase tracking-wider hover:opacity-80 transition-opacity">
-                      Copy
-                    </button>
-                    <div className="w-px h-4 bg-zinc-800 mx-1" />
-                    <button className="text-zinc-500 hover:text-zinc-300 transition-colors">
-                      <RefreshCw className="h-3 w-3" />
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-zinc-600 mt-2 italic">
-                    Link expires in 72 hours · Role: Member
-                  </p>
+              {/* SECTION 2: INVITE LINK */}
+              <section>
+                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-2 block">
+                  OR SHARE AN INVITE LINK
+                </label>
+                <div className="bg-[#272629] border border-zinc-700 rounded-md h-10 px-3 flex items-center gap-2">
+                  <span className="font-mono text-xs text-zinc-400 flex-1 truncate min-w-0">
+                    {shareableInvite && activeOrg ? `${window.location.origin.replace(/^https?:\/\//, "")}/invite/${activeOrg.slug}/${shareableInvite.token}` : `${process.env.NEXT_PUBLIC_APP_DOMAIN || "hivespace.app"}/invite/...`}
+                  </span>
+                  <button 
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="text-zinc-400 hover:text-zinc-200 transition-colors flex-shrink-0"
+                    title="Copy link"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                
+                <div className="flex items-center mt-1.5">
+                  {shareableInvite ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-zinc-600">Security PIN:</span>
+                      <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono text-xs rounded-sm px-2 py-0.5 tracking-widest">
+                        {shareableInvite.pin}
+                      </span>
+                      <span className="cursor-help" title="Recipients need this PIN to accept the invite">
+                        <Info className="h-3 w-3 text-zinc-600" />
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-zinc-600">Security PIN:</span>
+                      <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono text-xs rounded-sm px-2 py-0.5 tracking-widest">
+                        ------
+                      </span>
+                      <span className="cursor-help" title="Recipients need this PIN to accept the invite">
+                        <Info className="h-3 w-3 text-zinc-600" />
+                      </span>
+                    </div>
+                  )}
+                  
+                  <button 
+                    type="button"
+                    onClick={handleGenerateShareable}
+                    className="flex items-center text-xs text-zinc-600 hover:text-zinc-400 cursor-pointer ml-auto mt-1"
+                  >
+                    <RefreshCw className="h-2.5 w-2.5 mr-1" />
+                    {shareableInvite ? "Regenerate" : "Generate Link"}
+                  </button>
                 </div>
               </section>
 
-              {/* Role Selection */}
+              {/* SECTION 3: INVITE AS (ROLE) */}
               <section>
-                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">
-                  Invite as
+                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-2 block">
+                  INVITE AS
                 </label>
                 <Select value={role} onValueChange={setRole}>
-                  <SelectTrigger className="w-full bg-zinc-800 border-zinc-700 h-10 text-sm text-[#E5E1E4]">
-                    <SelectValue />
+                  <SelectTrigger className="w-full bg-[#272629] border-zinc-700 hover:border-zinc-600 rounded-md h-10 px-3 text-[#E5E1E4] cursor-pointer focus:ring-0 focus-visible:ring-0 [&_svg]:text-zinc-500 [&_svg]:size-3.5">
+                    <span className="text-sm">{role}</span>
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-300">
-                    <SelectItem value="Member" className="py-2">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium">Member</span>
-                        <span className="text-[10px] text-zinc-500">Can be assigned tasks, join channels, edit docs</span>
+                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-300 shadow-xl mt-1 overflow-hidden p-1 min-w-[var(--radix-select-trigger-width)]">
+                    <SelectItem value="Member" className="px-3 py-2.5 hover:bg-zinc-800 cursor-pointer focus:bg-zinc-800 data-[state=checked]:bg-zinc-800/80 rounded-md">
+                      <div className="flex flex-col text-left items-start">
+                        <span className="text-sm font-medium text-[#E5E1E4]">Member</span>
+                        <span className="text-xs text-zinc-500 mt-0.5">Can be assigned tasks, join channels, edit docs</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="Workspace Admin" className="py-2">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium">Workspace Admin</span>
-                        <span className="text-[10px] text-zinc-500">Manages workspace settings and members</span>
+                    <SelectItem value="Workspace Admin" className="px-3 py-2.5 hover:bg-zinc-800/30 cursor-pointer focus:bg-zinc-800 data-[state=checked]:bg-zinc-800/80 rounded-md">
+                      <div className="flex flex-col text-left items-start">
+                        <span className="text-sm font-medium text-[#E5E1E4]">Workspace Admin</span>
+                        <span className="text-xs text-zinc-500 mt-0.5">Manages workspace settings and members</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="Team Lead" className="py-2">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium">Team Lead</span>
-                        <span className="text-[10px] text-zinc-500">Manages team membership and tasks</span>
+                    <SelectItem value="Team Lead" className="px-3 py-2.5 hover:bg-zinc-800/30 cursor-pointer focus:bg-zinc-800 data-[state=checked]:bg-zinc-800/80 rounded-md">
+                      <div className="flex flex-col text-left items-start">
+                        <span className="text-sm font-medium text-[#E5E1E4]">Team Lead</span>
+                        <span className="text-xs text-zinc-500 mt-0.5">Manages team membership and tasks</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="Project Lead" className="py-2">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium">Project Lead</span>
-                        <span className="text-[10px] text-zinc-500">Manages project board and access</span>
+                    <SelectItem value="Project Lead" className="px-3 py-2.5 hover:bg-zinc-800/30 cursor-pointer focus:bg-zinc-800 data-[state=checked]:bg-zinc-800/80 rounded-md">
+                      <div className="flex flex-col text-left items-start">
+                        <span className="text-sm font-medium text-[#E5E1E4]">Project Lead</span>
+                        <span className="text-xs text-zinc-500 mt-0.5">Manages project board and access</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="Viewer" className="py-2">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium">Viewer</span>
-                        <span className="text-[10px] text-zinc-500">Read-only access</span>
+                    <SelectItem value="Viewer" className="px-3 py-2.5 hover:bg-zinc-800/30 cursor-pointer focus:bg-zinc-800 data-[state=checked]:bg-zinc-800/80 rounded-md">
+                      <div className="flex flex-col text-left items-start">
+                        <span className="text-sm font-medium text-[#E5E1E4]">Viewer</span>
+                        <span className="text-xs text-zinc-500 mt-0.5">Read-only access to workspace content</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="Billing Admin" className="py-2">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium">Billing Admin</span>
-                        <span className="text-[10px] text-zinc-500">Billing portal access only</span>
+                    <SelectItem value="Billing Admin" className="px-3 py-2.5 hover:bg-zinc-800/30 cursor-pointer focus:bg-zinc-800 data-[state=checked]:bg-zinc-800/80 rounded-md">
+                      <div className="flex flex-col text-left items-start">
+                        <span className="text-sm font-medium text-[#E5E1E4]">Billing Admin</span>
+                        <span className="text-xs text-zinc-500 mt-0.5">Billing portal access only</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-zinc-500 mt-1.5">
+                  {getRoleDescription(role)}
+                </p>
               </section>
 
-              {/* Workspace & Team Assignment */}
-              <section className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">
-                    Add to workspace
-                  </label>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <Checkbox id="ws-eng" checked disabled className="data-[state=checked]:bg-[#7C5CFC] data-[state=checked]:border-[#7C5CFC]" />
-                      <label htmlFor="ws-eng" className="text-xs text-zinc-400">Engineering</label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Checkbox id="ws-design" className="border-zinc-700 data-[state=checked]:bg-[#7C5CFC]" />
-                      <label htmlFor="ws-design" className="text-xs text-zinc-400">Design</label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Checkbox id="ws-mkt" className="border-zinc-700 data-[state=checked]:bg-[#7C5CFC]" />
-                      <label htmlFor="ws-mkt" className="text-xs text-zinc-400">Marketing</label>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">
-                    Add to team (optional)
-                  </label>
-                  <div className="flex gap-4">
-                    <div className="flex items-center gap-3">
-                      <Checkbox id="team-be" className="border-zinc-700 data-[state=checked]:bg-[#7C5CFC]" />
-                      <label htmlFor="team-be" className="text-xs text-zinc-400">Backend Team</label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Checkbox id="team-fe" className="border-zinc-700 data-[state=checked]:bg-[#7C5CFC]" />
-                      <label htmlFor="team-fe" className="text-xs text-zinc-400">Frontend Team</label>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Personal Message */}
+              {/* SECTION 4: ADD TO WORKSPACE */}
               <section>
-                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">
-                  Personal message (optional)
+                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-2 block">
+                  ADD TO WORKSPACE
+                </label>
+                <div className="space-y-1">
+                  <div className="h-9 flex items-center gap-3 hover:bg-zinc-800/30 rounded-md px-2 cursor-not-allowed">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                      <Lock className="h-2.5 w-2.5 text-zinc-600" />
+                    </div>
+                    <span className="text-sm text-zinc-300">Engineering</span>
+                    <span className="text-xs text-zinc-600">(current)</span>
+                  </div>
+                  
+                  <label htmlFor="ws-design" className="h-9 flex items-center gap-3 hover:bg-zinc-800/30 rounded-md px-2 cursor-pointer w-full">
+                    <Checkbox 
+                      id="ws-design" 
+                      className="border-zinc-600 bg-transparent data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600" 
+                    />
+                    <span className="text-sm text-zinc-300">Design</span>
+                  </label>
+
+                  <label htmlFor="ws-marketing" className="h-9 flex items-center gap-3 hover:bg-zinc-800/30 rounded-md px-2 cursor-pointer w-full">
+                    <Checkbox 
+                      id="ws-marketing" 
+                      className="border-zinc-600 bg-transparent data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600" 
+                    />
+                    <span className="text-sm text-zinc-300">Marketing</span>
+                  </label>
+                </div>
+              </section>
+
+              {/* SECTION 5: ADD TO TEAM (OPTIONAL) */}
+              <section>
+                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-2 block">
+                  ADD TO TEAM (OPTIONAL)
+                </label>
+                <div className="space-y-1">
+                  <label htmlFor="team-be" className="h-9 flex items-center gap-3 hover:bg-zinc-800/30 rounded-md px-2 cursor-pointer w-full">
+                    <Checkbox 
+                      id="team-be" 
+                      className="border-zinc-600 bg-transparent data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600" 
+                    />
+                    <span className="text-sm text-zinc-300">Backend Team</span>
+                  </label>
+                  
+                  <label htmlFor="team-fe" className="h-9 flex items-center gap-3 hover:bg-zinc-800/30 rounded-md px-2 cursor-pointer w-full">
+                    <Checkbox 
+                      id="team-fe" 
+                      className="border-zinc-600 bg-transparent data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600" 
+                    />
+                    <span className="text-sm text-zinc-300">Frontend Team</span>
+                  </label>
+                </div>
+              </section>
+
+              {/* SECTION 6: PERSONAL MESSAGE (OPTIONAL) */}
+              <section>
+                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-2 block">
+                  PERSONAL MESSAGE (OPTIONAL)
                 </label>
                 <Textarea 
                   placeholder="Add a note to your invite..."
-                  className="bg-zinc-800 border-zinc-700 text-sm text-[#E5E1E4] min-h-16 focus-visible:ring-[#7C5CFC]/30"
+                  className="bg-[#272629] border-zinc-700 text-sm text-[#E5E1E4] min-h-20 focus-visible:border-violet-500/50 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-zinc-500 resize-none rounded-md px-3 py-2.5 text-zinc-300"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                 />
@@ -241,73 +406,82 @@ export function InviteModal({ trigger }: InviteModalProps) {
             </div>
 
             {/* Footer */}
-            <footer className="p-6 pt-4 border-t border-zinc-800 flex justify-between items-center bg-[#201F21]/50">
-              <button 
+            <footer className="border-t border-zinc-800/60 px-6 py-4 flex items-center justify-between">
+              <Button 
+                variant="ghost"
                 onClick={() => setOpen(false)}
-                className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest hover:text-zinc-300 transition-colors"
+                className="text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30"
               >
                 Cancel
-              </button>
-              <div className="flex items-center gap-4">
+              </Button>
+              
+              <div className="flex items-center gap-3">
                 {emails.length > 0 && (
-                  <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
+                  <span className="text-xs text-zinc-500">
                     Sending to {emails.length} {emails.length === 1 ? 'person' : 'people'}
                   </span>
                 )}
-                <CTAButton 
+                
+                <button
+                  type="button"
                   onClick={handleSend}
-                  disabled={emails.length === 0}
+                  disabled={loading}
+                  style={emails.length > 0 ? { background: 'linear-gradient(145deg, #CABEFF, #947DFF)', color: '#1B1B1D' } : undefined}
                   className={cn(
-                    "flex items-center gap-2",
-                    emails.length === 0 && "opacity-50 grayscale cursor-not-allowed"
+                    "text-xs font-medium uppercase tracking-wider rounded-md px-5 h-9 flex items-center justify-center transition-all",
+                    emails.length === 0
+                      ? "bg-zinc-700 text-zinc-500 cursor-not-allowed"
+                      : "hover:opacity-90 active:scale-95 shadow-lg shadow-violet-500/10"
                   )}
                 >
-                  <Mail className="h-3.5 w-3.5" />
-                  {emails.length === 0 ? "Send Invite Link" : "Send Invites"}
-                </CTAButton>
+                  <Mail className="h-3.5 w-3.5 mr-1.5" />
+                  {loading ? "Sending..." : emails.length === 0 ? "Send Invite Link" : "Send Invite"}
+                </button>
               </div>
             </footer>
           </div>
         ) : (
-          <div className="p-8 flex flex-col items-center text-center animate-in fade-in zoom-in duration-300">
-            <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6">
-              <CheckCircle className="h-10 w-10 text-emerald-500" strokeWidth={1.5} />
-            </div>
-            <h2 className="text-xl font-semibold text-[#E5E1E4]">Invites sent!</h2>
-            <p className="text-sm text-zinc-400 mt-2 max-w-xs mx-auto">
-              {emails.length} invite emails have been sent. They expire in 72 hours.
+          <div className="px-6 py-8 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-350">
+            {/* Success Icon & Title */}
+            <CheckCircle className="h-10 w-10 text-green-400 mx-auto" strokeWidth={1.5} />
+            <DialogTitle className="text-lg font-semibold text-[#E5E1E4] mt-3">Invites sent!</DialogTitle>
+            <p className="text-sm text-zinc-400 mt-1 text-center">
+              {emails.length} invite {emails.length === 1 ? 'email has' : 'emails have'} been sent. They expire in 72 hours.
             </p>
 
-            <div className="w-full mt-8 space-y-2">
-               <h3 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest text-left mb-3">PENDING INVITES</h3>
-               {emails.map(email => (
-                 <div key={email} className="bg-zinc-900/50 border border-zinc-800 rounded-md p-3 flex items-center gap-3">
-                   <div className="h-8 w-8 rounded bg-zinc-800 flex items-center justify-center">
-                     <Mail className="h-4 w-4 text-zinc-500" />
-                   </div>
-                   <div className="flex flex-col items-start flex-1 min-w-0">
-                     <span className="text-xs text-zinc-300 truncate w-full text-left">{email}</span>
-                     <div className="flex items-center gap-2 mt-0.5">
-                        <Badge className="bg-zinc-800 text-[9px] text-zinc-500 border-none h-4 px-1.5 rounded-sm">{role}</Badge>
-                        <span className="text-[9px] text-zinc-600">Expires in 72h</span>
-                     </div>
-                   </div>
-                   <button className="text-[9px] font-bold text-[#7C5CFC] uppercase tracking-wider hover:underline">
-                     Resend
-                   </button>
-                 </div>
-               ))}
+            {/* Pending list */}
+            <div className="w-full mt-6 space-y-2 max-h-40 overflow-y-auto scrollbar-none">
+              {emails.map(email => (
+                <div key={email} className="bg-zinc-900/40 border border-zinc-800/80 rounded-md p-3 flex items-center gap-3">
+                  <Mail className="h-4 w-4 text-zinc-500 shrink-0" />
+                  <span className="text-xs text-zinc-300 truncate text-left flex-1">{email}</span>
+                  <Badge variant="outline" className="bg-[#7C5CFC]/5 border-[#7C5CFC]/20 text-[#7C5CFC] text-[9px] py-0.5 rounded-sm shrink-0">
+                    {role}
+                  </Badge>
+                  <span className="text-xs text-zinc-600 shrink-0 ml-auto">72h</span>
+                  <button className="text-xs text-violet-400 hover:text-violet-300 font-medium shrink-0 ml-2">
+                    Resend
+                  </button>
+                </div>
+              ))}
             </div>
 
-            <div className="w-full mt-10 flex flex-col gap-3">
-              <CTAButton onClick={() => setOpen(false)} className="w-full h-11">
-                Done
-              </CTAButton>
-              <button 
+            {/* Two buttons */}
+            <div className="w-full mt-6 flex gap-3">
+              <Button
+                variant="ghost"
                 onClick={handleReset}
-                className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest hover:text-zinc-300 transition-colors py-2"
+                className="flex-1 h-10 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30"
               >
                 Invite more people
+              </Button>
+              
+              <button 
+                onClick={() => setOpen(false)}
+                style={{ background: 'linear-gradient(145deg, #CABEFF, #947DFF)', color: '#1B1B1D' }}
+                className="flex-1 h-10 rounded-md text-xs font-semibold uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all flex items-center justify-center"
+              >
+                Done
               </button>
             </div>
           </div>

@@ -36,7 +36,6 @@ public class WorkspaceService {
         Workspace workspace = Workspace.builder()
                 .name(request.getName())
                 .description(request.getDescription())
-                .plan(request.getPlan())
                 .tenant(tenant)
                 .createdAt(new Date())
                 .updatedAt(new Date())
@@ -67,7 +66,7 @@ public class WorkspaceService {
                 workspace.getId(),
                 workspace.getName(),
                 workspace.getDescription(),
-                workspace.getPlan(),
+                null,
                 workspace.getTenant().getId(),
                 workspace.getCreatedAt(),
                 workspace.getUpdatedAt()

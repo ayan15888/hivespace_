@@ -39,6 +39,7 @@ public class ProjectService {
                 .workspace(workspace)
                 .teamsCount(0)
                 .membersCount(1) // Assuming creator is a member initially
+                .color(request.getColor())
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
@@ -68,6 +69,7 @@ public class ProjectService {
                 .workspaceId(project.getWorkspace().getId())
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
+                .color(project.getColor())
                 .build();
     }
 }

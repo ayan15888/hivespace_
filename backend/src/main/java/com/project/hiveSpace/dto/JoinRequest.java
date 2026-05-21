@@ -8,5 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class JoinRequest {
-    private String inviteCode;
+    private String token;
+    private String pin;
 }

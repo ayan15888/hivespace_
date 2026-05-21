@@ -21,6 +21,7 @@ public class TenantService {
 
     private final TenantRepository tenantRepository;
     private final com.project.hiveSpace.repository.UserRepository userRepository;
+    private final com.project.hiveSpace.repository.TenantMemberRepository tenantMemberRepository;
 
     @Transactional
     public TenantResponse createTenant(TenantRequest request) {
@@ -45,6 +46,20 @@ public class TenantService {
                 .build();
 
         Tenant savedTenant = tenantRepository.save(tenant);
+
+        // Create TenantMember representing owner role for this user
+        com.project.hiveSpace.models.TenantMember ownerMember = com.project.hiveSpace.models.TenantMember.builder()
+                .tenant(savedTenant)
+                .user(currentUser)
+                .role(com.project.hiveSpace.models.TenantMemberRole.OWNER)
+                .joinedAt(new java.util.Date())
+                .build();
+        tenantMemberRepository.save(ownerMember);
+
+        // Associate user with their newly created active tenant
+        currentUser.setTenant(savedTenant);
+        userRepository.save(currentUser);
+
         return mapToResponse(savedTenant);
     }
 
@@ -101,9 +116,16 @@ public class TenantService {
 
     public List<MemberResponse> getMembersByTenantId(UUID tenantId) {
         User currentUser = getCurrentUser();
-        // Ideally validate if user belongs to this tenant, but we'll assume yes for now
-        Tenant tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
+
+        // Validate tenant exists
+        if (!tenantRepository.existsById(tenantId)) {
+            throw new IllegalArgumentException("Tenant not found");
+        }
+
+        // Validate requester belongs to tenant
+        if (tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId()).isEmpty()) {
+            throw new IllegalArgumentException("You are not authorized to view members of this organization");
+        }
 
         return userRepository.findByTenantId(tenantId).stream()
                 .map(user -> new MemberResponse(
@@ -113,7 +135,7 @@ public class TenantService {
                         user.getFullName() != null ? user.getFullName() : user.getUsername(),
                         user.getAvatarUrl(),
                         user.getJobTitle() != null ? user.getJobTitle() : "Member",
-                        user.getRole().name()
+                        "MEMBER"
                 ))
                 .collect(Collectors.toList());
     }

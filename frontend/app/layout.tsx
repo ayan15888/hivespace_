@@ -1,11 +1,15 @@
 import "./globals.css"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Plus_Jakarta_Sans } from "next/font/google"
 import { ThemeProvider } from "@/components/common/theme-provider"
 import React from "react"
 import { GooeyToaster } from "@/components/ui/goey-toaster"
 
-const inter = Inter({ subsets: ["latin"] })
+const plusJakartaSans = Plus_Jakarta_Sans({ 
+  subsets: ["latin"],
+  variable: "--font-sans",
+  weight: ["300", "400", "500", "600", "700", "800"],
+})
 
 export const metadata: Metadata = {
   title: "HiveSpace",
@@ -19,10 +23,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="antialiased">
-      <body className={`${inter.className} bg-[#000000] tracking-tight`} suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
+      <body className={`${plusJakartaSans.variable} font-sans tracking-tight`} suppressHydrationWarning>
         <GooeyToaster />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   )
 }
+

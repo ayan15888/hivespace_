@@ -17,7 +17,7 @@ export default function DashboardLayout({
   const hideSidebar = isDocs || isInbox || isMail;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-hs-base text-hs-text">
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <NavRail />
       {!hideSidebar && <WorkspaceSidebar />}
       <main className={cn(

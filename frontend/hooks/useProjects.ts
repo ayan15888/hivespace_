@@ -1,51 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ProjectResponse, getProjectsByWorkspace } from "@/lib/api/projects";
+import { useEffect, useCallback } from "react";
+import { useProjectStore } from "@/store/projectStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
 export function useProjects() {
   const activeWorkspace = useWorkspaceStore((state) => state.activeWorkspace);
-  const [projects, setProjects] = useState<ProjectResponse[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { projects, loading, error, fetchProjects } = useProjectStore();
+
+  const refreshProjects = useCallback(async () => {
+    if (!activeWorkspace) return;
+    await fetchProjects(activeWorkspace.id);
+  }, [activeWorkspace, fetchProjects]);
 
   useEffect(() => {
-    async function fetchProjects() {
-      if (!activeWorkspace) {
-        setProjects([]);
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await getProjectsByWorkspace(activeWorkspace.id);
-        setProjects(data);
-      } catch (err: unknown) {
-        setError((err as Error).message || "Failed to fetch projects");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchProjects();
-  }, [activeWorkspace]);
+    refreshProjects();
+  }, [refreshProjects]);
 
   return {
     projects,
     loading,
     error,
-    refreshProjects: async () => {
-      if (!activeWorkspace) return;
-      setLoading(true);
-      try {
-        const data = await getProjectsByWorkspace(activeWorkspace.id);
-        setProjects(data);
-      } finally {
-        setLoading(false);
-      }
-    }
+    refreshProjects
   };
 }
