@@ -140,48 +140,18 @@ export default function BackendTeamPage() {
 
         <div className="flex-1 overflow-y-auto">
           <AnimatePresence mode="wait">
-            <TabsContent value="overview" className="m-0 border-none p-0 outline-none">
+            <TabsContent key={activeTab} value={activeTab} className="m-0 border-none p-0 outline-none" forceMount>
               <motion.div
-                key="overview-tab"
+                key={`${activeTab}-tab`}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
               >
-                <OverviewTab />
-              </motion.div>
-            </TabsContent>
-            <TabsContent value="members" className="m-0 border-none p-0 outline-none">
-              <motion.div
-                key="members-tab"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-              >
-                <MembersTab />
-              </motion.div>
-            </TabsContent>
-            <TabsContent value="tasks" className="m-0 border-none p-0 outline-none">
-              <motion.div
-                key="tasks-tab"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-              >
-                <TasksTab />
-              </motion.div>
-            </TabsContent>
-            <TabsContent value="channels" className="m-0 border-none p-0 outline-none">
-              <motion.div
-                key="channels-tab"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-              >
-                <ChannelsTab />
+                {activeTab === "overview" && <OverviewTab />}
+                {activeTab === "members" && <MembersTab />}
+                {activeTab === "tasks" && <TasksTab />}
+                {activeTab === "channels" && <ChannelsTab />}
               </motion.div>
             </TabsContent>
           </AnimatePresence>

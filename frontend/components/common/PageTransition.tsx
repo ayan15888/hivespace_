@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import { usePathname } from "next/navigation";
 
 interface PageTransitionProps {
@@ -8,7 +8,7 @@ interface PageTransitionProps {
   className?: string;
 }
 
-const variants = {
+const variants: Variants = {
   initial: { opacity: 0, y: 8, scale: 0.995 },
   animate: {
     opacity: 1,

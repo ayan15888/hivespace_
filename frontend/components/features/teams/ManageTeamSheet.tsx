@@ -290,9 +290,9 @@ export function ManageTeamSheet({
               </div>
 
               {/* Add member dropdown */}
-              {showAddMember && availableOrgMembers.length > 0 && (
+              {showAddMember && availableWorkspaceMembers.length > 0 && (
                 <div className="mb-3 rounded-lg border border-border/5 bg-hs-main p-1">
-                  {availableOrgMembers.map(user => (
+                  {availableWorkspaceMembers.map(user => (
                     <button
                       key={user.userId}
                       disabled={addingMemberId === user.userId}
@@ -306,7 +306,7 @@ export function ManageTeamSheet({
                         <p className="truncate text-xs font-medium text-zinc-200">{user.fullName || user.username}</p>
                         <p className="truncate text-[10px] text-zinc-600">{user.email}</p>
                       </div>
-                      {addingMemberId === user.id ? (
+                      {addingMemberId === user.userId ? (
                         <Loader2 className="h-3 w-3 animate-spin text-hs-accent" />
                       ) : (
                         <Plus className="h-3 w-3 text-zinc-600" />
