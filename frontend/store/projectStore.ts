@@ -8,6 +8,8 @@ interface ProjectState {
   error: string | null;
   fetchProjects: (workspaceId: string) => Promise<void>;
   addProject: (project: ProjectResponse) => void;
+  updateProject: (project: ProjectResponse) => void;
+  removeProject: (projectId: string) => void;
   setProjects: (projects: ProjectResponse[]) => void;
 }
 
@@ -30,6 +32,18 @@ export const useProjectStore = create<ProjectState>()(
 
       addProject: (project) => {
         set((state) => ({ projects: [...state.projects, project] }));
+      },
+
+      updateProject: (updatedProject) => {
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === updatedProject.id ? updatedProject : p
+          ),
+        }));
+      },
+
+      removeProject: (projectId) => {
+        set((state) => ({ projects: state.projects.filter((p) => p.id !== projectId) }));
       },
 
       setProjects: (projects) => set({ projects }),

@@ -18,16 +18,17 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CTAButton } from "@/components/common/CTAButton"
 import { cn } from "@/lib/utils"
+import { roleLabel } from "@/types/roles"
 
 const SEATS = [
-  { name: "John Doe", role: "Org Owner", avatar: "JD" },
-  { name: "Meera Varma", role: "Team Lead", avatar: "MV" },
-  { name: "Rahul Kumar", role: "Member", avatar: "RK" },
-  { name: "David King", role: "Member", avatar: "DK" },
-  { name: "Sanjay Arya", role: "Member", avatar: "SA" },
-  { name: "Priya Lakshmi", role: "Member", avatar: "PL" },
-  { name: "Robert Smith", role: "Member", avatar: "RS" },
-  { name: "Billing Account", role: "Billing Admin", avatar: "BA" },
+  { name: "John Doe", role: "OWNER", avatar: "JD" },
+  { name: "Meera Varma", role: "ADMIN", avatar: "MV" },
+  { name: "Rahul Kumar", role: "MEMBER", avatar: "RK" },
+  { name: "David King", role: "MEMBER", avatar: "DK" },
+  { name: "Sanjay Arya", role: "MEMBER", avatar: "SA" },
+  { name: "Priya Lakshmi", role: "MEMBER", avatar: "PL" },
+  { name: "Robert Smith", role: "MEMBER", avatar: "RS" },
+  { name: "Billing Account", role: "BILLING_ADMIN", avatar: "BA" },
 ]
 
 const INVOICES = [
@@ -159,7 +160,7 @@ export default function SubscriptionPage() {
                 </Avatar>
                 <div className="flex flex-col">
                   <span className="text-xs font-medium text-zinc-300">{seat.name}</span>
-                  <span className="text-[10px] text-zinc-600">{seat.role}</span>
+                  <span className="text-[10px] text-zinc-600">{roleLabel(seat.role)}</span>
                 </div>
                 <div className="ml-auto flex items-center gap-4">
                   <span className="text-[10px] font-bold text-green-500/80 uppercase">Active</span>

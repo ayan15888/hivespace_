@@ -14,13 +14,14 @@ import {
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { CTAButton } from "@/components/common/CTAButton"
-import { cn } from "@/lib/utils"
+import { cn, getAvatarColorClass } from "@/lib/utils"
 import { useAuth } from "@/hooks/useAuth"
 import { useAuthStore } from "@/store/authStore"
+import { roleLabel } from "@/types/roles"
 
 const WORKSPACES = [
-  { name: "Engineering", org: "Hivespace", role: "Team Lead", color: "bg-blue-500", canLeave: false },
-  { name: "Design", org: "Hivespace", role: "Member", color: "bg-violet-500", canLeave: true },
+  { name: "Engineering", org: "Hivespace", role: "LEAD", color: "bg-blue-500", canLeave: false },
+  { name: "Design", org: "Hivespace", role: "MEMBER", color: "bg-violet-500", canLeave: true },
 ]
 
 export default function ProfilePage() {
@@ -74,9 +75,9 @@ export default function ProfilePage() {
 
       {/* AVATAR SECTION */}
       <div className="flex items-center">
-        <Avatar className="h-20 w-20 rounded-full bg-zinc-700">
+        <Avatar className="h-20 w-20 rounded-full">
           <AvatarImage src={user?.avatarUrl} />
-          <AvatarFallback className="text-2xl font-medium text-[#E5E1E4] bg-zinc-700">
+          <AvatarFallback className={cn("text-2xl font-semibold", getAvatarColorClass(user?.avatarColor || user?.fullName || user?.username || "JD"))}>
             {displayName}
           </AvatarFallback>
         </Avatar>
@@ -197,7 +198,7 @@ export default function ProfilePage() {
                 <span className="text-[10px] text-zinc-500  tracking-tight">{workspace.org}</span>
               </div>
               <Badge className="ml-4 bg-zinc-800 border-zinc-700 text-zinc-400 text-[10px] px-1.5 h-5 rounded-sm font-normal">
-                {workspace.role}
+                {roleLabel(workspace.role)}
               </Badge>
               <button 
                 disabled={!workspace.canLeave}

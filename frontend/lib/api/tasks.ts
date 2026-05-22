@@ -44,3 +44,38 @@ export async function getTasksByProject(projectId: string): Promise<TaskResponse
 export async function getAllTasks(): Promise<TaskResponse[]> {
   return apiFetch("/api/tasks");
 }
+
+export interface TaskAssigneeResponse {
+  id: string;
+  taskId: string;
+  userId: string;
+  fullName: string;
+  username: string;
+  avatarUrl?: string;
+  role: string;
+  assignedAt: string;
+}
+
+export async function getTaskAssignees(taskId: string): Promise<TaskAssigneeResponse[]> {
+  return apiFetch(`/api/tasks/${taskId}/assignees`);
+}
+
+export async function addTaskAssignee(taskId: string, userId: string, role: string): Promise<TaskAssigneeResponse> {
+  return apiFetch(`/api/tasks/${taskId}/assignees`, {
+    method: "POST",
+    body: JSON.stringify({ userId, role }),
+  });
+}
+
+export async function changeTaskOwner(taskId: string, userId: string): Promise<TaskAssigneeResponse> {
+  return apiFetch(`/api/tasks/${taskId}/assignees/owner`, {
+    method: "PATCH",
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export async function removeTaskAssignee(taskId: string, userId: string): Promise<void> {
+  return apiFetch(`/api/tasks/${taskId}/assignees/${userId}`, {
+    method: "DELETE",
+  });
+}

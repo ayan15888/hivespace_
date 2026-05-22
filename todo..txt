@@ -1,3 +1,11 @@
 invite fix 
 create leads option in project dialog 
 if no workspace no project allowed
+
+
+
+
+if member no invite memebr button should show
+
+WARNING
+In accordance with the discussion document, the inline Invite/Assign Form and the Remove Member (Revoke) action will be completely removed from this page. These actions belong exclusively to the dedicated "Members" settings tab.

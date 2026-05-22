@@ -46,7 +46,7 @@ public class InvitationService {
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
         // Security Check: Is the inviter an OWNER or ADMIN of this organization?
-                TenantMember inviterMember = tenantMemberRepository.findByTenantIdAndUserId(tenant.getId(), currentUser.getId())
+        TenantMember inviterMember = tenantMemberRepository.findByTenantIdAndUserId(tenant.getId(), currentUser.getId())
                 .orElse(null);
                 
         // Backward-compatible ownership check
@@ -58,6 +58,33 @@ public class InvitationService {
 
         if (!isAuthorized) {
             throw new SecurityException("Only organization owners or administrators can create invitations");
+        }
+
+        // Determine inviter's actual role
+        TenantMemberRole inviterRole = TenantMemberRole.MEMBER;
+        if (isOwner) {
+            inviterRole = TenantMemberRole.OWNER;
+        } else if (inviterMember != null) {
+            inviterRole = inviterMember.getRole();
+        }
+
+        // Validate target role permission
+        String requestedRoleStr = request.getRole() != null ? request.getRole().trim().toUpperCase() : "MEMBER";
+        TenantMemberRole targetRole = TenantMemberRole.MEMBER;
+        try {
+            targetRole = TenantMemberRole.valueOf(requestedRoleStr);
+        } catch (IllegalArgumentException e) {
+            // Default to MEMBER
+        }
+
+        if (targetRole == TenantMemberRole.OWNER) {
+            throw new SecurityException("The Owner role cannot be assigned via invitation");
+        }
+
+        if (inviterRole == TenantMemberRole.ADMIN || inviterRole == TenantMemberRole.BILLING_ADMIN) {
+            if (targetRole == TenantMemberRole.ADMIN || targetRole == TenantMemberRole.OWNER) {
+                throw new SecurityException("Only organization owners can invite Administrators or Owners");
+            }
         }
 
         Workspace workspace = null;
@@ -122,6 +149,8 @@ public class InvitationService {
             resendEmailService.sendInvitationEmail(
                 request.getEmail().trim(),
                 tenant.getName(),
+                workspace != null ? workspace.getName() : null,
+                team != null ? team.getName() : null,
                 request.getRole() != null ? request.getRole() : "MEMBER",
                 currentUser.getUsername(),
                 inviteUrl,
@@ -318,6 +347,20 @@ public class InvitationService {
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public java.util.List<InviteResponse> getInvitationsByTenant(UUID tenantId) {
+        User currentUser = getCurrentUser();
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
+
+        boolean isOwner = tenant.getOwnerEmail().equalsIgnoreCase(currentUser.getEmail());
+        TenantMember member = tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId())
+                .orElse(null);
+        boolean isAdmin = member != null
+                && (member.getRole() == TenantMemberRole.OWNER || member.getRole() == TenantMemberRole.ADMIN);
+
+        if (!isOwner && !isAdmin) {
+            throw new SecurityException("Only organization owners or administrators can view invitations");
+        }
+
         return invitationRepository.findByTenantIdOrderByCreatedAtDesc(tenantId).stream()
                 .map(this::mapToResponse)
                 .collect(java.util.stream.Collectors.toList());

@@ -15,6 +15,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final String[] COLOR_PALETTE = {
+        "red", "orange", "amber", "emerald", "teal", "cyan", "sky", "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose"
+    };
+
+    private String getRandomColor() {
+        int index = new java.util.Random().nextInt(COLOR_PALETTE.length);
+        return COLOR_PALETTE[index];
+    }
+
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final JwtService jwtService;
@@ -30,6 +39,7 @@ public class AuthService {
                 .username(username)
                 .password(passwordEncoder.encode(password))
                 .active(true)
+                .avatarColor(getRandomColor())
                 .createdAt(new java.util.Date())
                 .updatedAt(new java.util.Date())
                 .build();
@@ -75,6 +85,7 @@ public class AuthService {
                     .avatarUrl(avatarUrl)
                     .password(passwordEncoder.encode("GITHUB_OAUTH_USER_" + UUID.randomUUID()))
                     .active(true)
+                    .avatarColor(getRandomColor())
                     .createdAt(new java.util.Date())
                     .updatedAt(new java.util.Date())
                     .build();

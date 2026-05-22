@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import { 
   Sparkles, 
   Search, 
@@ -17,45 +17,180 @@ import {
   CheckCircle, 
   ChevronRight,
   MoreVertical,
-  Activity
+  Activity,
+  ImageIcon,
+  MonitorIcon,
+  Paperclip,
+  XIcon,
+  LoaderIcon,
+  Command,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
-// Home Quick Actions
+const Figma = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 38 57" className={props.className} fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "1em", height: "1.5em" }}>
+    <path d="M19 28.5c0-4.7 3.8-8.5 8.5-8.5S36 23.8 36 28.5s-3.8 8.5-8.5 8.5S19 33.2 19 28.5z" fill="#18A0FB"/>
+    <path d="M9.5 0C14.2 0 18 3.8 18 8.5S14.2 17 9.5 17 1 13.2 1 8.5 4.8 0 9.5 0z" fill="#F24E1E"/>
+    <path d="M19 8.5C19 3.8 22.8 0 27.5 0S36 3.8 36 8.5 32.2 17 27.5 17 19 13.2 19 8.5z" fill="#FF7262"/>
+    <path d="M1 28.5c0-4.7 3.8-8.5 8.5-8.5h9.5v17H9.5C4.8 37 1 33.2 1 28.5z" fill="#A259FF"/>
+    <path d="M9.5 38c4.7 0 8.5 3.8 8.5 8.5v8.5c0 4.7-3.8 8.5-8.5 8.5S1 49.8 1 45.1v-8.5C1 41.8 4.8 38 9.5 38z" fill="#1ABC9C"/>
+  </svg>
+);
+
+// --- HOOKS & HELPERS FOR ANIMATED CHAT ---
+
+interface UseAutoResizeTextareaProps {
+    minHeight: number;
+    maxHeight?: number;
+}
+
+function useAutoResizeTextarea({
+    minHeight,
+    maxHeight,
+}: UseAutoResizeTextareaProps) {
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const adjustHeight = useCallback(
+        (reset?: boolean) => {
+            const textarea = textareaRef.current;
+            if (!textarea) return;
+
+            if (reset) {
+                textarea.style.height = `${minHeight}px`;
+                return;
+            }
+
+            textarea.style.height = `${minHeight}px`;
+            const newHeight = Math.max(
+                minHeight,
+                Math.min(
+                    textarea.scrollHeight,
+                    maxHeight ?? Number.POSITIVE_INFINITY
+                )
+            );
+
+            textarea.style.height = `${newHeight}px`;
+        },
+        [minHeight, maxHeight]
+    );
+
+    useEffect(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = `${minHeight}px`;
+        }
+    }, [minHeight]);
+
+    useEffect(() => {
+        const handleResize = () => adjustHeight();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, [adjustHeight]);
+
+    return { textareaRef, adjustHeight };
+}
+
+interface CommandSuggestion {
+    icon: React.ReactNode;
+    label: string;
+    description: string;
+    prefix: string;
+}
+
+interface TextareaProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  containerClassName?: string;
+  showRing?: boolean;
+}
+
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, containerClassName, showRing = true, ...props }, ref) => {
+    const [isFocused, setIsFocused] = React.useState(false);
+    
+    return (
+      <div className={cn("relative", containerClassName)}>
+        <textarea
+          className={cn(
+            "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+            "transition-all duration-200 ease-in-out",
+            "placeholder:text-muted-foreground",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            showRing ? "focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0" : "",
+            className
+          )}
+          ref={ref}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          {...props}
+        />
+        
+        {showRing && isFocused && (
+          <motion.span 
+            className="absolute inset-0 rounded-md pointer-events-none ring-2 ring-offset-0 ring-violet-500/30"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          />
+        )}
+      </div>
+    )
+  }
+)
+Textarea.displayName = "Textarea";
+
+// --- MOCK DATA FOR CONVERSATION ---
+
+const GENERATED_TASKS = [
+  { priority: "High", color: "bg-red-500", title: "Setup Tiptap editor with ProseMirror config", assignee: "RS", points: 3 },
+  { priority: "High", color: "bg-red-500", title: "Implement auto-save with 30s debounce", assignee: "RS", points: 2 },
+  { priority: "Normal", color: "bg-blue-500", title: "Add slash command menu for block types", assignee: "RK", points: 5 },
+  { priority: "Normal", color: "bg-blue-500", title: "Build inline task embed [[HS-XXX]] syntax", assignee: "MV", points: 3 },
+  { priority: "Normal", color: "bg-blue-500", title: "Implement page linking [[page name]]", assignee: "DK", points: 3 },
+  { priority: "Low", color: "bg-zinc-500", title: "Add version history with restore capability", assignee: "SA", points: 5 },
+];
+
 const QUICK_ACTIONS = [
   {
     icon: Sparkles,
     title: "Generate Tasks",
-    desc: "Paste a feature spec or description and AI will break it into structured subtasks with priorities and suggested assignees.",
+    desc: "Paste a feature spec or description and AI will break it into structured subtasks.",
+    prompt: "I need to implement a new feature. Can you break it into structured tasks?"
   },
   {
     icon: Search,
     title: "Semantic Search",
-    desc: "Search across all tasks, docs, and messages in natural language. Find anything instantly.",
+    desc: "Search across tasks, docs, and messages in natural language.",
+    prompt: "Search all tasks and docs for references to the backend WebSocket connection."
   },
   {
     icon: GitPullRequest,
     title: "Review PR",
-    desc: "Get an AI summary of any pull request — key changes, potential issues, and review checklist.",
+    desc: "Get an AI summary of any pull request, key changes, and potential issues.",
+    prompt: "Review the latest pull request and summarize the key changes and checklist."
   },
   {
     icon: Zap,
     title: "Sprint Retrospective",
-    desc: "Generate a complete sprint retrospective doc with completed work, blockers, and velocity trends.",
+    desc: "Generate a complete sprint retrospective doc with velocity trends.",
+    prompt: "Generate a sprint retrospective document for Sprint 2 with velocity trends."
   },
   {
     icon: Filter,
     title: "Smart Triage",
-    desc: "Auto-classify and prioritize a list of issues or tickets. Recommends assignees based on history.",
+    desc: "Auto-classify and prioritize a list of issues or tickets.",
+    prompt: "Please classify and prioritize the current list of untriaged issues."
   },
   {
     icon: FileText,
     title: "Draft Document",
-    desc: "Generate a first draft for RFCs, runbooks, meeting notes, or any structured document.",
+    desc: "Generate a first draft for RFCs, runbooks, or meeting notes.",
+    prompt: "Draft an RFC document for our new database migration strategy."
   },
 ];
 
@@ -66,23 +201,15 @@ const RECENT_CONVS = [
   { title: "Sprint 2 retrospective", time: "Last week" },
 ];
 
-// Active Conversation Data
-const GENERATED_TASKS = [
-  { priority: "High", color: "bg-red-500", title: "Setup Tiptap editor with ProseMirror config", assignee: "RS", points: 3 },
-  { priority: "High", color: "bg-red-500", title: "Implement auto-save with 30s debounce", assignee: "RS", points: 2 },
-  { priority: "Normal", color: "bg-blue-500", title: "Add slash command menu for block types", assignee: "RK", points: 5 },
-  { priority: "Normal", color: "bg-blue-500", title: "Build inline task embed [[HS-XXX]] syntax", assignee: "MV", points: 3 },
-  { priority: "Normal", color: "bg-blue-500", title: "Implement page linking [[page name]]", assignee: "DK", points: 3 },
-  { priority: "Low", color: "bg-zinc-500", title: "Add version history with restore capability", assignee: "SA", points: 5 },
-];
+// --- MAIN AI ASSISTANT PAGE ---
 
 export default function AIAssistantPage() {
   const [state, setState] = useState<"home" | "conversation">("home");
 
   return (
-    <div className="flex h-full bg-hs-main overflow-hidden">
+    <div className="flex h-full w-full bg-hs-main overflow-hidden">
       {state === "home" ? (
-        <AIHome onStart={() => setState("conversation")} />
+        <AnimatedAIChat onStart={() => setState("conversation")} />
       ) : (
         <AIConversation onBack={() => setState("home")} />
       )}
@@ -90,86 +217,492 @@ export default function AIAssistantPage() {
   );
 }
 
-function AIHome({ onStart }: { onStart: () => void }) {
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-y-auto scrollbar-none">
-      <div className="max-w-3xl w-full flex flex-col items-center">
-        {/* Header */}
-        <div className="flex flex-col items-center text-center mb-8">
-          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 border border-primary/20">
-            <Sparkles className="h-7 w-7 text-primary" strokeWidth={1.5} />
-          </div>
-          <h1 className="text-2xl font-semibold text-foreground">Hivespace AI</h1>
-          <p className="text-sm text-muted-foreground mt-1">Your intelligent workspace assistant</p>
-        </div>
+// --- ANIMATED CHAT ENTRY COMPONENT ---
 
-        {/* Quick Action Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-          {QUICK_ACTIONS.map((card, i) => (
-            <div 
-              key={i} 
-              onClick={onStart}
-              className="group bg-hs-card border border-border/50 rounded-lg p-5 hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-all duration-200"
-            >
-              <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center text-primary">
-                <card.icon className="h-5 w-5" strokeWidth={1.5} />
-              </div>
-              <h3 className="text-sm font-medium text-foreground mt-4">{card.title}</h3>
-              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{card.desc}</p>
-              <span className="text-[10px] uppercase font-bold tracking-wider text-primary mt-4 block opacity-0 group-hover:opacity-100 transition-opacity">
-                Try it →
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Prompt Bar */}
-        <div className="mt-10 w-full max-w-2xl">
-          <div className="bg-muted border border-border/50 rounded-xl px-4 h-12 flex items-center gap-3 focus-within:border-primary/50 transition-colors shadow-xl shadow-black/5">
-            <Sparkles className="h-4 w-4 text-primary/60" />
-            <input 
-              type="text" 
-              placeholder="Ask anything, generate tasks, search docs..." 
-              className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/50 flex-1"
-              onKeyDown={(e) => e.key === 'Enter' && onStart()}
-            />
-            <div className="flex items-center gap-1.5 bg-zinc-700 rounded px-1.5 py-0.5 border border-zinc-600/50">
-               <span className="text-[10px] text-zinc-500 ">⌘</span>
-               <span className="text-[10px] text-zinc-500 ">K</span>
-            </div>
-          </div>
-
-          {/* Recent */}
-          <div className="mt-8">
-            <h4 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3">Recent</h4>
-            <div className="space-y-1">
-              {RECENT_CONVS.map((conv, i) => (
-                <div 
-                  key={i} 
-                  onClick={onStart}
-                  className="group h-8 flex items-center justify-between px-2 hover:bg-zinc-800/40 rounded-md cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <MessageSquare className="h-3 w-3 text-zinc-500" />
-                    <span className="text-xs text-zinc-400 truncate group-hover:text-zinc-300">{conv.title}</span>
-                  </div>
-                  <span className="text-[10px] text-zinc-600 shrink-0">{conv.time}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Capabilities Footer */}
-          <div className="mt-12 flex justify-center gap-3">
-             <div className="bg-zinc-800/50 border border-zinc-700/30 rounded-full px-3 py-1 text-[10px] text-zinc-500">Reads your tasks</div>
-             <div className="bg-zinc-800/50 border border-zinc-700/30 rounded-full px-3 py-1 text-[10px] text-zinc-500">Searches your docs</div>
-             <div className="bg-zinc-800/50 border border-zinc-700/30 rounded-full px-3 py-1 text-[10px] text-zinc-500">Understands your projects</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+interface AnimatedAIChatProps {
+  onStart: () => void;
 }
+
+export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
+    const [value, setValue] = useState("");
+    const [attachments, setAttachments] = useState<string[]>([]);
+    const [isTyping, setIsTyping] = useState(false);
+    const [isPending, startTransition] = useTransition();
+    const [activeSuggestion, setActiveSuggestion] = useState<number>(-1);
+    const [showCommandPalette, setShowCommandPalette] = useState(false);
+    const [recentCommand, setRecentCommand] = useState<string | null>(null);
+    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+    const { textareaRef, adjustHeight } = useAutoResizeTextarea({
+        minHeight: 60,
+        maxHeight: 200,
+    });
+    const [inputFocused, setInputFocused] = useState(false);
+    const commandPaletteRef = useRef<HTMLDivElement>(null);
+
+    const commandSuggestions: CommandSuggestion[] = [
+        { 
+            icon: <ImageIcon className="w-4 h-4" />, 
+            label: "Clone UI", 
+            description: "Generate a UI from a screenshot", 
+            prefix: "/clone" 
+        },
+        { 
+            icon: <Figma className="w-4 h-4" />, 
+            label: "Import Figma", 
+            description: "Import a design from Figma", 
+            prefix: "/figma" 
+        },
+        { 
+            icon: <MonitorIcon className="w-4 h-4" />, 
+            label: "Create Page", 
+            description: "Generate a new web page", 
+            prefix: "/page" 
+        },
+        { 
+            icon: <Sparkles className="w-4 h-4" />, 
+            label: "Improve", 
+            description: "Improve existing UI design", 
+            prefix: "/improve" 
+        },
+    ];
+
+    useEffect(() => {
+        if (value.startsWith('/') && !value.includes(' ')) {
+            setShowCommandPalette(true);
+            const matchingSuggestionIndex = commandSuggestions.findIndex(
+                (cmd) => cmd.prefix.startsWith(value)
+            );
+            if (matchingSuggestionIndex >= 0) {
+                setActiveSuggestion(matchingSuggestionIndex);
+            } else {
+                setActiveSuggestion(-1);
+            }
+        } else {
+            setShowCommandPalette(false);
+        }
+    }, [value]);
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            setMousePosition({ x: e.clientX, y: e.clientY });
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+    }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Node;
+            const commandButton = document.querySelector('[data-command-button]');
+            if (commandPaletteRef.current && 
+                !commandPaletteRef.current.contains(target) && 
+                !commandButton?.contains(target)) {
+                setShowCommandPalette(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (showCommandPalette) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setActiveSuggestion(prev => 
+                    prev < commandSuggestions.length - 1 ? prev + 1 : 0
+                );
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setActiveSuggestion(prev => 
+                    prev > 0 ? prev - 1 : commandSuggestions.length - 1
+                );
+            } else if (e.key === 'Tab' || e.key === 'Enter') {
+                e.preventDefault();
+                if (activeSuggestion >= 0) {
+                    const selectedCommand = commandSuggestions[activeSuggestion];
+                    setValue(selectedCommand.prefix + ' ');
+                    setShowCommandPalette(false);
+                    setRecentCommand(selectedCommand.label);
+                    setTimeout(() => setRecentCommand(null), 3500);
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                setShowCommandPalette(false);
+            }
+        } else if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            if (value.trim()) {
+                handleSendMessage();
+            }
+        }
+    };
+
+    const handleSendMessage = () => {
+        if (value.trim()) {
+            startTransition(() => {
+                setIsTyping(true);
+                setTimeout(() => {
+                    setIsTyping(false);
+                    setValue("");
+                    adjustHeight(true);
+                    onStart();
+                }, 1500);
+            });
+        }
+    };
+
+    const handleAttachFile = () => {
+        const mockFileName = `file-${Math.floor(Math.random() * 1000)}.pdf`;
+        setAttachments(prev => [...prev, mockFileName]);
+    };
+
+    const removeAttachment = (index: number) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+    
+    const selectCommandSuggestion = (index: number) => {
+        const selectedCommand = commandSuggestions[index];
+        setValue(selectedCommand.prefix + ' ');
+        setShowCommandPalette(false);
+        setRecentCommand(selectedCommand.label);
+        setTimeout(() => {
+            setRecentCommand(null);
+            onStart();
+        }, 1000);
+    };
+
+    return (
+        <div className="flex-1 flex flex-col w-full items-center p-6 relative overflow-y-auto scrollbar-none bg-transparent text-white">
+            <div className="w-full max-w-3xl mx-auto relative z-10 py-8">
+                <motion.div 
+                    className="space-y-12"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                >
+                    {/* Header */}
+                    <div className="text-center space-y-3">
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2, duration: 0.5 }}
+                            className="inline-block"
+                        >
+                            <h1 className="text-3xl font-medium tracking-tight text-white/90 pb-1">
+                                How can I help today?
+                            </h1>
+                            <motion.div 
+                                className="h-px bg-white/10"
+                                initial={{ width: 0, opacity: 0 }}
+                                animate={{ width: "100%", opacity: 1 }}
+                                transition={{ delay: 0.5, duration: 0.8 }}
+                            />
+                        </motion.div>
+                        <motion.p 
+                            className="text-sm text-white/40 font-sans"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                        >
+                            Type a command, generate tasks, or triage issues
+                        </motion.p>
+                    </div>
+
+                    {/* Input Bar */}
+                    <motion.div 
+                        className="relative backdrop-blur-2xl bg-white/[0.02] rounded-2xl border border-white/[0.05] shadow-2xl overflow-hidden"
+                        initial={{ scale: 0.98 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.1 }}
+                    >
+                        <AnimatePresence>
+                            {showCommandPalette && (
+                                <motion.div 
+                                    ref={commandPaletteRef}
+                                    className="absolute left-4 right-4 bottom-full mb-2 backdrop-blur-xl bg-black/90 rounded-lg z-50 shadow-lg border border-white/10 overflow-hidden"
+                                    initial={{ opacity: 0, y: 5 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 5 }}
+                                    transition={{ duration: 0.15 }}
+                                >
+                                    <div className="py-1 bg-black/95">
+                                        {commandSuggestions.map((suggestion, index) => (
+                                            <motion.div
+                                                key={suggestion.prefix}
+                                                className={cn(
+                                                    "flex items-center gap-2 px-3 py-2 text-xs transition-colors cursor-pointer",
+                                                    activeSuggestion === index 
+                                                        ? "bg-[#7C5CFC]/20 text-white" 
+                                                        : "text-white/70 hover:bg-white/5"
+                                                )}
+                                                onClick={() => selectCommandSuggestion(index)}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                transition={{ delay: index * 0.03 }}
+                                            >
+                                                <div className="w-5 h-5 flex items-center justify-center text-white/60">
+                                                    {suggestion.icon}
+                                                </div>
+                                                <div className="font-medium">{suggestion.label}</div>
+                                                <div className="text-white/40 text-xs ml-1">
+                                                    {suggestion.prefix}
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        <div className="p-4">
+                            <Textarea
+                                ref={textareaRef}
+                                value={value}
+                                onChange={(e) => {
+                                    setValue(e.target.value);
+                                    adjustHeight();
+                                }}
+                                onKeyDown={handleKeyDown}
+                                onFocus={() => setInputFocused(true)}
+                                onBlur={() => setInputFocused(false)}
+                                placeholder="Ask zap a question..."
+                                containerClassName="w-full"
+                                className={cn(
+                                    "w-full px-4 py-3",
+                                    "resize-none",
+                                    "bg-transparent",
+                                    "border-none",
+                                    "text-white/90 text-sm",
+                                    "focus:outline-none focus:ring-0",
+                                    "placeholder:text-white/20",
+                                    "min-h-[60px]"
+                                )}
+                                style={{
+                                    overflow: "hidden",
+                                }}
+                                showRing={false}
+                            />
+                        </div>
+
+                        <AnimatePresence>
+                            {attachments.length > 0 && (
+                                <motion.div 
+                                    className="px-4 pb-3 flex gap-2 flex-wrap"
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                >
+                                    {attachments.map((file, index) => (
+                                        <motion.div
+                                            key={index}
+                                            className="flex items-center gap-2 text-xs bg-white/[0.03] py-1.5 px-3 rounded-lg text-white/70"
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.9 }}
+                                        >
+                                            <span>{file}</span>
+                                            <button 
+                                                onClick={() => removeAttachment(index)}
+                                                className="text-white/40 hover:text-white transition-colors"
+                                            >
+                                                <XIcon className="w-3 h-3" />
+                                            </button>
+                                        </motion.div>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        <div className="p-4 border-t border-white/[0.05] flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <motion.button
+                                    type="button"
+                                    onClick={handleAttachFile}
+                                    whileTap={{ scale: 0.94 }}
+                                    className="p-2 text-white/40 hover:text-white/90 rounded-lg transition-colors relative group"
+                                >
+                                    <Paperclip className="w-4 h-4" />
+                                    <motion.span
+                                        className="absolute inset-0 bg-white/[0.05] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                        layoutId="button-highlight"
+                                    />
+                                </motion.button>
+                                <motion.button
+                                    type="button"
+                                    data-command-button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowCommandPalette(prev => !prev);
+                                    }}
+                                    whileTap={{ scale: 0.94 }}
+                                    className={cn(
+                                        "p-2 text-white/40 hover:text-white/90 rounded-lg transition-colors relative group",
+                                        showCommandPalette && "bg-white/10 text-white/90"
+                                    )}
+                                >
+                                    <Command className="w-4 h-4" />
+                                    <motion.span
+                                        className="absolute inset-0 bg-white/[0.05] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                        layoutId="button-highlight"
+                                    />
+                                </motion.button>
+                            </div>
+                            
+                            <motion.button
+                                type="button"
+                                onClick={handleSendMessage}
+                                whileHover={{ scale: 1.01 }}
+                                whileTap={{ scale: 0.98 }}
+                                disabled={isTyping || !value.trim()}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                                    "flex items-center gap-2",
+                                    value.trim()
+                                        ? "bg-white text-[#0A0A0B] shadow-lg shadow-white/10 font-bold"
+                                        : "bg-white/[0.05] text-white/40"
+                                )}
+                            >
+                                {isTyping ? (
+                                    <LoaderIcon className="w-4 h-4 animate-[spin_2s_linear_infinite]" />
+                                ) : (
+                                    <ArrowUp className="w-4 h-4" />
+                                )}
+                                <span>Send</span>
+                            </motion.button>
+                        </div>
+                    </motion.div>
+
+                    {/* Quick Command Suggestions */}
+                    <div className="flex flex-wrap items-center justify-center gap-2.5">
+                        {commandSuggestions.map((suggestion, index) => (
+                            <motion.button
+                                key={suggestion.prefix}
+                                onClick={() => selectCommandSuggestion(index)}
+                                className="flex items-center gap-2 px-4 py-2 bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.05] rounded-full text-xs text-white/60 hover:text-white/90 transition-all relative group"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                            >
+                                {suggestion.icon}
+                                <span>{suggestion.label}</span>
+                            </motion.button>
+                        ))}
+                    </div>
+
+                    {/* Quick Action Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full mt-10">
+                        {QUICK_ACTIONS.map((action, i) => (
+                            <motion.div
+                                key={i}
+                                onClick={() => {
+                                    setValue(action.prompt);
+                                    if (textareaRef.current) {
+                                        textareaRef.current.focus();
+                                        adjustHeight();
+                                    }
+                                }}
+                                whileHover={{ scale: 1.02, y: -2 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="cursor-pointer backdrop-blur-md bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.03] hover:border-[#7C5CFC]/30 rounded-xl p-4 flex flex-col justify-between h-36 transition-all duration-200"
+                            >
+                                <div>
+                                    <div className="h-8 w-8 rounded-lg bg-[#7C5CFC]/10 flex items-center justify-center text-[#7C5CFC]">
+                                        <action.icon className="h-4 w-4" strokeWidth={1.8} />
+                                    </div>
+                                    <h3 className="text-xs font-semibold text-white/90 mt-3">{action.title}</h3>
+                                    <p className="text-[10px] text-white/40 mt-1 leading-normal">{action.desc}</p>
+                                </div>
+                                <span className="text-[9px] uppercase font-bold tracking-wider text-[#7C5CFC] mt-2 block opacity-0 hover:opacity-100 transition-opacity">
+                                    Try it →
+                                </span>
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    {/* Recent Conversations */}
+                    <div className="mt-10 w-full pt-6 border-t border-white/[0.04]">
+                        <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+                            <MessageSquare className="w-3.5 h-3.5 text-[#7C5CFC]" /> Recent Conversations
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {RECENT_CONVS.map((conv, i) => (
+                                <div 
+                                    key={i} 
+                                    onClick={onStart}
+                                    className="group flex items-center justify-between p-3 bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.03] hover:border-[#7C5CFC]/20 rounded-xl cursor-pointer transition-all duration-200"
+                                >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <MessageSquare className="h-3.5 w-3.5 text-white/30 group-hover:text-[#7C5CFC] transition-colors" />
+                                        <span className="text-xs text-white/60 truncate group-hover:text-white transition-colors">{conv.title}</span>
+                                    </div>
+                                    <span className="text-[9px] text-white/30 shrink-0">{conv.time}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Capabilities Footer */}
+                    <div className="mt-12 flex flex-wrap justify-center gap-3 pt-6 opacity-60">
+                        <div className="bg-white/[0.01] border border-white/[0.04] rounded-full px-3.5 py-1 text-[10px] text-white/40">Reads your tasks</div>
+                        <div className="bg-white/[0.01] border border-white/[0.04] rounded-full px-3.5 py-1 text-[10px] text-white/40">Searches your docs</div>
+                        <div className="bg-white/[0.01] border border-white/[0.04] rounded-full px-3.5 py-1 text-[10px] text-white/40">Understands your projects</div>
+                    </div>
+                </motion.div>
+            </div>
+
+            <AnimatePresence>
+                {isTyping && (
+                    <motion.div 
+                        className="fixed bottom-8 left-1/2 transform -translate-x-1/2 backdrop-blur-2xl bg-[#7C5CFC]/10 rounded-full px-4 py-2 shadow-lg border border-[#7C5CFC]/20 z-50"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-6 h-6 rounded-full bg-[#7C5CFC] flex items-center justify-center text-center shadow-lg shadow-[#7C5CFC]/30">
+                                <span className="text-[10px] font-bold text-white mb-0.5">Z</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-white/95">
+                                <span>Thinking</span>
+                                <TypingDots />
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+        </div>
+    );
+}
+
+function TypingDots() {
+    return (
+        <div className="flex items-center ml-1">
+            {[1, 2, 3].map((dot) => (
+                <motion.div
+                    key={dot}
+                    className="w-1 h-1 bg-white rounded-full mx-0.5"
+                    initial={{ opacity: 0.3 }}
+                    animate={{ 
+                        opacity: [0.3, 0.9, 0.3],
+                        scale: [0.85, 1.1, 0.85]
+                    }}
+                    transition={{
+                        duration: 1.2,
+                        repeat: Infinity,
+                        delay: dot * 0.15,
+                        ease: "easeInOut",
+                    }}
+                    style={{
+                        boxShadow: "0 0 4px rgba(255, 255, 255, 0.3)"
+                    }}
+                />
+            ))}
+        </div>
+    );
+}
+
+// --- CONVERSATION VIEW COMPONENT ---
 
 function AIConversation({ onBack }: { onBack: () => void }) {
   return (
@@ -185,7 +718,7 @@ function AIConversation({ onBack }: { onBack: () => void }) {
             <h2 className="text-sm font-medium text-foreground">Generate tasks for Tiptap editor</h2>
           </div>
           <div className="flex items-center gap-2">
-            <button className="text-xs text-zinc-500 hover:text-zinc-300 font-medium px-2 py-1">New conversation</button>
+            <button onClick={onBack} className="text-xs text-[#7C5CFC] hover:text-[#7C5CFC]/80 font-medium px-2 py-1">New conversation</button>
             <button className="p-1.5 text-zinc-500 hover:text-zinc-300">
                <Share2 className="h-4 w-4" />
             </button>
@@ -209,10 +742,10 @@ function AIConversation({ onBack }: { onBack: () => void }) {
           {/* AI Message */}
           <div className="flex flex-col gap-2 max-w-3xl">
             <div className="flex items-center gap-1.5 mb-1 px-1">
-               <Sparkles className="h-3 w-3 text-primary" />
+               <Sparkles className="h-3 w-3 text-[#7C5CFC]" />
                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Hivespace AI</span>
             </div>
-            <div className="bg-primary/5 border-l-2 border-primary rounded-r-xl px-5 py-4 space-y-4">
+            <div className="bg-[#7C5CFC]/5 border-l-2 border-[#7C5CFC] rounded-r-xl px-5 py-4 space-y-4">
               <p className="text-sm text-zinc-300 leading-relaxed">
                 Here are the structured tasks I&apos;ve generated for the Tiptap editor implementation. I&apos;ve broken this into 6 tasks across 2 phases:
               </p>
@@ -245,14 +778,14 @@ function AIConversation({ onBack }: { onBack: () => void }) {
 
               <div className="pt-2 text-sm text-foreground/70">
                  <p className="mb-4">
-                   Total estimate: <span className="text-foreground font-medium">21 story points</span>. Suggested sprint: <span className="text-primary font-medium">Sprint 3</span> (has capacity). Suggested assignees based on past ownership.
+                   Total estimate: <span className="text-foreground font-medium">21 story points</span>. Suggested sprint: <span className="text-[#7C5CFC] font-medium">Sprint 3</span> (has capacity). Suggested assignees based on past ownership.
                  </p>
                  <p className="text-zinc-500 italic">Ready to add these to Sprint 3?</p>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-3 pt-2">
-                 <button className="h-8 px-4 flex items-center gap-2 rounded-md bg-[linear-gradient(145deg,#CABEFF,#947DFF)] text-black text-[10px] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity">
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                 <button className="h-8 px-4 flex items-center gap-2 rounded-md bg-[#7C5CFC] text-white text-[10px] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity">
                    <KanbanSquare className="h-3.5 w-3.5" />
                    Add all to Sprint 3
                  </button>
@@ -311,16 +844,16 @@ function AIConversation({ onBack }: { onBack: () => void }) {
         </div>
 
         {/* Compose Bar */}
-        <div className="p-6 bg-gradient-to-t from-hs-main via-hs-main to-transparent">
+        <div className="p-6 bg-hs-main">
           <div className="max-w-3xl mx-auto w-full">
-            <div className="bg-muted border border-primary/20 rounded-xl px-4 py-2 flex items-center gap-3 focus-within:border-primary/40 transition-colors shadow-2xl shadow-black/5">
-              <Sparkles className="h-4 w-4 text-primary/40" />
+            <div className="bg-muted border border-border/50 rounded-xl px-4 py-2 flex items-center gap-3 focus-within:border-primary/40 transition-colors shadow-2xl shadow-black/5">
+              <Sparkles className="h-4 w-4 text-[#7C5CFC]/40" />
               <input 
                 type="text" 
                 placeholder="Follow up, ask for changes..." 
                 className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/40 flex-1 py-1"
               />
-              <button className="h-7 w-7 rounded-md bg-primary flex items-center justify-center text-white hover:opacity-90 transition-colors">
+              <button className="h-7 w-7 rounded-md bg-[#7C5CFC] flex items-center justify-center text-white hover:opacity-90 transition-colors">
                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
               </button>
             </div>
