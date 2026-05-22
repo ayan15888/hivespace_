@@ -6,6 +6,8 @@ export interface ProjectRequest {
   status: string;
   workspaceId: string;
   color?: string; // Optional for frontend internal use
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface ProjectResponse {
@@ -19,6 +21,8 @@ export interface ProjectResponse {
   teamsCount: number;
   membersCount: number;
   color?: string; // Optional for UI use
+  startDate?: string;
+  endDate?: string;
 }
 
 export async function createProject(workspaceId: string, data: ProjectRequest): Promise<ProjectResponse> {

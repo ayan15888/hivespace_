@@ -25,4 +25,6 @@ public class ProjectResponse {
     private Date createdAt;
     private Date updatedAt;
     private String color;
+    private Date startDate;
+    private Date endDate;
 }

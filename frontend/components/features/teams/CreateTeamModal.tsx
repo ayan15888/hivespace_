@@ -17,6 +17,8 @@ import { Loader2 } from "lucide-react";
 import { createTeam } from "@/lib/api/teams";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { motion, AnimatePresence } from "framer-motion";
+import { useProjectStore } from "@/store/projectStore";
+import { useTeamStore } from "@/store/teamStore";
 
 interface CreateTeamModalProps {
   isOpen: boolean;
@@ -27,8 +29,11 @@ interface CreateTeamModalProps {
 }
 
 export function CreateTeamModal({ isOpen, workspaceId, themeColor = "#7C5CFC", onClose, onSuccess }: CreateTeamModalProps) {
+  const { projects } = useProjectStore();
+  const addTeam = useTeamStore((state) => state.addTeam);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [projectId, setProjectId] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,15 +42,20 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "#7C5CFC", o
 
     setLoading(true);
     try {
-      await createTeam(workspaceId, {
+      const newTeam = await createTeam(workspaceId, {
         name: name.trim(),
         description: description.trim(),
-        workspaceId
+        workspaceId,
+        projectId: projectId ? projectId : undefined
       });
       
+      // Sync to Zustand store immediately
+      addTeam(newTeam);
+
       toast.success("Team created successfully");
       setName("");
       setDescription("");
+      setProjectId("");
       if (onSuccess) onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -78,7 +88,7 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "#7C5CFC", o
                     Create a specialized group within this workspace. Teams allow you to bundle members and tasks.
                   </DialogDescription>
                 </DialogHeader>
-
+ 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="t-name" className="text-xs font-bold text-zinc-600 uppercase tracking-widest">Team Name</Label>
@@ -90,6 +100,23 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "#7C5CFC", o
                       required
                       className="bg-[#0E0E10] border-zinc-800 focus:border-violet-500/50 focus:ring-0 rounded-xl text-[#E5E1E4] placeholder-zinc-700"
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="t-project" className="text-xs font-bold text-zinc-600 uppercase tracking-widest">Associate with Project</Label>
+                    <select
+                      id="t-project"
+                      value={projectId}
+                      onChange={(e) => setProjectId(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-[#0E0E10] border border-zinc-800 focus:border-violet-500/50 focus:ring-0 rounded-xl text-[#E5E1E4] outline-none text-xs"
+                    >
+                      <option value="">None (Workspace-wide Team)</option>
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id} className="bg-[#1B1B1D]">
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
  
                   <div className="space-y-2">

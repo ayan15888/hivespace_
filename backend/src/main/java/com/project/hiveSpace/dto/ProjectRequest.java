@@ -29,4 +29,7 @@ public class ProjectRequest {
     private UUID workspaceId;
 
     private String color;
+
+    private java.util.Date startDate;
+    private java.util.Date endDate;
 }

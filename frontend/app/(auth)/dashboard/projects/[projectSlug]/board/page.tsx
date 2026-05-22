@@ -43,7 +43,17 @@ import { useTasks } from "@/hooks/useTasks";
 import { useProjects } from "@/hooks/useProjects";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
 import { motion, AnimatePresence } from "framer-motion";
-import { TaskResponse } from "@/lib/api/tasks";
+import { 
+  TaskResponse, 
+  getTaskAssignees, 
+  addTaskAssignee, 
+  changeTaskOwner, 
+  removeTaskAssignee, 
+  TaskAssigneeResponse 
+} from "@/lib/api/tasks";
+import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
+import { useTaskStore } from "@/store/taskStore";
 import { CreateTaskModal } from "@/components/features/tasks/CreateTaskModal";
 
 // --- TYPES & CONSTANTS ---
@@ -83,11 +93,34 @@ export default function SprintThreeBoardPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [defaultStatus, setDefaultStatus] = useState("Todo");
 
+  const [assignees, setAssignees] = useState<TaskAssigneeResponse[]>([]);
+  const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+
   const { tasks, refresh } = useTasks();
+  const updateTask = useTaskStore((state) => state.updateTask);
+
+  const toInitials = (name: string) => {
+    if (!name) return "U";
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  const fetchAssigneesAndMembers = async (taskId: string) => {
+    try {
+      const [assigneeData, memberData] = await Promise.all([
+        getTaskAssignees(taskId),
+        getProjectMembers(projectId)
+      ]);
+      setAssignees(assigneeData);
+      setProjectMembers(memberData);
+    } catch (err) {
+      console.error("Failed to fetch assignees or project members", err);
+    }
+  };
 
   const handleTaskClick = (task: TaskResponse) => {
     setSelectedTask(task);
     setEditedTitle(task.title);
+    fetchAssigneesAndMembers(task.id);
   };
 
   const handleNewTask = (status?: string) => {
@@ -306,19 +339,110 @@ export default function SprintThreeBoardPage() {
                 <MetadataRow label="Owner">
                   <div className="flex items-center gap-2">
                     <Avatar className="h-5 w-5 border border-border/50">
-                      <AvatarFallback className={cn("text-[9px] font-semibold uppercase", getAvatarColorClass(selectedTask?.assigneeInitials || ""))}>{selectedTask?.assigneeInitials}</AvatarFallback>
+                      <AvatarFallback className={cn("text-[9px] font-semibold uppercase", getAvatarColorClass(selectedTask?.assigneeInitials || ""))}>
+                        {selectedTask?.assigneeInitials || "U"}
+                      </AvatarFallback>
                     </Avatar>
-                    <span className="text-foreground">{selectedTask?.assigneeName || "Unassigned"}</span>
+                    <select
+                      value={selectedTask?.assigneeId || ""}
+                      onChange={async (e) => {
+                        const newOwnerId = e.target.value;
+                        if (!newOwnerId || !selectedTask) return;
+                        try {
+                          await changeTaskOwner(selectedTask.id, newOwnerId);
+                          toast.success("Owner changed successfully");
+                          const ownerMember = projectMembers.find(m => m.userId === newOwnerId);
+                          if (ownerMember) {
+                            const updatedTask = {
+                              ...selectedTask,
+                              assigneeId: newOwnerId,
+                              assigneeName: ownerMember.fullName,
+                              assigneeInitials: toInitials(ownerMember.fullName)
+                            };
+                            // Update local detail panel state
+                            setSelectedTask(updatedTask);
+                            // Sync to global Zustand store so board cards update immediately
+                            updateTask(updatedTask);
+                          }
+                          fetchAssigneesAndMembers(selectedTask.id);
+                        } catch (err) {
+                          toast.error("Failed to change owner");
+                        }
+                      }}
+                      className="bg-transparent border-none text-foreground outline-none text-xs cursor-pointer font-medium hover:underline bg-[#1B1B1D]"
+                    >
+                      <option value="" disabled className="bg-[#1B1B1D]">Unassigned</option>
+                      {projectMembers.map((m) => (
+                        <option key={m.id} value={m.userId} className="bg-[#1B1B1D]">
+                          {m.fullName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </MetadataRow>
                 
                 <MetadataRow label="Collaborators">
-                  <div className="flex items-center">
-                    {["RK", "PL"].map((initials, i) => (
-                      <Avatar key={initials} className="h-5 w-5 ring-2 ring-hs-nav -ml-1.5 first:ml-0 border border-border/50">
-                        <AvatarFallback className={cn("text-[8px] font-semibold", getAvatarColorClass(initials))}>{initials}</AvatarFallback>
-                      </Avatar>
-                    ))}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {assignees.filter(a => a.role !== 'OWNER').map((assignee) => {
+                      const initials = toInitials(assignee.fullName);
+                      return (
+                        <div key={assignee.id} className="group relative flex items-center bg-hs-card border border-border/50 rounded-full pl-1.5 pr-2 py-0.5 text-xs gap-1.5 hover:bg-muted/30">
+                          <Avatar className="h-4.5 w-4.5 border border-border/50">
+                            <AvatarFallback className={cn("text-[8px] font-semibold", getAvatarColorClass(initials))}>
+                              {initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-[11px] text-zinc-300 font-medium">{assignee.fullName}</span>
+                          <span className="text-[9px] text-zinc-500 uppercase tracking-wider">{assignee.role.toLowerCase()}</span>
+                          <button
+                            onClick={async () => {
+                              if (!selectedTask) return;
+                              try {
+                                await removeTaskAssignee(selectedTask.id, assignee.userId);
+                                toast.success("Assignee removed");
+                                fetchAssigneesAndMembers(selectedTask.id);
+                              } catch (err) {
+                                toast.error("Failed to remove assignee");
+                              }
+                            }}
+                            className="text-zinc-500 hover:text-red-400 font-bold ml-1 text-[10px]"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                    
+                    {selectedTask && (
+                      <div className="relative flex items-center">
+                        <select
+                          value=""
+                          onChange={async (e) => {
+                            const val = e.target.value;
+                            if (!val) return;
+                            const [userId, role] = val.split(":");
+                            try {
+                              await addTaskAssignee(selectedTask.id, userId, role);
+                              toast.success("Assignee added");
+                              fetchAssigneesAndMembers(selectedTask.id);
+                            } catch (err) {
+                              toast.error("Failed to add assignee");
+                            }
+                          }}
+                          className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 rounded-full px-2 py-0.5 text-[10px] outline-none cursor-pointer hover:bg-zinc-700 transition-colors"
+                        >
+                          <option value="">+ Add</option>
+                          {projectMembers
+                            .filter(m => !assignees.some(a => a.userId === m.userId))
+                            .map((m) => (
+                              <optgroup key={m.id} label={m.fullName} className="bg-[#1B1B1D]">
+                                <option value={`${m.userId}:COLLABORATOR`} className="bg-[#1B1B1D]">As Collaborator</option>
+                                <option value={`${m.userId}:REVIEWER`} className="bg-[#1B1B1D]">As Reviewer</option>
+                              </optgroup>
+                            ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </MetadataRow>
 
