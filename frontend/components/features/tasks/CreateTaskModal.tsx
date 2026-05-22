@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { createTask, TaskRequest } from "@/lib/api/tasks";
+import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
+import { columnNameToStatus, priorityToBackend } from "@/lib/taskUtils";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -46,6 +48,20 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
   const [status, setStatus] = useState("Todo");
   const [priority, setPriority] = useState("normal");
   const [dueDate, setDueDate] = useState("");
+  const [labels, setLabels] = useState("");
+  const [points, setPoints] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+
+  useEffect(() => {
+    if (!isOpen || !projectId) {
+      setProjectMembers([]);
+      return;
+    }
+    getProjectMembers(projectId)
+      .then(setProjectMembers)
+      .catch(() => setProjectMembers([]));
+  }, [isOpen, projectId]);
 
   // Reset fields when modal opens or initialProjectId/defaultStatus changes
   useEffect(() => {
@@ -55,6 +71,9 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       setStatus(defaultStatus || "Todo");
       setPriority("normal");
       setDueDate("");
+      setLabels("");
+      setPoints("");
+      setAssigneeId("");
       
       if (initialProjectId) {
         setProjectId(initialProjectId);
@@ -73,25 +92,15 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
 
     setLoading(true);
     try {
-      // Map status and priority to the correct values expected by the backend enums/database check constraints.
-      const mappedStatus = status === "In Progress"
-        ? "IN_PROGRESS"
-        : status === "Review"
-        ? "IN_REVIEW"
-        : status === "Backlog"
-        ? "BACKLOG"
-        : status.toUpperCase();
-
-      const mappedPriority = priority === "normal"
-        ? "MEDIUM"
-        : priority.toUpperCase();
-
       const taskData: TaskRequest = {
-        title,
-        description,
-        status: mappedStatus,
-        priority: mappedPriority,
+        title: title.trim(),
+        description: description.trim() || undefined,
+        status: columnNameToStatus(status),
+        priority: priorityToBackend(priority),
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+        labels: labels.trim() || undefined,
+        points: points ? Number(points) : undefined,
+        assigneeId: assigneeId || undefined,
       };
 
       const newTask = await createTask(projectId, taskData);
@@ -105,6 +114,9 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       setStatus(defaultStatus || "Todo");
       setPriority("normal");
       setDueDate("");
+      setLabels("");
+      setPoints("");
+      setAssigneeId("");
       onSuccess?.();
       onClose();
     } catch (error: any) {
@@ -211,6 +223,48 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                       className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground [color-scheme:dark]"
                       disabled={loading}
                     />
+                  </div>
+                  {projectId && projectMembers.length > 0 && (
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Owner (optional)</Label>
+                      <Select value={assigneeId || "default"} onValueChange={(v) => setAssigneeId(v === "default" ? "" : v)} disabled={loading}>
+                        <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
+                          <SelectValue placeholder="Assign to yourself" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-hs-main border-border text-foreground">
+                          <SelectItem value="default">Me (creator)</SelectItem>
+                          {projectMembers.map((m) => (
+                            <SelectItem key={m.userId} value={m.userId}>{m.fullName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="labels" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Labels</Label>
+                      <Input
+                        id="labels"
+                        value={labels}
+                        onChange={(e) => setLabels(e.target.value)}
+                        placeholder="frontend, bug"
+                        className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground"
+                        disabled={loading}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="points" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Points</Label>
+                      <Input
+                        id="points"
+                        type="number"
+                        min={0}
+                        value={points}
+                        onChange={(e) => setPoints(e.target.value)}
+                        placeholder="3"
+                        className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground"
+                        disabled={loading}
+                      />
+                    </div>
                   </div>
                 </div>
 

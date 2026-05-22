@@ -2,6 +2,7 @@ package com.project.hiveSpace.controllers;
 
 import com.project.hiveSpace.dto.TaskRequest;
 import com.project.hiveSpace.dto.TaskResponse;
+import com.project.hiveSpace.dto.UpdateTaskRequest;
 import com.project.hiveSpace.services.TaskService;
 import com.project.hiveSpace.models.User;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -52,5 +53,21 @@ public class TaskController {
             return ResponseEntity.badRequest().build();
         }
         return ResponseEntity.ok(taskService.updateTaskStatus(taskId, status));
+    }
+
+    @PutMapping("/tasks/{taskId}")
+    public ResponseEntity<TaskResponse> updateTask(
+            @PathVariable UUID taskId,
+            @RequestBody UpdateTaskRequest request,
+            @AuthenticationPrincipal User actor) {
+        return ResponseEntity.ok(taskService.updateTask(taskId, request, actor));
+    }
+
+    @DeleteMapping("/tasks/{taskId}")
+    public ResponseEntity<Void> deleteTask(
+            @PathVariable UUID taskId,
+            @AuthenticationPrincipal User actor) {
+        taskService.deleteTask(taskId, actor);
+        return ResponseEntity.noContent().build();
     }
 }

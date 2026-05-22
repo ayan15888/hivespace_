@@ -3,6 +3,7 @@ package com.project.hiveSpace.services;
 import com.project.hiveSpace.dto.TaskRequest;
 import com.project.hiveSpace.dto.TaskResponse;
 import com.project.hiveSpace.dto.TaskAssigneeResponse;
+import com.project.hiveSpace.dto.UpdateTaskRequest;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -172,6 +173,117 @@ public class TaskService {
         Task saved = taskRepository.save(task);
         return mapToResponse(saved);
     }
+
+    @Transactional
+    public TaskResponse updateTask(UUID taskId, UpdateTaskRequest request, User actor) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+
+        // 1. Verify user is a project member and not a VIEWER
+        ProjectMember member = projectMemberRepository
+                .findByProjectIdAndUserId(task.getProject().getId(), actor.getId())
+                .orElseThrow(() -> new SecurityException("Not a project member"));
+
+        if (member.getRole() == ProjectMemberRole.VIEWER) {
+            throw new SecurityException("Viewers cannot update tasks");
+        }
+
+        boolean changed = false;
+        StringBuilder changes = new StringBuilder();
+
+        if (request.getTitle() != null && !request.getTitle().trim().isEmpty() && !request.getTitle().equals(task.getTitle())) {
+            changes.append("Title: '").append(task.getTitle()).append("' -> '").append(request.getTitle()).append("'; ");
+            task.setTitle(request.getTitle());
+            changed = true;
+        }
+        if (request.getDescription() != null && !request.getDescription().equals(task.getDescription())) {
+            task.setDescription(request.getDescription());
+            changed = true;
+        }
+        if (request.getStatus() != null && request.getStatus() != task.getStatus()) {
+            task.setStatus(request.getStatus());
+            changed = true;
+        }
+        if (request.getPriority() != null && request.getPriority() != task.getPriority()) {
+            task.setPriority(request.getPriority());
+            changed = true;
+        }
+        if (request.getLabels() != null && !request.getLabels().equals(task.getLabels())) {
+            task.setLabels(request.getLabels());
+            changed = true;
+        }
+        if (request.getPoints() != null && !request.getPoints().equals(task.getPoints())) {
+            task.setPoints(request.getPoints());
+            changed = true;
+        }
+        if (request.getDueDate() != null && !request.getDueDate().equals(task.getDueDate())) {
+            task.setDueDate(request.getDueDate());
+            changed = true;
+        }
+
+        // Assignee update
+        if (request.getAssigneeId() != null && (task.getAssignee() == null || !request.getAssigneeId().equals(task.getAssignee().getId()))) {
+            User newAssignee = userRepository.findById(request.getAssigneeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
+            // Verify if the assignee is a member of this project
+            if (!projectMemberRepository.existsByProjectAndUser(task.getProject(), newAssignee)) {
+                throw new IllegalArgumentException("Assignee must be a member of this project");
+            }
+            task.setAssignee(newAssignee);
+
+            // Also need to update/insert OWNER in task_assignees
+            Optional<TaskAssignee> currentOwnerOpt = taskAssigneeRepository.findByTaskAndRole(task, TaskAssigneeRole.OWNER);
+            if (currentOwnerOpt.isPresent()) {
+                taskAssigneeRepository.delete(currentOwnerOpt.get());
+            }
+            taskAssigneeRepository.findByTaskAndUser(task, newAssignee).ifPresent(taskAssigneeRepository::delete);
+
+            TaskAssignee newAssigneeRecord = TaskAssignee.builder()
+                    .task(task)
+                    .user(newAssignee)
+                    .role(TaskAssigneeRole.OWNER)
+                    .assignedAt(new Date())
+                    .build();
+            taskAssigneeRepository.save(newAssigneeRecord);
+            changed = true;
+        }
+
+        if (changed) {
+            task.setUpdatedAt(new Date());
+        }
+
+        Task saved = taskRepository.save(task);
+
+        if (changed) {
+            TaskActivity activity = TaskActivity.builder()
+                    .task(saved)
+                    .user(actor)
+                    .type("UPDATED")
+                    .newValue(changes.length() > 0 ? changes.toString() : "Task details updated")
+                    .createdAt(new Date())
+                    .build();
+            taskActivityRepository.save(activity);
+        }
+
+        return mapToResponse(saved);
+    }
+
+    @Transactional
+    public void deleteTask(UUID taskId, User actor) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+
+        ProjectMember member = projectMemberRepository
+                .findByProjectIdAndUserId(task.getProject().getId(), actor.getId())
+                .orElseThrow(() -> new SecurityException("Not a project member"));
+
+        if (member.getRole() == ProjectMemberRole.VIEWER) {
+            throw new SecurityException("Viewers cannot delete tasks");
+        }
+
+        taskRepository.delete(task);
+    }
+
 
     private TaskResponse mapToResponse(Task task) {
         TaskResponse response = TaskResponse.builder()

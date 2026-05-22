@@ -3,12 +3,25 @@ import { apiFetch } from "./client";
 export interface TaskRequest {
   title: string;
   description?: string;
-  status: string;
-  priority: string;
+  status?: string;
+  priority?: string;
   labels?: string;
   dueDate?: string;
   points?: number;
   assigneeId?: string;
+  teamId?: string;
+  parentId?: string;
+}
+
+export interface TaskAssigneeResponse {
+  id: string;
+  taskId: string;
+  userId: string;
+  fullName: string;
+  username: string;
+  avatarUrl?: string;
+  role: string;
+  assignedAt: string;
 }
 
 export interface TaskResponse {
@@ -26,6 +39,13 @@ export interface TaskResponse {
   assigneeId?: string;
   assigneeName?: string;
   assigneeInitials?: string;
+  teamId?: string;
+  parentId?: string;
+  taskIdentifier?: string;
+  subtaskCount?: number;
+  completedSubtaskCount?: number;
+  assignees?: TaskAssigneeResponse[];
+  subtasks?: TaskResponse[];
   createdAt: string;
   updatedAt: string;
 }
@@ -43,17 +63,6 @@ export async function getTasksByProject(projectId: string): Promise<TaskResponse
 
 export async function getAllTasks(): Promise<TaskResponse[]> {
   return apiFetch("/api/tasks");
-}
-
-export interface TaskAssigneeResponse {
-  id: string;
-  taskId: string;
-  userId: string;
-  fullName: string;
-  username: string;
-  avatarUrl?: string;
-  role: string;
-  assignedAt: string;
 }
 
 export async function getTaskAssignees(taskId: string): Promise<TaskAssigneeResponse[]> {
@@ -84,5 +93,35 @@ export async function updateTaskStatus(taskId: string, status: string): Promise<
   return apiFetch(`/api/tasks/${taskId}/status`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
+  });
+}
+
+export type TaskUpdatePayload = Partial<
+  Pick<
+    TaskRequest,
+    | "title"
+    | "description"
+    | "status"
+    | "priority"
+    | "labels"
+    | "dueDate"
+    | "points"
+    | "assigneeId"
+  >
+>;
+
+export async function updateTask(
+  taskId: string,
+  data: TaskUpdatePayload
+): Promise<TaskResponse> {
+  return apiFetch(`/api/tasks/${taskId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+  return apiFetch(`/api/tasks/${taskId}`, {
+    method: "DELETE",
   });
 }

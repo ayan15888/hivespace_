@@ -45,13 +45,17 @@ import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   TaskResponse, 
+  createTask,
   getTaskAssignees, 
   addTaskAssignee, 
   changeTaskOwner, 
   removeTaskAssignee, 
   TaskAssigneeResponse,
-  updateTaskStatus
+  updateTaskStatus,
+  updateTask,
+  deleteTask
 } from "@/lib/api/tasks";
+import { columnNameToStatus, statusMatchesColumn } from "@/lib/taskUtils";
 import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { useTaskStore } from "@/store/taskStore";
@@ -97,40 +101,92 @@ export default function SprintThreeBoardPage() {
   const [assignees, setAssignees] = useState<TaskAssigneeResponse[]>([]);
   const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
 
-  const { tasks, refresh } = useTasks();
-  const updateTask = useTaskStore((state) => state.updateTask);
+  const { tasks, refresh } = useTasks(projectId);
+  const updateTaskInStore = useTaskStore((state) => state.updateTask);
+  const addTaskToStore = useTaskStore((state) => state.addTask);
+  const removeTaskFromStore = useTaskStore((state) => state.removeTask);
   const [activeDragColumn, setActiveDragColumn] = useState<string | null>(null);
+  const [quickAddColumn, setQuickAddColumn] = useState<string | null>(null);
+  const [quickAddTitle, setQuickAddTitle] = useState("");
+  const [quickAddLoading, setQuickAddLoading] = useState(false);
 
-  const handleTaskDrop = async (taskId: string, columnName: string) => {
-    const status = columnName.toLowerCase().replace(/\s+/g, '_');
-    const targetTask = tasks.find(t => t.id === taskId);
-    if (!targetTask) return;
-    
-    const originalTask = { ...targetTask };
-    
-    let backendStatus = "TODO";
-    if (status === "backlog") {
-      backendStatus = "BACKLOG";
-    } else if (status === "todo") {
-      backendStatus = "TODO";
-    } else if (status === "in_progress") {
-      backendStatus = "IN_PROGRESS";
-    } else if (status === "review" || status === "in_review") {
-      backendStatus = "IN_REVIEW";
-    } else if (status === "done") {
-      backendStatus = "DONE";
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteTask(taskId);
+      toast.success("Task deleted successfully");
+      removeTaskFromStore(taskId);
+      if (selectedTask?.id === taskId) {
+        setSelectedTask(null);
+      }
+    } catch (err) {
+      toast.error("Failed to delete task");
+    }
+  };
+
+  const handleQuickCreate = async (columnName: string) => {
+    const title = quickAddTitle.trim();
+    if (!title || !projectId) {
+      setQuickAddColumn(null);
+      setQuickAddTitle("");
+      return;
     }
 
+    const backendStatus = columnNameToStatus(columnName);
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: TaskResponse = {
+      id: tempId,
+      title,
+      description: "",
+      status: backendStatus,
+      priority: "MEDIUM",
+      labels: "",
+      dueDate: "",
+      points: 0,
+      projectId,
+      projectName: currentProject?.name || "",
+      projectColor: currentProject?.color,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    addTaskToStore(optimistic);
+    setQuickAddTitle("");
+    setQuickAddColumn(null);
+    setQuickAddLoading(true);
+
+    try {
+      const created = await createTask(projectId, {
+        title,
+        status: backendStatus,
+        priority: "MEDIUM",
+      });
+      removeTaskFromStore(tempId);
+      addTaskToStore(created);
+      toast.success("Task created");
+    } catch {
+      removeTaskFromStore(tempId);
+      toast.error("Failed to create task");
+    } finally {
+      setQuickAddLoading(false);
+    }
+  };
+
+  const handleTaskDrop = async (taskId: string, columnName: string) => {
+    const targetTask = tasks.find(t => t.id === taskId);
+    if (!targetTask || targetTask.id.startsWith("temp-")) return;
+    
+    const originalTask = { ...targetTask };
+    const backendStatus = columnNameToStatus(columnName);
     const updatedTask = { ...targetTask, status: backendStatus };
     
-    updateTask(updatedTask);
+    updateTaskInStore(updatedTask);
     
     try {
       await updateTaskStatus(taskId, backendStatus);
       toast.success(`Moved to ${columnName}`);
       refresh();
     } catch (err) {
-      updateTask(originalTask);
+      updateTaskInStore(originalTask);
       toast.error("Failed to move task");
     }
   };
@@ -166,14 +222,7 @@ export default function SprintThreeBoardPage() {
 
   // Group tasks by status
   const columns = COLUMN_NAMES.map(name => {
-    const normalizedName = name.toLowerCase().replace(/\s+/g, '_');
-    const filteredTasks = tasks.filter(t => {
-      const taskStatus = t.status.toLowerCase();
-      if (normalizedName === "review" && taskStatus === "in_review") {
-        return true;
-      }
-      return taskStatus === normalizedName || taskStatus === name.toLowerCase();
-    });
+    const filteredTasks = tasks.filter(t => statusMatchesColumn(String(t.status), name));
     
     return {
       name,
@@ -342,6 +391,7 @@ export default function SprintThreeBoardPage() {
                             task={task} 
                             isMuted={col.muted} 
                             onClick={() => handleTaskClick(task)} 
+                            onDelete={() => handleDeleteTask(task.id)}
                             themeColor={themeColor}
                             onDragStart={(e) => {
                               e.dataTransfer.setData("text/plain", task.id);
@@ -351,6 +401,42 @@ export default function SprintThreeBoardPage() {
                         </motion.div>
                       ))}
                     </AnimatePresence>
+
+                    {quickAddColumn === col.name ? (
+                      <div className="flex items-center gap-2 px-1 py-1">
+                        <input
+                          autoFocus
+                          disabled={quickAddLoading}
+                          placeholder="Task title..."
+                          value={quickAddTitle}
+                          onChange={(e) => setQuickAddTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void handleQuickCreate(col.name);
+                            if (e.key === "Escape") {
+                              setQuickAddColumn(null);
+                              setQuickAddTitle("");
+                            }
+                          }}
+                          onBlur={() => {
+                            if (quickAddTitle.trim()) void handleQuickCreate(col.name);
+                            else setQuickAddColumn(null);
+                          }}
+                          className="flex-1 bg-hs-card border border-border/50 rounded-md px-2 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-hs-accent/40"
+                        />
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuickAddColumn(col.name);
+                          setQuickAddTitle("");
+                        }}
+                        className="flex items-center gap-1.5 px-2 py-1.5 text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Add task
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               ))}
@@ -374,15 +460,38 @@ export default function SprintThreeBoardPage() {
               
               {/* Header Info */}
               <div className="flex items-center justify-between">
-                <span className="font-mono text-xs text-muted-foreground tracking-tight">{selectedTask?.id}</span>
-                <Select defaultValue="in-progress">
-                  <SelectTrigger className="w-auto h-7 text-xs bg-muted/50 border-none text-foreground focus:ring-0 shadow-none px-2 rounded-md hover:bg-muted transition-colors">
+                <span className="font-mono text-xs text-muted-foreground tracking-tight">
+                  {selectedTask?.taskIdentifier || selectedTask?.id?.slice(0, 8)}
+                </span>
+                <Select 
+                  value={selectedTask?.status?.toLowerCase() || "todo"}
+                  onValueChange={async (val) => {
+                    if (!selectedTask) return;
+                    let backendStatus = "TODO";
+                    if (val === "backlog") backendStatus = "BACKLOG";
+                    else if (val === "todo") backendStatus = "TODO";
+                    else if (val === "in-progress") backendStatus = "IN_PROGRESS";
+                    else if (val === "review") backendStatus = "IN_REVIEW";
+                    else if (val === "done") backendStatus = "DONE";
+
+                    try {
+                      const updated = await updateTaskStatus(selectedTask.id, backendStatus);
+                      setSelectedTask(updated);
+                      updateTaskInStore(updated);
+                      toast.success(`Status updated to ${val}`);
+                    } catch (err) {
+                      toast.error("Failed to update status");
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-auto h-7 text-xs bg-[#1C1B1F] border border-zinc-800 text-foreground focus:ring-0 shadow-none px-2 rounded-md hover:bg-muted transition-colors">
                     <div className="flex items-center gap-2">
                     <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
                       <SelectValue placeholder="Status" />
                     </div>
                   </SelectTrigger>
                   <SelectContent className="bg-hs-main border-border text-foreground rounded-md">
+                    <SelectItem value="backlog">Backlog</SelectItem>
                     <SelectItem value="todo">Todo</SelectItem>
                     <SelectItem value="in-progress">In Progress</SelectItem>
                     <SelectItem value="review">Review</SelectItem>
@@ -392,12 +501,57 @@ export default function SprintThreeBoardPage() {
               </div>
 
               {/* Editable Title */}
-              <input 
-                type="text"
-                value={editedTitle}
-                onChange={(e) => setEditedTitle(e.target.value)}
-                className="text-lg font-medium bg-transparent border-none text-foreground focus:outline-none focus:ring-1 focus:ring-border rounded px-1 -ml-1 hover:bg-muted/20 transition-colors w-full cursor-text"
-              />
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase">Title</span>
+                <input 
+                  type="text"
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  onBlur={async () => {
+                    if (!selectedTask || editedTitle.trim() === "" || editedTitle === selectedTask.title) return;
+                    try {
+                      const updated = await updateTask(selectedTask.id, { title: editedTitle });
+                      setSelectedTask(updated);
+                      updateTaskInStore(updated);
+                      toast.success("Title updated");
+                    } catch (err) {
+                      toast.error("Failed to update title");
+                      setEditedTitle(selectedTask.title);
+                    }
+                  }}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  className="text-lg font-medium bg-transparent border-none text-foreground focus:outline-none focus:ring-1 focus:ring-border rounded px-1 -ml-1 hover:bg-muted/20 transition-colors w-full cursor-text"
+                />
+              </div>
+
+              {/* Description Section */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase">Description</span>
+                <textarea
+                  value={selectedTask?.description || ""}
+                  onChange={(e) => {
+                    if (!selectedTask) return;
+                    setSelectedTask({ ...selectedTask, description: e.target.value });
+                  }}
+                  onBlur={async (e) => {
+                    if (!selectedTask || e.target.value === selectedTask.description) return;
+                    try {
+                      const updated = await updateTask(selectedTask.id, { description: e.target.value });
+                      setSelectedTask(updated);
+                      updateTaskInStore(updated);
+                      toast.success("Description updated");
+                    } catch (err) {
+                      toast.error("Failed to update description");
+                    }
+                  }}
+                  placeholder="Add a detailed description..."
+                  className="w-full min-h-[80px] bg-hs-card border border-border/50 rounded-md p-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 resize-none"
+                />
+              </div>
 
               {/* Metadata Table */}
               <div className="flex flex-col text-[13px]">
@@ -427,7 +581,7 @@ export default function SprintThreeBoardPage() {
                             // Update local detail panel state
                             setSelectedTask(updatedTask);
                             // Sync to global Zustand store so board cards update immediately
-                            updateTask(updatedTask);
+                            updateTaskInStore(updatedTask);
                           }
                           fetchAssigneesAndMembers(selectedTask.id);
                         } catch (err) {
@@ -512,17 +666,58 @@ export default function SprintThreeBoardPage() {
                 </MetadataRow>
 
                 <MetadataRow label="Priority">
-                  <div className="flex items-center gap-2">
-                    <div className={`h-1.5 w-1.5 rounded-full ${selectedTask?.priority === 'urgent' ? 'bg-[#E24B4A]' : 'bg-muted-foreground'}`} />
-                    <span className="text-foreground capitalize">{selectedTask?.priority}</span>
-                  </div>
+                  <Select 
+                    value={selectedTask?.priority?.toLowerCase() || "medium"}
+                    onValueChange={async (val) => {
+                      if (!selectedTask) return;
+                      try {
+                        const updated = await updateTask(selectedTask.id, { priority: val.toUpperCase() });
+                        setSelectedTask(updated);
+                        updateTaskInStore(updated);
+                        toast.success("Priority updated");
+                      } catch (err) {
+                        toast.error("Failed to update priority");
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-auto h-7 text-xs bg-[#1C1B1F] border border-zinc-800 text-foreground focus:ring-0 shadow-none px-2 rounded-md hover:bg-muted transition-colors">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="h-1.5 w-1.5 rounded-full" 
+                          style={{ backgroundColor: PRIORITIES[selectedTask?.priority?.toLowerCase() as Priority] || PRIORITIES.normal }} 
+                        />
+                        <SelectValue placeholder="Priority" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent className="bg-hs-main border-border text-foreground rounded-md">
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </MetadataRow>
 
                 <MetadataRow label="Due date">
-                  <div className="flex items-center gap-2 text-zinc-300">
-                    <Calendar className="h-3.5 w-3.5 text-zinc-500" strokeWidth={1.5} />
-                    <span>{selectedTask?.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : "None"}</span>
-                  </div>
+                  <input
+                    type="date"
+                    value={selectedTask?.dueDate ? new Date(selectedTask.dueDate).toISOString().split('T')[0] : ""}
+                    onChange={async (e) => {
+                      if (!selectedTask) return;
+                      const val = e.target.value;
+                      try {
+                        const updated = await updateTask(selectedTask.id, { 
+                          dueDate: val ? new Date(val).toISOString() : undefined 
+                        });
+                        setSelectedTask(updated);
+                        updateTaskInStore(updated);
+                        toast.success("Due date updated");
+                      } catch (err) {
+                        toast.error("Failed to update due date");
+                      }
+                    }}
+                    className="bg-[#1C1B1F] border border-zinc-800 text-foreground rounded-md px-2 py-1 text-xs focus:outline-none [color-scheme:dark]"
+                  />
                 </MetadataRow>
 
                 <MetadataRow label="Created">
@@ -536,17 +731,58 @@ export default function SprintThreeBoardPage() {
                 </MetadataRow>
 
                 <MetadataRow label="Labels">
-                  <div className="flex flex-wrap gap-1.5">
-                    {(typeof selectedTask?.labels === 'string' ? selectedTask.labels.split(',') : selectedTask?.labels)?.map(label => label.trim()).filter(Boolean).map(label => (
-                      <Badge key={label} className="bg-zinc-800 text-zinc-400 border-zinc-700/50 h-5 px-1.5 font-normal text-[10px] rounded-sm hover:bg-zinc-800">
-                        {label}
-                      </Badge>
-                    ))}
-                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. frontend, bug"
+                    defaultValue={selectedTask?.labels || ""}
+                    onBlur={async (e) => {
+                      if (!selectedTask || e.target.value === (selectedTask.labels || "")) return;
+                      try {
+                        const updated = await updateTask(selectedTask.id, { labels: e.target.value });
+                        setSelectedTask(updated);
+                        updateTaskInStore(updated);
+                        toast.success("Labels updated");
+                      } catch (err) {
+                        toast.error("Failed to update labels");
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur();
+                      }
+                    }}
+                    className="bg-[#1C1B1F] border border-zinc-800 text-foreground rounded-md px-2 py-1 text-xs focus:outline-none w-full"
+                  />
                 </MetadataRow>
 
                 <MetadataRow label="Estimate">
-                  <span className="text-foreground">{selectedTask?.points ? `${selectedTask.points} points` : "Unestimated"}</span>
+                  <Select 
+                    value={selectedTask?.points ? String(selectedTask.points) : "unestimated"}
+                    onValueChange={async (val) => {
+                      if (!selectedTask) return;
+                      try {
+                        const pts = val === "unestimated" ? undefined : Number(val);
+                        const updated = await updateTask(selectedTask.id, { points: pts });
+                        setSelectedTask(updated);
+                        updateTaskInStore(updated);
+                        toast.success("Estimate updated");
+                      } catch (err) {
+                        toast.error("Failed to update estimate");
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-auto h-7 text-xs bg-[#1C1B1F] border border-zinc-800 text-foreground focus:ring-0 shadow-none px-2 rounded-md hover:bg-muted transition-colors">
+                      <SelectValue placeholder="Estimate" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-hs-main border-border text-foreground rounded-md">
+                      <SelectItem value="unestimated">Unestimated</SelectItem>
+                      <SelectItem value="1">1 point</SelectItem>
+                      <SelectItem value="2">2 points</SelectItem>
+                      <SelectItem value="3">3 points</SelectItem>
+                      <SelectItem value="5">5 points</SelectItem>
+                      <SelectItem value="8">8 points</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </MetadataRow>
               </div>
 
@@ -644,13 +880,15 @@ function TaskCard({
   isMuted, 
   onClick, 
   themeColor,
-  onDragStart
+  onDragStart,
+  onDelete
 }: { 
   task: TaskResponse; 
   isMuted?: boolean; 
   onClick: () => void; 
   themeColor: string;
   onDragStart?: (e: React.DragEvent) => void;
+  onDelete: () => void;
 }) {
   const isDone = isMuted;
 
@@ -672,17 +910,38 @@ function TaskCard({
             className="h-1 w-1 rounded-full shrink-0" 
             style={{ backgroundColor: PRIORITIES[task.priority.toLowerCase() as Priority] || PRIORITIES.normal }} 
           />
-          <span className="font-mono text-[10px] text-zinc-500 tracking-tight">{task.id.slice(0, 8)}</span>
+          <span className="font-mono text-[10px] text-zinc-500 tracking-tight">
+            {task.taskIdentifier || task.id.slice(0, 8)}
+          </span>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="opacity-0 group-hover:opacity-100 h-5 w-5 flex items-center justify-center text-zinc-600 hover:text-zinc-400 transition-all rounded">
+            <button 
+              onClick={(e) => e.stopPropagation()} 
+              className="opacity-0 group-hover:opacity-100 h-5 w-5 flex items-center justify-center text-zinc-600 hover:text-zinc-400 transition-all rounded"
+            >
               <MoreHorizontal strokeWidth={1.5} className="h-4 w-4" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="bg-hs-card border-border text-foreground">
-            <DropdownMenuItem className="focus:bg-muted focus:text-foreground">Edit Task</DropdownMenuItem>
-            <DropdownMenuItem className="focus:bg-muted text-destructive">Delete</DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick();
+              }} 
+              className="focus:bg-muted focus:text-foreground"
+            >
+              Edit Task
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }} 
+              className="focus:bg-muted text-destructive"
+            >
+              Delete
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
