@@ -24,4 +24,6 @@ export interface LevelDetail {
   description: string;
   roles: RoleDetail[];
   matrix: MatrixRow[];
+  ddl?: string;
+  indexes?: string[];
 }

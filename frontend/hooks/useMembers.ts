@@ -5,6 +5,8 @@ import { getOrganizationMembers, MemberResponse } from "@/lib/api/orgs";
 import { useOrgStore } from "@/store/orgStore";
 import { queryKeys } from "@/lib/queryKeys";
 
+const DEFAULT_MEMBERS: MemberResponse[] = [];
+
 export function useMembers() {
   const activeOrg = useOrgStore((state) => state.activeOrg);
 
@@ -20,7 +22,7 @@ export function useMembers() {
   });
 
   return {
-    members: query.data ?? [],
+    members: query.data ?? DEFAULT_MEMBERS,
     loading: query.isLoading || query.isFetching,
     error: query.error?.message ?? null,
   };

@@ -16,7 +16,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrgStore } from "@/store/orgStore";
-import { canManageOrgMembers } from "@/lib/permissions/tenant";
+import { canManageOrgMembers, getCurrentOrgMembership, normalizeTenantRole } from "@/lib/permissions/tenant";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
@@ -233,37 +233,48 @@ export default function RolesPermissionsPage() {
   const [helpModalLevel, setHelpModalLevel] = useState<LevelType | null>(null);
   
   const [membersList, setMembersList] = useState<any[]>([]);
-  const [newEmail, setNewEmail] = useState("");
-  const [newRole, setNewRole] = useState("");
 
   const activeDetail = levelsData[activeLevel];
 
   // RBAC validation: Only Admin and Owner are allowed to allocate, promote, or revoke roles
   const canManage = canManageOrgMembers(apiMembers, user?.email, activeOrg);
+  
+  // Resolve current logged-in user's role
+  const currentMembership = getCurrentOrgMembership(apiMembers ?? [], user?.email);
+  const currentUserRole = currentMembership ? normalizeTenantRole(currentMembership.role) : "MEMBER";
 
   // Initialize members list on mount / API updates
   useEffect(() => {
     if (apiMembers && apiMembers.length > 0) {
-      setMembersList(
-        apiMembers.map(m => ({
+      setMembersList((prevList) => {
+        const mapped = apiMembers.map(m => ({
           id: m.id,
           fullName: m.fullName || m.username || "User",
           email: m.email,
           role: m.role || "MEMBER",
           avatarUrl: m.avatarUrl
-        }))
-      );
+        }));
+
+        const hasChanged = 
+          prevList.length !== mapped.length ||
+          mapped.some((item, index) => {
+            const current = prevList[index];
+            return (
+              !current ||
+              current.id !== item.id ||
+              current.fullName !== item.fullName ||
+              current.email !== item.email ||
+              current.role !== item.role ||
+              current.avatarUrl !== item.avatarUrl
+            );
+          });
+
+        return hasChanged ? mapped : prevList;
+      });
     } else {
-      setMembersList([]);
+      setMembersList((prev) => (prev.length === 0 ? prev : []));
     }
   }, [apiMembers]);
-
-  // Set initial state of new role selection based on active level roles
-  useEffect(() => {
-    if (activeDetail.roles.length > 0) {
-      setNewRole(activeDetail.roles[0].name);
-    }
-  }, [activeLevel, activeDetail]);
 
   const handleTogglePermission = (action: string, role: string) => {
     toast.info(
@@ -301,56 +312,8 @@ export default function RolesPermissionsPage() {
   }
 
   // --- MEMBER DIRECTORY ACTIONS ---
-  
-  // 1. Assign User Level Role
-  const handleAssignUser = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEmail || !newEmail.includes("@")) {
-      toast.error("Please provide a valid email address");
-      return;
-    }
-    
-    if (membersList.some(m => m.email.toLowerCase() === newEmail.toLowerCase())) {
-      toast.error("User is already assigned to a role!");
-      return;
-    }
 
-    const username = newEmail.split("@")[0];
-    const computedName = username.split(".").map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
-    
-    const newMember = {
-      id: "u_" + Math.random().toString(36).substr(2, 9),
-      fullName: computedName,
-      email: newEmail.toLowerCase(),
-      role: newRole,
-      avatarUrl: ""
-    };
-
-    setMembersList(prev => [newMember, ...prev]);
-    setNewEmail("");
-    toast.success(`Allocated ${newMember.fullName} locally to the ${newRole} role. Secure invitation may be sent via Members tab.`);
-  };
-
-  // 2. Revoke User Level Credentials (with real DB persistence!)
-  const handleRevokeMember = async (userId: string) => {
-    const target = membersList.find(m => m.id === userId);
-    if (!target) return;
-
-    try {
-      if (activeLevel === "tenant" && activeOrg?.id) {
-        await removeOrganizationMember(activeOrg.id, userId);
-        queryClient.invalidateQueries({ queryKey: queryKeys.members(activeOrg.id) });
-        toast.success(`Revoked organization membership for ${target.fullName} successfully!`);
-      } else {
-        setMembersList(prev => prev.filter(m => m.id !== userId));
-        toast.success(`[Simulated] Credentials revoked for ${target.fullName} inside this workspace context.`);
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to revoke active membership");
-    }
-  };
-
-  // 3. Promote / Change Member Roles (with real DB persistence!)
+  // Promote / Change Member Roles (with real DB persistence!)
   const handlePromoteMember = async (userId: string, targetRole: string) => {
     const target = membersList.find(m => m.id === userId);
     if (!target) return;
@@ -402,32 +365,31 @@ export default function RolesPermissionsPage() {
       </div>
 
       {/* MINIMALIST ACTIVE ROLES MANAGER DIRECTORY */}
-      {apiLoading ? (
-        <div className="bg-[#1C1B1E] border border-zinc-800/80 rounded-xl p-6 mb-8 text-center text-xs text-zinc-500 animate-pulse">
-          Loading active memberships...
-        </div>
-      ) : (
-        <ActiveRolesDirectory 
-          activeDetail={activeDetail}
-          activeLevel={activeLevel}
-          membersList={membersList}
-          newEmail={newEmail}
-          setNewEmail={setNewEmail}
-          newRole={newRole}
-          setNewRole={setNewRole}
-          handleAssignUser={handleAssignUser}
-          handlePromoteMember={handlePromoteMember}
-          handleRevokeMember={handleRevokeMember}
-          getMappedRole={getMappedRole}
-          canManage={canManage}
-        />
+      {activeLevel === "tenant" && (currentUserRole === "OWNER" || currentUserRole === "ADMIN") && (
+        apiLoading ? (
+          <div className="bg-[#1C1B1E] border border-zinc-800/80 rounded-xl p-6 mb-8 text-center text-xs text-zinc-500 animate-pulse">
+            Loading active memberships...
+          </div>
+        ) : (
+          <ActiveRolesDirectory 
+            activeDetail={activeDetail}
+            activeLevel={activeLevel}
+            membersList={membersList}
+            handlePromoteMember={handlePromoteMember}
+            getMappedRole={getMappedRole}
+            canManage={canManage}
+            currentUserRole={currentUserRole}
+          />
+        )
       )}
 
       {/* COMPREHENSIVE ACCESS MATRIX */}
-      <CapabilityMatrix 
-        activeDetail={activeDetail}
-        handleTogglePermission={handleTogglePermission}
-      />
+      {(currentUserRole === "OWNER" || currentUserRole === "ADMIN") && (
+        <CapabilityMatrix 
+          activeDetail={activeDetail}
+          handleTogglePermission={handleTogglePermission}
+        />
+      )}
 
       {/* DYNAMIC HIGH-FIDELITY OVERLAY POPUP GUIDE */}
       {helpModalLevel && (

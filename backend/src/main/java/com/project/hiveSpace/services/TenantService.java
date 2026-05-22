@@ -228,6 +228,14 @@ public class TenantService {
             throw new IllegalArgumentException("Only the owner can transfer ownership");
         }
 
+        if (newRole == TenantMemberRole.ADMIN && currentMember.getRole() != TenantMemberRole.OWNER) {
+            throw new IllegalArgumentException("Only the owner can promote members to administrator");
+        }
+
+        if (memberToUpdate.getRole() == TenantMemberRole.ADMIN && currentMember.getRole() != TenantMemberRole.OWNER) {
+            throw new IllegalArgumentException("Only the owner can demote or modify administrator roles");
+        }
+
         memberToUpdate.setRole(newRole);
         TenantMember savedMember = tenantMemberRepository.save(memberToUpdate);
         
