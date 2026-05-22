@@ -3,7 +3,7 @@
 import { MessageSquare, Users } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, getAvatarColorClass } from "@/lib/utils";
 import { roleLabel } from "@/types/roles";
 
 const MEMBERS = [
@@ -87,8 +87,8 @@ export function MembersTab() {
           {/* TOP ROW */}
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Avatar className="h-10 w-10 border border-zinc-800">
-                <AvatarFallback className="bg-zinc-800 text-zinc-400 text-xs font-medium">{member.initials}</AvatarFallback>
+              <Avatar className="h-10 w-10 border border-border/40">
+                <AvatarFallback className={cn("text-xs font-semibold", getAvatarColorClass(member.initials || member.name))}>{member.initials}</AvatarFallback>
               </Avatar>
               <div className={cn(
                 "absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[#272629]",

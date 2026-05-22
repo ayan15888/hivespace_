@@ -27,7 +27,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, getAvatarColorClass } from "@/lib/utils";
 
 // --- TYPES & MOCK DATA ---
 
@@ -350,8 +350,10 @@ function TaskRow({ task, selected, onSelect }: { task: Task; selected: boolean; 
       </div>
 
       {/* Assignee Avatar at far right */}
-      <Avatar className="h-6 w-6 bg-zinc-800 border border-zinc-700/50 shrink-0">
-        <AvatarFallback className="text-[9px] font-bold text-zinc-400">{task.assignee.initials}</AvatarFallback>
+      <Avatar className="h-6 w-6 border border-border/50 shrink-0">
+        <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass(task.assignee.initials || task.assignee.name))}>
+          {task.assignee.initials}
+        </AvatarFallback>
       </Avatar>
     </div>
   );

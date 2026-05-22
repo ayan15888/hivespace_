@@ -35,6 +35,7 @@ import { useOrgs } from "@/hooks/useOrgs"
 import { useOrgStore } from "@/store/orgStore"
 import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
+import { cn, getAvatarColorClass } from "@/lib/utils"
 
 export function NavRail() {
   const pathname = usePathname()
@@ -213,7 +214,7 @@ export function NavRail() {
                 className="outline-none h-9 w-9 flex items-center justify-center rounded-md hover:bg-zinc-800 transition-colors"
               >
                 <Avatar className="h-[26px] w-[26px] cursor-pointer rounded-md">
-                  <AvatarFallback className="bg-zinc-900 text-xs text-zinc-400 rounded-md">
+                  <AvatarFallback className={cn("text-xs font-semibold rounded-md", getAvatarColorClass(user?.avatarColor || user?.fullName || user?.username || "JD"))}>
                     {userInitials}
                   </AvatarFallback>
                 </Avatar>

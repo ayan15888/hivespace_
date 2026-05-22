@@ -373,12 +373,6 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
 
     return (
         <div className="flex-1 flex flex-col w-full items-center p-6 relative overflow-y-auto scrollbar-none bg-transparent text-white">
-            <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#7C5CFC]/10 rounded-full mix-blend-normal filter blur-[128px] animate-pulse" />
-                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full mix-blend-normal filter blur-[128px] animate-pulse delay-700" />
-                <div className="absolute top-1/4 right-1/3 w-64 h-64 bg-fuchsia-500/10 rounded-full mix-blend-normal filter blur-[96px] animate-pulse delay-1000" />
-            </div>
-            
             <div className="w-full max-w-3xl mx-auto relative z-10 py-8">
                 <motion.div 
                     className="space-y-12"
@@ -394,11 +388,11 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
                             transition={{ delay: 0.2, duration: 0.5 }}
                             className="inline-block"
                         >
-                            <h1 className="text-3xl font-medium tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white/90 to-white/40 pb-1">
+                            <h1 className="text-3xl font-medium tracking-tight text-white/90 pb-1">
                                 How can I help today?
                             </h1>
                             <motion.div 
-                                className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                                className="h-px bg-white/10"
                                 initial={{ width: 0, opacity: 0 }}
                                 animate={{ width: "100%", opacity: 1 }}
                                 transition={{ delay: 0.5, duration: 0.8 }}
@@ -677,21 +671,6 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
                 )}
             </AnimatePresence>
 
-            {inputFocused && (
-                <motion.div 
-                    className="fixed w-[50rem] h-[50rem] rounded-full pointer-events-none z-0 opacity-[0.03] bg-gradient-to-r from-violet-500 via-fuchsia-500 to-indigo-500 blur-[96px]"
-                    animate={{
-                        x: mousePosition.x - 400,
-                        y: mousePosition.y - 400,
-                    }}
-                    transition={{
-                        type: "spring",
-                        damping: 25,
-                        stiffness: 150,
-                        mass: 0.5,
-                    }}
-                />
-            )}
         </div>
     );
 }
@@ -865,7 +844,7 @@ function AIConversation({ onBack }: { onBack: () => void }) {
         </div>
 
         {/* Compose Bar */}
-        <div className="p-6 bg-gradient-to-t from-hs-main via-hs-main to-transparent">
+        <div className="p-6 bg-hs-main">
           <div className="max-w-3xl mx-auto w-full">
             <div className="bg-muted border border-border/50 rounded-xl px-4 py-2 flex items-center gap-3 focus-within:border-primary/40 transition-colors shadow-2xl shadow-black/5">
               <Sparkles className="h-4 w-4 text-[#7C5CFC]/40" />

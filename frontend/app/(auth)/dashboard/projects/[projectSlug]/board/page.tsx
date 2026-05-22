@@ -38,7 +38,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useParams } from "next/navigation";
 
-import { cn } from "@/lib/utils";
+import { cn, getAvatarColorClass } from "@/lib/utils";
 import { useTasks } from "@/hooks/useTasks";
 import { useProjects } from "@/hooks/useProjects";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
@@ -162,8 +162,8 @@ export default function SprintThreeBoardPage() {
           
           <div className="flex items-center ml-2 mr-2">
             {["MV", "RK", "PL", "RS"].map((initials, i) => (
-              <Avatar key={initials} className={`h-6 w-6 ring-2 ring-background -ml-1.5 first:ml-0 bg-muted border border-border/50`}>
-                <AvatarFallback className="bg-muted text-[9px] text-muted-foreground font-medium">{initials}</AvatarFallback>
+              <Avatar key={initials} className={`h-6 w-6 ring-2 ring-background -ml-1.5 first:ml-0 border border-border/50`}>
+                <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass(initials))}>{initials}</AvatarFallback>
               </Avatar>
             ))}
           </div>
@@ -305,8 +305,8 @@ export default function SprintThreeBoardPage() {
               <div className="flex flex-col text-[13px]">
                 <MetadataRow label="Owner">
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-5 w-5 bg-muted border border-border/50">
-                      <AvatarFallback className="text-[9px] uppercase">{selectedTask?.assigneeInitials}</AvatarFallback>
+                    <Avatar className="h-5 w-5 border border-border/50">
+                      <AvatarFallback className={cn("text-[9px] font-semibold uppercase", getAvatarColorClass(selectedTask?.assigneeInitials || ""))}>{selectedTask?.assigneeInitials}</AvatarFallback>
                     </Avatar>
                     <span className="text-foreground">{selectedTask?.assigneeName || "Unassigned"}</span>
                   </div>
@@ -315,8 +315,8 @@ export default function SprintThreeBoardPage() {
                 <MetadataRow label="Collaborators">
                   <div className="flex items-center">
                     {["RK", "PL"].map((initials, i) => (
-                      <Avatar key={initials} className="h-5 w-5 ring-2 ring-hs-nav -ml-1.5 first:ml-0 bg-muted border border-border/50">
-                        <AvatarFallback className="text-[8px] font-medium">{initials}</AvatarFallback>
+                      <Avatar key={initials} className="h-5 w-5 ring-2 ring-hs-nav -ml-1.5 first:ml-0 border border-border/50">
+                        <AvatarFallback className={cn("text-[8px] font-semibold", getAvatarColorClass(initials))}>{initials}</AvatarFallback>
                       </Avatar>
                     ))}
                   </div>
@@ -392,7 +392,7 @@ export default function SprintThreeBoardPage() {
                   <div className="absolute left-3 top-2 bottom-0 w-[1px] bg-zinc-800" />
                   <div className="relative flex flex-col gap-1">
                     <Avatar className="absolute -left-7 top-0 h-6 w-6 ring-4 ring-[#1B1B1D]">
-                      <AvatarFallback className="bg-zinc-800 text-[9px]">DK</AvatarFallback>
+                      <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass("DK"))}>DK</AvatarFallback>
                     </Avatar>
                     <div className="flex items-start justify-between">
                       <p className="text-xs text-zinc-300 leading-tight">
@@ -404,7 +404,7 @@ export default function SprintThreeBoardPage() {
 
                   <div className="relative flex flex-col gap-1">
                     <Avatar className="absolute -left-7 top-0 h-6 w-6 ring-4 ring-[#1B1B1D]">
-                      <AvatarFallback className="bg-zinc-800 text-[9px]">SM</AvatarFallback>
+                      <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass("SM"))}>SM</AvatarFallback>
                     </Avatar>
                     <div className="flex items-start justify-between">
                       <p className="text-xs text-zinc-300 leading-tight">
@@ -528,8 +528,8 @@ function TaskCard({ task, isMuted, onClick, themeColor }: { task: TaskResponse; 
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Avatar className={`h-6 w-6 rounded-full border-none ${ASSIGNEE_COLORS[task.assigneeInitials || ''] || 'bg-muted'}`}>
-                  <AvatarFallback className="bg-transparent text-white text-xs font-bold">{task.assigneeInitials}</AvatarFallback>
+                <Avatar className="h-6 w-6 rounded-full border border-border/40 shrink-0">
+                  <AvatarFallback className={cn("text-xs font-semibold", getAvatarColorClass(task.assigneeInitials || ""))}>{task.assigneeInitials}</AvatarFallback>
                 </Avatar>
               </TooltipTrigger>
               <TooltipContent className="bg-black text-[10px] border-zinc-800">{task.assigneeName || "Unassigned"}</TooltipContent>
