@@ -209,6 +209,70 @@
     --hs-accent: var(--primary);
     --cta-gradient: linear-gradient(145deg, #4f46e5, #0ea5e9);
 }
+
+/* ─────────────────────────────────────────────────── */
+/* Claude (Dark Terracotta) Theme                     */
+/* Charcoal backgrounds · Coral-orange #d97757 accent */
+/* ─────────────────────────────────────────────────── */
+.claude {
+  --background: #262624;
+  --foreground: #c3c0b6;
+
+  --card: #2c2b29;
+  --card-foreground: #ede9de;
+
+  --popover: #30302e;
+  --popover-foreground: #e5e5e2;
+
+  /* Coral-orange — the key accent, not white */
+  --primary: #d97757;
+  --primary-foreground: #ffffff;
+
+  /* Dark warm secondary — not cream */
+  --secondary: #35342f;
+  --secondary-foreground: #c3c0b6;
+
+  --muted: #1b1b19;
+  --muted-foreground: #b7b5a9;
+
+  --accent: #3a3830;
+  --accent-foreground: #f5f4ee;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: #3e3e38;
+  --input: #52514a;
+  --ring: #d97757;
+
+  --radius: 0.5rem;
+
+  --chart-1: #d97757;
+  --chart-2: #9c87f5;
+  --chart-3: #3a3830;
+  --chart-4: #b4552d;
+  --chart-5: #b7b5a9;
+
+  /* Sidebar */
+  --sidebar: #1f1e1d;
+  --sidebar-foreground: #c3c0b6;
+  --sidebar-primary: #d97757;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2a2927;
+  --sidebar-accent-foreground: #c3c0b6;
+  --sidebar-border: #3e3e38;
+  --sidebar-ring: #d97757;
+
+  /* Hivespace Claude Design System */
+  --hs-base: #262624;
+  --hs-nav: #1f1e1d;
+  --hs-main: #1b1b19;
+  --hs-card: #2c2b29;
+  --hs-text: #c3c0b6;
+  --hs-accent: #d97757;
+  --cta-gradient: linear-gradient(145deg, #f09060, #d97757);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

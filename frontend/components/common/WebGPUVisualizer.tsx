@@ -87,10 +87,11 @@ export default function WebGPUVisualizer({
     let bindGroup: any = null
     let context: any = null
 
-    // Theme mapping: 0 = light, 1 = dark, 2 = dark-blue
+    // Theme mapping: 0 = light, 1 = dark, 2 = dark-blue, 3 = claude
     const getThemeCode = (t: string | undefined) => {
       if (t === "dark") return 1.0
       if (t === "dark-blue") return 2.0
+      if (t === "claude") return 3.0
       return 0.0 // light
     }
 
@@ -237,7 +238,7 @@ export default function WebGPUVisualizer({
               col = mix(cBg, cViolet * 0.15, f);
               col = mix(col, cViolet * 0.45, r.y * 0.5);
               col = mix(col, cCoral, clamp(q.x - 0.72, 0.0, 1.0) * 0.08);
-            } else {
+            } else if (theme < 2.5) {
               // Dark-Blue theme - Deep blue (#090D16) and cyan/indigo
               let cBg = vec3f(0.035, 0.05, 0.086);
               let cIndigo = vec3f(0.31, 0.27, 0.9);
@@ -246,6 +247,16 @@ export default function WebGPUVisualizer({
               col = mix(cBg, cIndigo * 0.22, f);
               col = mix(col, cCyan * 0.38, r.x * 0.45);
               col = mix(col, vec3f(1.0), clamp(f - 0.68, 0.0, 1.0) * 0.06);
+            } else {
+              // Claude (dark terracotta) theme - charcoal (#262624) and warm coral #d97757
+              let cBg = vec3f(0.149, 0.149, 0.141);
+              let cCharcoal = vec3f(0.122, 0.122, 0.114);
+              let cCoral = vec3f(0.851, 0.467, 0.341); // #d97757
+              let cAccent = vec3f(0.769, 0.706, 0.659);
+              
+              col = mix(cBg, cCharcoal, f * 0.5);
+              col = mix(col, cCoral * 0.35, r.y * 0.4);
+              col = mix(col, cAccent * 0.3, max(0.0, q.x - 0.65) * 0.2);
             }
 
             // Vignette
@@ -407,6 +418,12 @@ export default function WebGPUVisualizer({
         agentBaseCol = "rgba(14,165,233,0.8)"
         connectionCol = "rgba(14,165,233,0.04)"
         pulseCol = "rgba(79,70,229,0.15)"
+      } else if (resolvedTheme === "claude") {
+        bgCol = "#262624"
+        strokeCol = "rgba(217,119,87,0.08)"
+        agentBaseCol = "rgba(217,119,87,0.75)"
+        connectionCol = "rgba(217,119,87,0.05)"
+        pulseCol = "rgba(217,119,87,0.2)"
       }
 
       ctx.fillStyle = bgCol
