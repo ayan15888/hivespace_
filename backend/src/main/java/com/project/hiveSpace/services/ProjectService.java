@@ -2,8 +2,12 @@ package com.project.hiveSpace.services;
 
 import com.project.hiveSpace.dto.ProjectRequest;
 import com.project.hiveSpace.dto.ProjectResponse;
+import com.project.hiveSpace.models.User;
+import com.project.hiveSpace.models.ProjectMember;
+import com.project.hiveSpace.models.ProjectMemberRole;
 import com.project.hiveSpace.models.Project;
 import com.project.hiveSpace.models.Workspace;
+import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +25,10 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final WorkspaceRepository workspaceRepository;
+    private final ProjectMemberRepository projectMemberRepository;
 
     @Transactional
-    public ProjectResponse createProject(UUID workspaceId, ProjectRequest request) {
+    public ProjectResponse createProject(UUID workspaceId, ProjectRequest request, User creator) {
         Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
 
@@ -37,17 +42,30 @@ public class ProjectService {
                 .description(request.getDescription())
                 .status(request.getStatus())
                 .workspace(workspace)
+                .createdBy(creator)
                 .teamsCount(0)
-                .membersCount(1) // Assuming creator is a member initially
+                .membersCount(1) // Creator is a member initially
                 .color(request.getColor())
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
 
         Project savedProject = projectRepository.save(project);
+
+        ProjectMember projectMember = ProjectMember.builder()
+                .project(savedProject)
+                .user(creator)
+                .role(ProjectMemberRole.LEAD)
+                .joinedAt(new Date())
+                .build();
+        projectMemberRepository.save(projectMember);
+
         return mapToResponse(savedProject);
     }
 
+    @Transactional(readOnly = true)
     public List<ProjectResponse> getProjectsByWorkspace(UUID workspaceId) {
         Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
@@ -70,6 +88,8 @@ public class ProjectService {
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
                 .color(project.getColor())
+                .startDate(project.getStartDate())
+                .endDate(project.getEndDate())
                 .build();
     }
 }

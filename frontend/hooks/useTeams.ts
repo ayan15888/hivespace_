@@ -1,39 +1,23 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { getTeamsByProject, TeamResponse } from "@/lib/api/teams";
-import { usePathname } from "next/navigation";
+import { useEffect, useCallback } from "react";
+import { useTeamStore } from "@/store/teamStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
-export function useTeams() {
-  const pathname = usePathname();
-  const [teams, setTeams] = useState<TeamResponse[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function useTeams(workspaceId?: string) {
+  const activeWorkspace = useWorkspaceStore((state) => state.activeWorkspace);
+  const resolvedWorkspaceId = workspaceId || activeWorkspace?.id;
 
-  // Extract projectId from pathname if we are in a project route
-  const projectId = pathname.split("/projects/")[1]?.split("/")[0];
+  const { teams, loading, error, fetchTeams } = useTeamStore();
 
-  const fetchTeams = useCallback(async () => {
-    if (!projectId) {
-      setTeams([]);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const data = await getTeamsByProject(projectId);
-      setTeams(data);
-      setError(null);
-    } catch (err: unknown) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
+  const refresh = useCallback(async () => {
+    if (!resolvedWorkspaceId) return;
+    await fetchTeams(resolvedWorkspaceId);
+  }, [fetchTeams, resolvedWorkspaceId]);
 
   useEffect(() => {
-    fetchTeams();
-  }, [fetchTeams]);
+    refresh();
+  }, [refresh]);
 
-  return { teams, loading, error, refresh: fetchTeams };
+  return { teams, loading, error, refresh };
 }

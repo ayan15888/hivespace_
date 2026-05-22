@@ -7,9 +7,7 @@ import java.util.Date;
 import java.util.UUID;
 
 @Entity
-@Table(name = "workspaces", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"name", "tenant_id"})
-})
+@Table(name = "workspaces")
 @Getter
 @Setter
 @AllArgsConstructor
@@ -27,13 +25,15 @@ public class Workspace {
     @Column(name = "description", nullable = true)
     private String description;
 
-    @Column(name = "plan", nullable = false)
-    private String plan;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private User createdBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant;
 
+    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false)
     private Date createdAt;
 
@@ -41,6 +41,23 @@ public class Workspace {
     @Column(name = "members_count", nullable = false)
     private int membersCount = 0;
 
+    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at", nullable = false)
     private Date updatedAt;
+
+    @PrePersist
+    void prePersist() {
+        Date now = new Date();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        updatedAt = new Date();
+    }
 }

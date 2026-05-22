@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/i")
 @RequiredArgsConstructor
@@ -21,9 +23,30 @@ public class InvitationController {
         return ResponseEntity.ok(invitationService.createInvite(request));
     }
 
+    @GetMapping("/validate")
+    public ResponseEntity<InviteResponse> validateInvite(
+            @RequestParam String token,
+            @RequestParam(required = false) String orgSlug) {
+        InviteResponse details = invitationService.getInvite(token);
+        if (orgSlug != null && !orgSlug.isBlank() && !details.getTenantSlug().equalsIgnoreCase(orgSlug)) {
+            throw new IllegalArgumentException("The invitation token does not match the organization slug");
+        }
+        return ResponseEntity.ok(details);
+    }
+
+    @GetMapping("/{token}")
+    public ResponseEntity<InviteResponse> getInvite(@PathVariable String token) {
+        return ResponseEntity.ok(invitationService.getInvite(token));
+    }
+
+    @GetMapping("/t/{tenantId}")
+    public ResponseEntity<java.util.List<InviteResponse>> getInvitationsByTenant(@PathVariable java.util.UUID tenantId) {
+        return ResponseEntity.ok(invitationService.getInvitationsByTenant(tenantId));
+    }
+
     @PostMapping("/join")
-    public ResponseEntity<String> acceptInvite(@Valid @RequestBody JoinRequest request) {
+    public ResponseEntity<Map<String, String>> acceptInvite(@Valid @RequestBody JoinRequest request) {
         invitationService.acceptInvite(request);
-        return ResponseEntity.ok("Successfully joined the team");
+        return ResponseEntity.ok(Map.of("message", "Successfully joined the team"));
     }
 }

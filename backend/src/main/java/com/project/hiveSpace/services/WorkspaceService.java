@@ -1,10 +1,13 @@
 package com.project.hiveSpace.services;
 
+import com.project.hiveSpace.dto.WorkspaceMemberResponse;
 import com.project.hiveSpace.dto.WorkspaceRequest;
 import com.project.hiveSpace.dto.WorkspaceResponse;
 import com.project.hiveSpace.models.Tenant;
 import com.project.hiveSpace.models.Workspace;
+import com.project.hiveSpace.models.WorkspaceMember;
 import com.project.hiveSpace.repository.TenantRepository;
+import com.project.hiveSpace.repository.WorkspaceMemberRepository;
 import com.project.hiveSpace.repository.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,7 @@ public class WorkspaceService {
 
     private final WorkspaceRepository workspaceRepository;
     private final TenantRepository tenantRepository;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
 
     @Transactional
     public WorkspaceResponse createWorkspace(WorkspaceRequest request) {
@@ -36,7 +40,6 @@ public class WorkspaceService {
         Workspace workspace = Workspace.builder()
                 .name(request.getName())
                 .description(request.getDescription())
-                .plan(request.getPlan())
                 .tenant(tenant)
                 .createdAt(new Date())
                 .updatedAt(new Date())
@@ -67,10 +70,36 @@ public class WorkspaceService {
                 workspace.getId(),
                 workspace.getName(),
                 workspace.getDescription(),
-                workspace.getPlan(),
+                null,
                 workspace.getTenant().getId(),
                 workspace.getCreatedAt(),
                 workspace.getUpdatedAt()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkspaceMemberResponse> getWorkspaceMembers(UUID workspaceId) {
+        if (!workspaceRepository.existsById(workspaceId)) {
+            throw new IllegalArgumentException("Workspace not found");
+        }
+
+        return workspaceMemberRepository.findAllByWorkspaceId(workspaceId)
+                .stream()
+                .map(this::mapToWorkspaceMemberResponse)
+                .collect(Collectors.toList());
+    }
+
+    private WorkspaceMemberResponse mapToWorkspaceMemberResponse(WorkspaceMember member) {
+        return WorkspaceMemberResponse.builder()
+                .id(member.getId())
+                .workspaceId(member.getWorkspace().getId())
+                .userId(member.getUser().getId())
+                .username(member.getUser().getUsername())
+                .email(member.getUser().getEmail())
+                .fullName(member.getUser().getFullName())
+                .avatarUrl(member.getUser().getAvatarUrl())
+                .role(member.getRole())
+                .joinedAt(member.getJoinedAt())
+                .build();
     }
 }

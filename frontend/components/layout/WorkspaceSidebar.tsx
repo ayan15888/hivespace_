@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { CreateOrgModal } from "@/components/features/organizations/CreateOrgModal";
 import { CreateWorkspaceModal } from "@/components/features/workspaces/CreateWorkspaceModal";
 import { CreateProjectModal } from "@/components/features/projects/CreateProjectModal";
+import { CreateTeamModal } from "@/components/features/teams/CreateTeamModal";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,6 +47,7 @@ export function WorkspaceSidebar() {
   const [isCreateWorkspaceModalOpen, setIsCreateWorkspaceModalOpen] = useState(false);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
+  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   
   const { orgs } = useOrgs();
   const { activeOrg, setActiveOrg } = useOrgStore();
@@ -53,7 +55,11 @@ export function WorkspaceSidebar() {
   const { workspaces } = useWorkspaces();
   const { activeWorkspace, setActiveWorkspace } = useWorkspaceStore();
   const { projects, loading: projectsLoading } = useProjects();
-  const { teams } = useTeams();
+  const activeProject = projects.find(p => pathname.startsWith(`/dashboard/projects/${p.id}`));
+  const activeProjectId = activeProject?.id || null;
+  
+  const expandedProjectId = manualExpandedId !== null ? manualExpandedId : activeProjectId;
+  const { teams } = useTeams(activeWorkspace?.id || undefined);
 
   // Auto-select first workspace if none active
   useEffect(() => {
@@ -61,9 +67,6 @@ export function WorkspaceSidebar() {
       setActiveWorkspace(workspaces[0]);
     }
   }, [workspaces, activeWorkspace, setActiveWorkspace]);
-
-  const activeProjectId = projects.find(p => pathname.startsWith(`/dashboard/projects/${p.id}`))?.id || null;
-  const expandedProjectId = manualExpandedId !== null ? manualExpandedId : activeProjectId;
 
   const toggleExpand = (projectId: string) => {
     setManualExpandedId(expandedProjectId === projectId ? "" : projectId);
@@ -106,7 +109,7 @@ export function WorkspaceSidebar() {
                   {workspace.name}
                 </span>
                 {activeWorkspace?.id === workspace.id && (
-                  <Check className="h-4 w-4 text-[#7C5CFC]" strokeWidth={1.5} />
+                  <Check className="h-4 w-4 text-hs-accent" strokeWidth={1.5} />
                 )}
               </div>
             ))}
@@ -147,7 +150,7 @@ export function WorkspaceSidebar() {
               >
                 <span className="text-xs">{org.name}</span>
                 {activeOrg?.id === org.id && (
-                  <Check className="h-3 w-3 text-blue-500" strokeWidth={1.5} />
+                  <Check className="h-3 w-3 text-hs-accent" strokeWidth={1.5} />
                 )}
               </div>
             ))}
@@ -158,14 +161,19 @@ export function WorkspaceSidebar() {
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 flex flex-col gap-6 scrollbar-none pb-8">
         
         {/* 2. + New Project Button */}
-        <Button 
-          variant="ghost" 
-          className="w-full justify-start text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 h-8 px-2 rounded-md border border-border/50"
-          onClick={() => setIsCreateProjectModalOpen(true)}
-        >
-          <Plus strokeWidth={1.5} className="mr-2 h-3.5 w-3.5" />
-          New Project
-        </Button>
+        <div className="relative w-full group/btn-wrap">
+          <div className="glowing-border-btn-glow" />
+          <div className="glowing-border-btn-wrap">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start text-xs text-muted-foreground hover:text-foreground h-8 px-2 bg-transparent hover:bg-transparent border-none rounded-[inherit]"
+              onClick={() => setIsCreateProjectModalOpen(true)}
+            >
+              <Plus strokeWidth={1.5} className="mr-2 h-3.5 w-3.5" />
+              New Project
+            </Button>
+          </div>
+        </div>
 
         <div className="flex flex-col">
           <span className="px-2 mb-2 text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Projects</span>
@@ -173,11 +181,10 @@ export function WorkspaceSidebar() {
           <div className="flex flex-col gap-0.5">
             <AnimatePresence initial={false}>
               {projects.map(project => {
-                const projectIdentifier = project.slug || project.id;
-                const projectPath = `/dashboard/projects/${projectIdentifier}`;
+                const projectPath = `/dashboard/projects/${project.id}`;
                 const isActive = pathname.startsWith(projectPath);
                 const isExpanded = expandedProjectId === project.id;
-                const dotColor = PROJECT_COLOR_MAP[project.color || ""] || "#7C5CFC";
+                const dotColor = PROJECT_COLOR_MAP[project.color || ""] || "var(--hs-accent)";
                 
                 return (
                   <motion.div 
@@ -196,13 +203,13 @@ export function WorkspaceSidebar() {
                           !isActive && "border-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                         )}
                         style={isActive ? {
-                          backgroundColor: `${dotColor}20`,
+                          backgroundColor: `color-mix(in srgb, ${dotColor} 20%, transparent)`,
                           borderColor: dotColor,
                           color: "var(--foreground)"
                         } : undefined}
                       >
                         <div className="flex items-center gap-1.5 min-w-0 pl-4">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-sm" style={{ backgroundColor: `${dotColor}20` }}>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-sm" style={{ backgroundColor: `color-mix(in srgb, ${dotColor} 20%, transparent)` }}>
                             <Layout className="h-2.5 w-2.5" style={{ color: dotColor }} />
                           </div>
                           <span className="text-sm truncate font-medium">{project.name}</span>
@@ -282,7 +289,19 @@ export function WorkspaceSidebar() {
 
         {/* 4. TEAMS */}
         <div className="flex flex-col">
-          <span className="px-2 mb-2 text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Teams</span>
+          <div className="flex items-center justify-between px-2 mb-2">
+            <span className="text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Teams</span>
+            {activeWorkspace?.id && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-4 w-4 text-zinc-500 hover:text-zinc-300"
+                onClick={() => setIsCreateTeamOpen(true)}
+              >
+                <Plus className="h-3 w-3" strokeWidth={1.5} />
+              </Button>
+            )}
+          </div>
           
           <div className="flex flex-col gap-0.5">
             {teams.length > 0 ? teams.map(team => {
@@ -330,7 +349,7 @@ export function WorkspaceSidebar() {
                 const path = `/dashboard/chat/${channel.name}`;
                 const isActive = pathname === path;
                 const channelProject = projects.find(p => p.id === channel.projectId);
-                const channelColor = PROJECT_COLOR_MAP[channelProject?.color || ""] || "#7C5CFC";
+                const channelColor = PROJECT_COLOR_MAP[channelProject?.color || ""] || "var(--hs-accent)";
 
                 return (
                   <Link 
@@ -341,7 +360,7 @@ export function WorkspaceSidebar() {
                       !isActive && "border-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                     )}
                     style={isActive ? {
-                      backgroundColor: `${channelColor}20`,
+                      backgroundColor: `color-mix(in srgb, ${channelColor} 20%, transparent)`,
                       borderColor: channelColor,
                       color: "var(--foreground)"
                     } : undefined}
@@ -386,6 +405,14 @@ export function WorkspaceSidebar() {
         isOpen={isCreateOrgModalOpen}
         onClose={() => setIsCreateOrgModalOpen(false)}
       />
+
+      {activeWorkspace?.id && (
+        <CreateTeamModal 
+          isOpen={isCreateTeamOpen} 
+          workspaceId={activeWorkspace.id}
+          onClose={() => setIsCreateTeamOpen(false)}
+        />
+      )}
     </aside>
   );
 }
@@ -395,7 +422,7 @@ function SubItem({
   label, 
   href, 
   isActive,
-  activeColor = "#7C5CFC"
+  activeColor = "var(--hs-accent)"
 }: { 
   icon: React.ElementType; 
   label: string; 
@@ -411,7 +438,7 @@ function SubItem({
         !isActive && "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
       )}
       style={isActive ? {
-        backgroundColor: `${activeColor}15`,
+        backgroundColor: `color-mix(in srgb, ${activeColor} 15%, transparent)`,
         color: "white"
       } : undefined}
     >

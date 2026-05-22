@@ -3,19 +3,17 @@ import { apiFetch } from "./client";
 export interface WorkspaceRequest {
   name: string;
   tenantId: string;
-  plan: string;
   description?: string;
-  slug?: string; // Optional for frontend internal use
 }
 
 export interface WorkspaceResponse {
   id: string;
   name: string;
-  slug: string;
   description: string;
   tenantId: string;
   plan: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export async function createWorkspace(data: WorkspaceRequest): Promise<WorkspaceResponse> {
@@ -27,4 +25,20 @@ export async function createWorkspace(data: WorkspaceRequest): Promise<Workspace
 
 export async function getWorkspacesByTenant(tenantId: string): Promise<WorkspaceResponse[]> {
   return apiFetch(`/api/workspaces/t/${tenantId}`);
+}
+
+export interface WorkspaceMemberResponse {
+  id: string;
+  workspaceId: string;
+  userId: string;
+  username: string;
+  email: string;
+  fullName: string;
+  avatarUrl: string;
+  role: string; // ADMIN, MEMBER, VIEWER
+  joinedAt: string;
+}
+
+export async function getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberResponse[]> {
+  return apiFetch(`/api/workspaces/${workspaceId}/members`);
 }

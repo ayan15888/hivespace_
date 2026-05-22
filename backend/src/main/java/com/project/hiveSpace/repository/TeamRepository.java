@@ -1,6 +1,6 @@
 package com.project.hiveSpace.repository;
 
-import com.project.hiveSpace.models.Project;
+import com.project.hiveSpace.models.Workspace;
 import com.project.hiveSpace.models.Team;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -12,11 +12,13 @@ import java.util.UUID;
 @Repository
 public interface TeamRepository extends JpaRepository<Team, UUID> {
 
-    List<Team> findAllByProject(Project project);
+    List<Team> findByWorkspaceId(UUID workspaceId);
 
-    List<Team> findAllByProjectId(UUID projectId);
+    boolean existsByNameAndWorkspaceId(String name, UUID workspaceId);
 
-    Optional<Team> findByNameAndProject(String name, Project project);
+    long countByWorkspaceId(UUID workspaceId);
 
-    boolean existsByNameAndProject(String name, Project project);
+    Optional<Team> findByNameAndWorkspace(String name, Workspace workspace);
+
+    boolean existsByNameAndWorkspace(String name, Workspace workspace);
 }

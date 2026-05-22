@@ -3,6 +3,8 @@ package com.project.hiveSpace.controllers;
 import com.project.hiveSpace.dto.ProjectRequest;
 import com.project.hiveSpace.dto.ProjectResponse;
 import com.project.hiveSpace.services.ProjectService;
+import com.project.hiveSpace.models.User;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,8 +23,9 @@ public class ProjectController {
     @PostMapping
     public ResponseEntity<ProjectResponse> createProject(
             @PathVariable UUID workspaceId,
-            @Valid @RequestBody ProjectRequest request) {
-        return ResponseEntity.ok(projectService.createProject(workspaceId, request));
+            @Valid @RequestBody ProjectRequest request,
+            @AuthenticationPrincipal User creator) {
+        return ResponseEntity.ok(projectService.createProject(workspaceId, request, creator));
     }
 
     @GetMapping

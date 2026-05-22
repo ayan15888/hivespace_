@@ -1,5 +1,6 @@
 package com.project.hiveSpace.dto;
 
+import com.project.hiveSpace.models.ProjectStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -20,11 +21,15 @@ public class ProjectRequest {
 
     private String description;
 
-    @NotBlank(message = "Project status is required")
-    private String status;
+    @NotNull(message = "Project status is required")
+    @Builder.Default
+    private ProjectStatus status = ProjectStatus.ACTIVE;
 
     @NotNull(message = "Workspace ID is required")
     private UUID workspaceId;
 
     private String color;
+
+    private java.util.Date startDate;
+    private java.util.Date endDate;
 }

@@ -1,5 +1,6 @@
 package com.project.hiveSpace.controllers;
 
+import com.project.hiveSpace.dto.WorkspaceMemberResponse;
 import com.project.hiveSpace.dto.WorkspaceRequest;
 import com.project.hiveSpace.dto.WorkspaceResponse;
 import com.project.hiveSpace.services.WorkspaceService;
@@ -26,5 +27,10 @@ public class WorkspaceController {
     @GetMapping("/t/{tenantId}")
     public ResponseEntity<List<WorkspaceResponse>> getWorkspacesByTenant(@PathVariable UUID tenantId) {
         return ResponseEntity.ok(workspaceService.getWorkspacesByTenant(tenantId));
+    }
+
+    @GetMapping("/{workspaceId}/members")
+    public ResponseEntity<List<WorkspaceMemberResponse>> getWorkspaceMembers(@PathVariable UUID workspaceId) {
+        return ResponseEntity.ok(workspaceService.getWorkspaceMembers(workspaceId));
     }
 }
