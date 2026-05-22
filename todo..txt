@@ -9,3 +9,13 @@ if member no invite memebr button should show
 
 WARNING
 In accordance with the discussion document, the inline Invite/Assign Form and the Remove Member (Revoke) action will be completely removed from this page. These actions belong exclusively to the dedicated "Members" settings tab.
+
+
+
+//ayan 23 
+
+memeber can create worksapce 
+role and permission notworking
+teneant is not  uniqye 
+assign memebers to task not working 
+wokspace page should be there to asign or to kickoutmemebr
