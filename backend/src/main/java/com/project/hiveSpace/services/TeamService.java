@@ -6,9 +6,11 @@ import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.models.TeamMember;
 import com.project.hiveSpace.models.TeamMemberRole;
 import com.project.hiveSpace.models.Project;
+import com.project.hiveSpace.models.ProjectTeam;
 import com.project.hiveSpace.models.Workspace;
 import com.project.hiveSpace.models.Team;
 import com.project.hiveSpace.repository.ProjectRepository;
+import com.project.hiveSpace.repository.ProjectTeamRepository;
 import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.repository.WorkspaceRepository;
 import com.project.hiveSpace.repository.TeamRepository;
@@ -31,6 +33,7 @@ public class TeamService {
     private final ProjectRepository projectRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final RbacService rbacService;
+    private final ProjectTeamRepository projectTeamRepository;
 
     @Transactional
     public TeamResponse createTeam(TeamRequest request, User creator) {
@@ -67,7 +70,6 @@ public class TeamService {
                 .name(request.getName())
                 .description(request.getDescription())
                 .workspace(workspace)
-                .project(associatedProject)
                 .createdBy(creator)
                 .membersCount(1) // Creator is included
                 .createdAt(new Date())
@@ -85,6 +87,14 @@ public class TeamService {
         teamMemberRepository.save(lead);
 
         if (associatedProject != null) {
+            ProjectTeam projectTeam = ProjectTeam.builder()
+                    .project(associatedProject)
+                    .team(savedTeam)
+                    .assignedBy(creator)
+                    .assignedAt(new Date())
+                    .build();
+            projectTeamRepository.save(projectTeam);
+
             associatedProject.setTeamsCount(associatedProject.getTeamsCount() + 1);
             projectRepository.save(associatedProject);
         }
@@ -120,14 +130,16 @@ public class TeamService {
             throw new SecurityException("Access denied: Only team leads and workspace admins can delete the team");
         }
 
-        // If associated with a project, decrement project's team count
-        if (team.getProject() != null) {
-            Project project = team.getProject();
+        // Decrement teamsCount for all associated projects, and delete the project_teams records
+        List<ProjectTeam> associations = projectTeamRepository.findByTeamId(teamId);
+        for (ProjectTeam assoc : associations) {
+            Project project = assoc.getProject();
             if (project.getTeamsCount() > 0) {
                 project.setTeamsCount(project.getTeamsCount() - 1);
                 projectRepository.save(project);
             }
         }
+        projectTeamRepository.deleteAll(associations);
 
         teamRepository.delete(team);
     }
@@ -148,13 +160,16 @@ public class TeamService {
     }
 
     private TeamResponse mapToResponse(Team team) {
+        List<ProjectTeam> associations = projectTeamRepository.findByTeamId(team.getId());
+        UUID firstProjectId = associations.isEmpty() ? null : associations.get(0).getProject().getId();
+
         return TeamResponse.builder()
                 .id(team.getId())
                 .name(team.getName())
                 .description(team.getDescription())
                 .membersCount(team.getMembersCount())
                 .workspaceId(team.getWorkspace().getId())
-                .projectId(team.getProject() != null ? team.getProject().getId() : null)
+                .projectId(firstProjectId)
                 .createdAt(team.getCreatedAt())
                 .updatedAt(team.getUpdatedAt())
                 .build();

@@ -7,9 +7,14 @@ import com.project.hiveSpace.models.ProjectMember;
 import com.project.hiveSpace.models.ProjectMemberRole;
 import com.project.hiveSpace.models.Project;
 import com.project.hiveSpace.models.Workspace;
+import com.project.hiveSpace.models.Team;
+import com.project.hiveSpace.models.ProjectTeam;
 import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.ProjectRepository;
+import com.project.hiveSpace.repository.TeamRepository;
+import com.project.hiveSpace.repository.ProjectTeamRepository;
 import com.project.hiveSpace.repository.WorkspaceRepository;
+import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +31,9 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final WorkspaceRepository workspaceRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final TeamRepository teamRepository;
+    private final ProjectTeamRepository projectTeamRepository;
+    private final RbacService rbacService;
 
     @Transactional
     public ProjectResponse createProject(UUID workspaceId, ProjectRequest request, User creator) {
@@ -74,6 +82,45 @@ public class ProjectService {
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public ProjectResponse assignTeam(UUID projectId, UUID teamId, User actor) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+        UUID workspaceId = project.getWorkspace().getId();
+
+        // RBAC validation: caller must be Project Lead or Workspace Admin
+        boolean isLead = rbacService.hasProjectRole(projectId, "LEAD");
+        boolean isWorkspaceAdmin = rbacService.isWorkspaceAdmin(workspaceId);
+        if (!isLead && !isWorkspaceAdmin) {
+            throw new SecurityException("Access denied: Only project leads and workspace admins can assign teams");
+        }
+
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+
+        // Validate team and project are in the same workspace
+        if (!team.getWorkspace().getId().equals(workspaceId)) {
+            throw new IllegalArgumentException("Team and project must belong to the same workspace");
+        }
+
+        // Check if already assigned
+        if (!projectTeamRepository.existsByProjectIdAndTeamId(projectId, teamId)) {
+            ProjectTeam association = ProjectTeam.builder()
+                    .project(project)
+                    .team(team)
+                    .assignedBy(actor)
+                    .assignedAt(new Date())
+                    .build();
+            projectTeamRepository.save(association);
+
+            project.setTeamsCount(project.getTeamsCount() + 1);
+            project = projectRepository.save(project);
+        }
+
+        return mapToResponse(project);
     }
 
     private ProjectResponse mapToResponse(Project project) {

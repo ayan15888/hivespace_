@@ -233,9 +233,18 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                         </SelectTrigger>
                         <SelectContent className="bg-hs-main border-border text-foreground">
                           <SelectItem value="default">Me (creator)</SelectItem>
-                          {projectMembers.map((m) => (
-                            <SelectItem key={m.userId} value={m.userId}>{m.fullName}</SelectItem>
-                          ))}
+                          {[...projectMembers]
+                            .sort((a, b) => a.belongsToAssignedTeam === b.belongsToAssignedTeam ? 0 : a.belongsToAssignedTeam ? -1 : 1)
+                            .map((m) => (
+                              <SelectItem key={m.userId} value={m.userId}>
+                                <div className="flex items-center justify-between w-full gap-2">
+                                  <span>{m.fullName}</span>
+                                  {m.belongsToAssignedTeam && (
+                                    <span className="text-[8px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider ml-2">Team</span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>

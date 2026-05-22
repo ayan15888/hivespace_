@@ -9,6 +9,10 @@ import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
+import com.project.hiveSpace.repository.ProjectTeamRepository;
+import com.project.hiveSpace.repository.TeamMemberRepository;
+import com.project.hiveSpace.models.ProjectTeam;
+import com.project.hiveSpace.models.TeamMember;
 import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -28,6 +33,8 @@ public class ProjectMemberService {
     private final UserRepository userRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final RbacService rbacService;
+    private final ProjectTeamRepository projectTeamRepository;
+    private final TeamMemberRepository teamMemberRepository;
 
     @Transactional(readOnly = true)
     public List<ProjectMemberResponse> getMembersByProject(UUID projectId) {
@@ -42,6 +49,7 @@ public class ProjectMemberService {
         return projectMemberRepository.findAllByProjectId(projectId)
                 .stream()
                 .map(this::mapToResponse)
+                .sorted((m1, m2) -> Boolean.compare(m2.isBelongsToAssignedTeam(), m1.isBelongsToAssignedTeam()))
                 .collect(Collectors.toList());
     }
 
@@ -155,9 +163,22 @@ public class ProjectMemberService {
     }
 
     private ProjectMemberResponse mapToResponse(ProjectMember member) {
+        UUID projectId = member.getProject().getId();
+        List<ProjectTeam> projectTeams = projectTeamRepository.findByProjectId(projectId);
+        Set<UUID> assignedTeamIds = projectTeams.stream()
+                .map(pt -> pt.getTeam().getId())
+                .collect(Collectors.toSet());
+
+        boolean belongsToAssignedTeam = false;
+        if (!assignedTeamIds.isEmpty()) {
+            List<TeamMember> userTeams = teamMemberRepository.findAllByUserId(member.getUser().getId());
+            belongsToAssignedTeam = userTeams.stream()
+                    .anyMatch(ut -> assignedTeamIds.contains(ut.getTeam().getId()));
+        }
+
         return ProjectMemberResponse.builder()
                 .id(member.getId())
-                .projectId(member.getProject().getId())
+                .projectId(projectId)
                 .userId(member.getUser().getId())
                 .username(member.getUser().getUsername())
                 .email(member.getUser().getEmail())
@@ -165,6 +186,7 @@ public class ProjectMemberService {
                 .avatarUrl(member.getUser().getAvatarUrl())
                 .role(member.getRole())
                 .joinedAt(member.getJoinedAt())
+                .belongsToAssignedTeam(belongsToAssignedTeam)
                 .build();
     }
 }

@@ -23,4 +23,5 @@ public class ProjectMemberResponse {
     private String avatarUrl;
     private ProjectMemberRole role; // LEAD, MEMBER, VIEWER
     private Date joinedAt;
+    private boolean belongsToAssignedTeam;
 }

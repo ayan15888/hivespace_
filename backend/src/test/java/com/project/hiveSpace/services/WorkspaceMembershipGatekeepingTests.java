@@ -3,6 +3,7 @@ package com.project.hiveSpace.services;
 import com.project.hiveSpace.dto.*;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
+import com.project.hiveSpace.security.RbacService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,7 +39,13 @@ class WorkspaceMembershipGatekeepingTests {
     private TeamMemberRepository teamMemberRepository;
 
     @Mock
+    private ProjectTeamRepository projectTeamRepository;
+
+    @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private RbacService rbacService;
 
     @InjectMocks
     private WorkspaceService workspaceService;
@@ -118,6 +125,7 @@ class WorkspaceMembershipGatekeepingTests {
 
     @Test
     void testAddMemberToProject_ShouldThrowException_WhenUserNotInWorkspace() {
+        when(rbacService.hasProjectRole(projectId, "LEAD")).thenReturn(true);
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(false);
@@ -132,6 +140,7 @@ class WorkspaceMembershipGatekeepingTests {
 
     @Test
     void testAddMemberToProject_Success_WhenUserInWorkspace() {
+        when(rbacService.hasProjectRole(projectId, "LEAD")).thenReturn(true);
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(true);
@@ -155,6 +164,7 @@ class WorkspaceMembershipGatekeepingTests {
     void testAddMemberToTeam_ShouldThrowException_WhenUserNotInWorkspace() {
         TeamMemberRequest request = new TeamMemberRequest(userId, TeamMemberRole.MEMBER);
 
+        when(rbacService.hasTeamRole(teamId, "LEAD")).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(false);
@@ -171,6 +181,7 @@ class WorkspaceMembershipGatekeepingTests {
     void testAddMemberToTeam_Success_WhenUserInWorkspace() {
         TeamMemberRequest request = new TeamMemberRequest(userId, TeamMemberRole.MEMBER);
 
+        when(rbacService.hasTeamRole(teamId, "LEAD")).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(true);
@@ -188,5 +199,58 @@ class WorkspaceMembershipGatekeepingTests {
         assertEquals(userId, response.getUserId());
         assertEquals(TeamMemberRole.MEMBER, response.getRole());
         verify(teamMemberRepository, times(1)).save(any(TeamMember.class));
+    }
+
+    @Test
+    void testGetMembersByProject_ShouldSortAssignedTeamMembersFirst() {
+        UUID otherUserId = UUID.randomUUID();
+        User otherUser = User.builder()
+                .id(otherUserId)
+                .username("otheruser")
+                .email("other@example.com")
+                .fullName("Other User")
+                .build();
+
+        ProjectMember pm1 = ProjectMember.builder()
+                .id(UUID.randomUUID())
+                .project(project)
+                .user(user)
+                .role(ProjectMemberRole.MEMBER)
+                .build();
+
+        ProjectMember pm2 = ProjectMember.builder()
+                .id(UUID.randomUUID())
+                .project(project)
+                .user(otherUser)
+                .role(ProjectMemberRole.MEMBER)
+                .build();
+
+        when(rbacService.hasProjectRole(projectId, "VIEWER")).thenReturn(true);
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findAllByProjectId(projectId)).thenReturn(Arrays.asList(pm2, pm1));
+
+        ProjectTeam pt = ProjectTeam.builder()
+                .project(project)
+                .team(team)
+                .build();
+        when(projectTeamRepository.findByProjectId(projectId)).thenReturn(Collections.singletonList(pt));
+
+        TeamMember tm = TeamMember.builder()
+                .team(team)
+                .user(user)
+                .build();
+        when(teamMemberRepository.findAllByUserId(userId)).thenReturn(Collections.singletonList(tm));
+        when(teamMemberRepository.findAllByUserId(otherUserId)).thenReturn(Collections.emptyList());
+
+        List<ProjectMemberResponse> result = projectMemberService.getMembersByProject(projectId);
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        
+        assertEquals(userId, result.get(0).getUserId());
+        assertTrue(result.get(0).isBelongsToAssignedTeam());
+
+        assertEquals(otherUserId, result.get(1).getUserId());
+        assertFalse(result.get(1).isBelongsToAssignedTeam());
     }
 }

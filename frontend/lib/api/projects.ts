@@ -46,6 +46,7 @@ export interface ProjectMemberResponse {
   avatarUrl: string;
   role: string; // LEAD, MEMBER, VIEWER
   joinedAt: string;
+  belongsToAssignedTeam?: boolean;
 }
 
 export async function getProjectMembers(projectId: string): Promise<ProjectMemberResponse[]> {

@@ -591,12 +591,14 @@ export default function SprintThreeBoardPage() {
                       className="bg-transparent border-none text-foreground outline-none text-xs cursor-pointer font-medium hover:underline bg-[#1B1B1D]"
                     >
                       <option value="" disabled className="bg-[#1B1B1D]">Unassigned</option>
-                      {projectMembers.map((m) => (
-                        <option key={m.id} value={m.userId} className="bg-[#1B1B1D]">
-                          {m.fullName}
-                        </option>
-                      ))}
-                    </select>
+                      {[...projectMembers]
+                        .sort((a, b) => a.belongsToAssignedTeam === b.belongsToAssignedTeam ? 0 : a.belongsToAssignedTeam ? -1 : 1)
+                        .map((m) => (
+                          <option key={m.id} value={m.userId} className="bg-[#1B1B1D]">
+                            {m.fullName}{m.belongsToAssignedTeam ? " (Team Member)" : ""}
+                          </option>
+                        ))}
+                      </select>
                   </div>
                 </MetadataRow>
                 
@@ -651,10 +653,11 @@ export default function SprintThreeBoardPage() {
                           className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 rounded-full px-2 py-0.5 text-[10px] outline-none cursor-pointer hover:bg-zinc-700 transition-colors"
                         >
                           <option value="">+ Add</option>
-                          {projectMembers
+                          {[...projectMembers]
                             .filter(m => !assignees.some(a => a.userId === m.userId))
+                            .sort((a, b) => a.belongsToAssignedTeam === b.belongsToAssignedTeam ? 0 : a.belongsToAssignedTeam ? -1 : 1)
                             .map((m) => (
-                              <optgroup key={m.id} label={m.fullName} className="bg-[#1B1B1D]">
+                              <optgroup key={m.id} label={m.fullName + (m.belongsToAssignedTeam ? " (Team Member)" : "")} className="bg-[#1B1B1D]">
                                 <option value={`${m.userId}:COLLABORATOR`} className="bg-[#1B1B1D]">As Collaborator</option>
                                 <option value={`${m.userId}:REVIEWER`} className="bg-[#1B1B1D]">As Reviewer</option>
                               </optgroup>
