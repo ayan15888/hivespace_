@@ -34,7 +34,22 @@ import { useParams } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
 import { useState, useEffect, useCallback } from "react";
-import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
+import { 
+  getProjectMembers, 
+  ProjectMemberResponse,
+  getProjectTeams,
+  assignProjectTeam,
+  unassignProjectTeam
+} from "@/lib/api/projects";
+import { getTeamsByWorkspace, TeamResponse } from "@/lib/api/teams";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // --- MOCK DATA ---
 
@@ -61,12 +76,70 @@ const RECENT_PRs = [
 
 export default function ProjectOverviewPage() {
   const params = useParams();
-  const { projects } = useProjects();
+  const { projects, refreshProjects } = useProjects();
   const projectId = params?.projectSlug as string || "";
 
   const currentProject = projects.find(p => p.id === projectId);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
   const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+
+  // Dialog State
+  const [isTeamsDialogOpen, setIsTeamsDialogOpen] = useState(false);
+  const [assignedTeams, setAssignedTeams] = useState<TeamResponse[]>([]);
+  const [allWorkspaceTeams, setAllWorkspaceTeams] = useState<TeamResponse[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [selectedTeamToAssign, setSelectedTeamToAssign] = useState("");
+
+  const loadTeamsInfo = useCallback(async () => {
+    if (!currentProject?.id || !currentProject?.workspaceId) return;
+    setLoadingTeams(true);
+    try {
+      const [assigned, all] = await Promise.all([
+        getProjectTeams(currentProject.id),
+        getTeamsByWorkspace(currentProject.workspaceId)
+      ]);
+      setAssignedTeams(assigned);
+      setAllWorkspaceTeams(all);
+    } catch (err) {
+      console.error("Failed to load teams", err);
+      toast.error("Failed to load team assignments");
+    } finally {
+      setLoadingTeams(false);
+    }
+  }, [currentProject?.id, currentProject?.workspaceId]);
+
+  useEffect(() => {
+    if (isTeamsDialogOpen) {
+      loadTeamsInfo();
+    }
+  }, [isTeamsDialogOpen, loadTeamsInfo]);
+
+  const handleAssignTeam = async () => {
+    if (!currentProject?.id || !selectedTeamToAssign) return;
+    try {
+      await assignProjectTeam(currentProject.id, selectedTeamToAssign);
+      toast.success("Team assigned successfully");
+      setSelectedTeamToAssign("");
+      loadTeamsInfo();
+      refreshProjects();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to assign team");
+    }
+  };
+
+  const handleUnassignTeam = async (teamId: string) => {
+    if (!currentProject?.id) return;
+    try {
+      await unassignProjectTeam(currentProject.id, teamId);
+      toast.success("Team unassigned successfully");
+      loadTeamsInfo();
+      refreshProjects();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to unassign team");
+    }
+  };
 
   const fetchProjectMembers = useCallback(async () => {
     if (!currentProject?.id) return;
@@ -83,6 +156,10 @@ export default function ProjectOverviewPage() {
   }, [fetchProjectMembers]);
 
   const displayTitle = currentProject?.name || "Project";
+
+  const unassignedTeams = allWorkspaceTeams.filter(
+    (wt) => !assignedTeams.some((at) => at.id === wt.id)
+  );
 
   return (
     <ScrollArea className="h-screen w-full bg-background text-foreground">
@@ -116,7 +193,10 @@ export default function ProjectOverviewPage() {
           <Link href="/dashboard/docs" className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Docs
           </Link>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <button 
+            onClick={() => setIsTeamsDialogOpen(true)}
+            className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
             Settings
           </button>
         </nav>
@@ -199,9 +279,14 @@ export default function ProjectOverviewPage() {
                 <Share2 className="h-3.5 w-3.5 mr-2" strokeWidth={1.5} />
                 Share
               </Button>
-              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+                onClick={() => setIsTeamsDialogOpen(true)}
+              >
                 <Settings className="h-3.5 w-3.5 mr-2" strokeWidth={1.5} />
-                Edit Project
+                Manage Teams
               </Button>
             </div>
           </div>
@@ -475,6 +560,79 @@ export default function ProjectOverviewPage() {
         </div>
       </div>
       
+      <Dialog open={isTeamsDialogOpen} onOpenChange={setIsTeamsDialogOpen}>
+        <DialogContent className="bg-[#1B1B1D] border-zinc-800/80 text-foreground max-w-md rounded-2xl p-6 shadow-2xl shadow-black/40">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-foreground">Manage Project Teams</DialogTitle>
+            <DialogDescription className="text-xs text-zinc-400">
+              Assign or remove teams working on this project. Team members are automatically suggested for task assignment.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingTeams ? (
+            <div className="flex h-32 items-center justify-center">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" style={{ borderColor: themeColor, borderTopColor: "transparent" }} />
+            </div>
+          ) : (
+            <div className="mt-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1 font-semibold">Assigned Teams ({assignedTeams.length})</h4>
+                {assignedTeams.length > 0 ? (
+                  assignedTeams.map((team) => (
+                    <div key={team.id} className="flex items-center justify-between p-3 rounded-xl border border-zinc-800/60 bg-zinc-900/40 hover:bg-zinc-900/60 transition-colors">
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1 mr-2">
+                        <span className="text-sm font-semibold text-zinc-100 truncate">{team.name}</span>
+                        <span className="text-xs text-zinc-500 truncate">{team.description || "No description"}</span>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-[9px] text-zinc-400 font-mono uppercase bg-zinc-800 px-2 py-0.5 rounded-full">{team.membersCount} members</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          onClick={() => handleUnassignTeam(team.id)}
+                        >
+                          <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-zinc-500 italic py-2">No teams assigned to this project yet.</p>
+                )}
+              </div>
+
+              <div className="mt-2 border-t border-zinc-800/80 pt-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Assign Team</h4>
+                {unassignedTeams.length > 0 ? (
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedTeamToAssign}
+                      onChange={(e) => setSelectedTeamToAssign(e.target.value)}
+                      className="flex-1 h-9 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 text-xs text-foreground outline-none focus:border-zinc-700 transition-colors"
+                    >
+                      <option value="">Select a team to assign...</option>
+                      {unassignedTeams.map((team) => (
+                        <option key={team.id} value={team.id}>{team.name}</option>
+                      ))}
+                    </select>
+                    <Button
+                      onClick={handleAssignTeam}
+                      disabled={!selectedTeamToAssign}
+                      className="h-9 bg-primary hover:opacity-95 text-zinc-950 font-bold rounded-xl text-xs px-4 border-none transition-all"
+                      style={{ backgroundColor: themeColor }}
+                    >
+                      Assign
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-500 italic">All workspace teams are assigned to this project.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
     </ScrollArea>
   );

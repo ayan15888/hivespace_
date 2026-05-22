@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { TeamResponse } from "./teams";
 
 export interface ProjectRequest {
   name: string;
@@ -68,6 +69,23 @@ export async function updateProjectMemberRole(projectId: string, userId: string,
 
 export async function removeProjectMember(projectId: string, userId: string): Promise<void> {
   return apiFetch(`/api/projects/${projectId}/members/${userId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getProjectTeams(projectId: string): Promise<TeamResponse[]> {
+  return apiFetch(`/api/projects/${projectId}/teams`);
+}
+
+export async function assignProjectTeam(projectId: string, teamId: string): Promise<ProjectResponse> {
+  return apiFetch(`/api/projects/${projectId}/teams`, {
+    method: "POST",
+    body: JSON.stringify({ teamId }),
+  });
+}
+
+export async function unassignProjectTeam(projectId: string, teamId: string): Promise<ProjectResponse> {
+  return apiFetch(`/api/projects/${projectId}/teams/${teamId}`, {
     method: "DELETE",
   });
 }

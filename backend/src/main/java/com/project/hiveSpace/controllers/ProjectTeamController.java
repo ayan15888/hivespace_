@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import com.project.hiveSpace.dto.TeamResponse;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,5 +27,19 @@ public class ProjectTeamController {
             @Valid @RequestBody AssignTeamRequest request,
             @AuthenticationPrincipal User actor) {
         return ResponseEntity.ok(projectService.assignTeam(projectId, request.getTeamId(), actor));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<TeamResponse>> getAssignedTeams(
+            @PathVariable UUID projectId) {
+        return ResponseEntity.ok(projectService.getAssignedTeams(projectId));
+    }
+
+    @DeleteMapping("/{teamId}")
+    public ResponseEntity<ProjectResponse> unassignTeam(
+            @PathVariable UUID projectId,
+            @PathVariable UUID teamId,
+            @AuthenticationPrincipal User actor) {
+        return ResponseEntity.ok(projectService.unassignTeam(projectId, teamId, actor));
     }
 }

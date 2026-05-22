@@ -2,6 +2,7 @@ package com.project.hiveSpace.services;
 
 import com.project.hiveSpace.dto.ProjectRequest;
 import com.project.hiveSpace.dto.ProjectResponse;
+import com.project.hiveSpace.dto.TeamResponse;
 import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.models.ProjectMember;
 import com.project.hiveSpace.models.ProjectMemberRole;
@@ -137,6 +138,68 @@ public class ProjectService {
                 .color(project.getColor())
                 .startDate(project.getStartDate())
                 .endDate(project.getEndDate())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TeamResponse> getAssignedTeams(UUID projectId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+        UUID workspaceId = project.getWorkspace().getId();
+        if (!rbacService.hasProjectRole(projectId, "VIEWER") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+            throw new SecurityException("Access denied: Must be a project viewer or workspace admin to see assigned teams");
+        }
+
+        return projectTeamRepository.findByProjectId(projectId)
+                .stream()
+                .map(assoc -> mapTeamToResponse(assoc.getTeam()))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public ProjectResponse unassignTeam(UUID projectId, UUID teamId, User actor) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+        UUID workspaceId = project.getWorkspace().getId();
+
+        // RBAC validation: caller must be Project Lead or Workspace Admin
+        boolean isLead = rbacService.hasProjectRole(projectId, "LEAD");
+        boolean isWorkspaceAdmin = rbacService.isWorkspaceAdmin(workspaceId);
+        if (!isLead && !isWorkspaceAdmin) {
+            throw new SecurityException("Access denied: Only project leads and workspace admins can unassign teams");
+        }
+
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+
+        // Validate team belongs to project
+        if (projectTeamRepository.existsByProjectIdAndTeamId(projectId, teamId)) {
+            projectTeamRepository.deleteByProjectIdAndTeamId(projectId, teamId);
+
+            if (project.getTeamsCount() > 0) {
+                project.setTeamsCount(project.getTeamsCount() - 1);
+                project = projectRepository.save(project);
+            }
+        }
+
+        return mapToResponse(project);
+    }
+
+    private TeamResponse mapTeamToResponse(Team team) {
+        List<ProjectTeam> associations = projectTeamRepository.findByTeamId(team.getId());
+        UUID firstProjectId = associations.isEmpty() ? null : associations.get(0).getProject().getId();
+
+        return TeamResponse.builder()
+                .id(team.getId())
+                .name(team.getName())
+                .description(team.getDescription())
+                .membersCount(team.getMembersCount())
+                .workspaceId(team.getWorkspace().getId())
+                .projectId(firstProjectId)
+                .createdAt(team.getCreatedAt())
+                .updatedAt(team.getUpdatedAt())
                 .build();
     }
 }
