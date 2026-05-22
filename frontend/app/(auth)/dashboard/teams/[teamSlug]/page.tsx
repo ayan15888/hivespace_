@@ -36,6 +36,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Components
 import { TeamBreadcrumbs } from "@/components/features/teams/TeamBreadcrumbs";
@@ -80,48 +81,110 @@ export default function BackendTeamPage() {
 
         {/* TAB NAVIGATION */}
         <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
-          <div className="sticky top-0 z-20 border-b border-border/50 bg-hs-main px-6">
-          <TabsList className="h-12 w-full justify-start gap-8 bg-transparent p-0">
+          <div className="sticky top-0 z-20 border-b border-border/50 bg-hs-main px-6 py-2 flex items-center justify-between">
+          <TabsList className="h-auto w-auto justify-start gap-1 bg-transparent p-0 flex flex-wrap">
             <TabsTrigger 
               value="overview" 
-              className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-4 text-sm font-medium text-zinc-500 data-[state=active]:border-hs-accent data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none shadow-none"
+              className="relative h-7 w-20 rounded-full border border-border/50 bg-hs-card/25 text-[11px] font-medium text-zinc-500 hover:text-foreground hover:border-border transition-all duration-200 data-[state=active]:bg-transparent data-[state=active]:border-transparent data-[state=active]:text-hs-accent data-[state=active]:shadow-none shadow-none cursor-pointer flex items-center justify-center z-10"
             >
-              Overview
+              <span>Overview</span>
+              {activeTab === "overview" && (
+                <motion.div 
+                  layoutId="activeTeamTabIndicator" 
+                  className="absolute inset-0 rounded-full border border-hs-accent bg-hs-accent/10 -z-10"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
             </TabsTrigger>
             <TabsTrigger 
               value="members"
-              className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-4 text-sm font-medium text-zinc-500 data-[state=active]:border-hs-accent data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none shadow-none"
+              className="relative h-7 w-20 rounded-full border border-border/50 bg-hs-card/25 text-[11px] font-medium text-zinc-500 hover:text-foreground hover:border-border transition-all duration-200 data-[state=active]:bg-transparent data-[state=active]:border-transparent data-[state=active]:text-hs-accent data-[state=active]:shadow-none shadow-none cursor-pointer flex items-center justify-center z-10"
             >
-              Members
+              <span>Members</span>
+              {activeTab === "members" && (
+                <motion.div 
+                  layoutId="activeTeamTabIndicator" 
+                  className="absolute inset-0 rounded-full border border-hs-accent bg-hs-accent/10 -z-10"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
             </TabsTrigger>
             <TabsTrigger 
               value="tasks"
-              className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-4 text-sm font-medium text-zinc-500 data-[state=active]:border-hs-accent data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none shadow-none"
+              className="relative h-7 w-20 rounded-full border border-border/50 bg-hs-card/25 text-[11px] font-medium text-zinc-500 hover:text-foreground hover:border-border transition-all duration-200 data-[state=active]:bg-transparent data-[state=active]:border-transparent data-[state=active]:text-hs-accent data-[state=active]:shadow-none shadow-none cursor-pointer flex items-center justify-center z-10"
             >
-              Tasks
+              <span>Tasks</span>
+              {activeTab === "tasks" && (
+                <motion.div 
+                  layoutId="activeTeamTabIndicator" 
+                  className="absolute inset-0 rounded-full border border-hs-accent bg-hs-accent/10 -z-10"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
             </TabsTrigger>
             <TabsTrigger 
               value="channels"
-              className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-4 text-sm font-medium text-zinc-500 data-[state=active]:border-hs-accent data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none shadow-none"
+              className="relative h-7 w-20 rounded-full border border-border/50 bg-hs-card/25 text-[11px] font-medium text-zinc-500 hover:text-foreground hover:border-border transition-all duration-200 data-[state=active]:bg-transparent data-[state=active]:border-transparent data-[state=active]:text-hs-accent data-[state=active]:shadow-none shadow-none cursor-pointer flex items-center justify-center z-10"
             >
-              Channels
+              <span>Channels</span>
+              {activeTab === "channels" && (
+                <motion.div 
+                  layoutId="activeTeamTabIndicator" 
+                  className="absolute inset-0 rounded-full border border-hs-accent bg-hs-accent/10 -z-10"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
             </TabsTrigger>
           </TabsList>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <TabsContent value="overview" className="m-0 border-none p-0 outline-none">
-            <OverviewTab />
-          </TabsContent>
-          <TabsContent value="members" className="m-0 border-none p-0 outline-none">
-            <MembersTab />
-          </TabsContent>
-          <TabsContent value="tasks" className="m-0 border-none p-0 outline-none">
-            <TasksTab />
-          </TabsContent>
-          <TabsContent value="channels" className="m-0 border-none p-0 outline-none">
-            <ChannelsTab />
-          </TabsContent>
+          <AnimatePresence mode="wait">
+            <TabsContent value="overview" className="m-0 border-none p-0 outline-none">
+              <motion.div
+                key="overview-tab"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+              >
+                <OverviewTab />
+              </motion.div>
+            </TabsContent>
+            <TabsContent value="members" className="m-0 border-none p-0 outline-none">
+              <motion.div
+                key="members-tab"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+              >
+                <MembersTab />
+              </motion.div>
+            </TabsContent>
+            <TabsContent value="tasks" className="m-0 border-none p-0 outline-none">
+              <motion.div
+                key="tasks-tab"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+              >
+                <TasksTab />
+              </motion.div>
+            </TabsContent>
+            <TabsContent value="channels" className="m-0 border-none p-0 outline-none">
+              <motion.div
+                key="channels-tab"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+              >
+                <ChannelsTab />
+              </motion.div>
+            </TabsContent>
+          </AnimatePresence>
         </div>
         </Tabs>
       </div>
