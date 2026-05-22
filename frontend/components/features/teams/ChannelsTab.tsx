@@ -16,12 +16,12 @@ export function ChannelsTab() {
         {CHANNELS.map((channel) => (
           <div 
             key={channel.name} 
-            className="group relative bg-[#272629] border border-zinc-800/50 rounded-md p-4 hover:border-zinc-700 transition-all duration-300 cursor-pointer flex flex-col h-[140px]"
+            className="group relative bg-hs-card border border-border/50 rounded-md p-4 hover:border-border transition-all duration-300 cursor-pointer flex flex-col h-[140px]"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-1.5">
                 <span className="text-zinc-600 font-light text-xl leading-none">#</span>
-                <span className="text-sm font-medium text-[#E5E1E4]">{channel.name}</span>
+                <span className="text-sm font-medium text-foreground">{channel.name}</span>
               </div>
               {channel.unread > 0 && (
                 <div className="bg-[#f95b4e] text-white text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center">
@@ -49,7 +49,7 @@ export function ChannelsTab() {
         ))}
       </div>
 
-      <Button variant="ghost" className="w-full flex items-center justify-center gap-2 h-10 border border-zinc-800/50 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30 text-xs">
+      <Button variant="ghost" className="w-full flex items-center justify-center gap-2 h-10 border border-border/50 text-zinc-500 hover:text-foreground hover:bg-muted/50 text-xs">
         <PlusCircle className="h-4 w-4" />
         Create Channel
       </Button>
