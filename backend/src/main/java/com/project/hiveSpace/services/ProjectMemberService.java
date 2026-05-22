@@ -9,6 +9,7 @@ import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
+import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,11 +27,16 @@ public class ProjectMemberService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final RbacService rbacService;
 
     @Transactional(readOnly = true)
     public List<ProjectMemberResponse> getMembersByProject(UUID projectId) {
-        if (!projectRepository.existsById(projectId)) {
-            throw new IllegalArgumentException("Project not found");
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+        UUID workspaceId = project.getWorkspace().getId();
+        if (!rbacService.hasProjectRole(projectId, "VIEWER") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+            throw new SecurityException("Access denied: Must be a project member or workspace admin");
         }
 
         return projectMemberRepository.findAllByProjectId(projectId)
@@ -44,10 +50,15 @@ public class ProjectMemberService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
+        UUID workspaceId = project.getWorkspace().getId();
+        if (!rbacService.hasProjectRole(projectId, "LEAD") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+            throw new SecurityException("Access denied: Only project leads and workspace admins can add members");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        boolean isInWorkspace = workspaceMemberRepository.existsByWorkspaceIdAndUserId(project.getWorkspace().getId(), userId);
+        boolean isInWorkspace = workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId);
         if (!isInWorkspace) {
             throw new SecurityException("User must be a workspace member before joining a project");
         }
@@ -79,6 +90,18 @@ public class ProjectMemberService {
         ProjectMember projectMember = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
 
+        Project project = projectMember.getProject();
+        UUID workspaceId = project.getWorkspace().getId();
+        if (!rbacService.hasProjectRole(projectId, "LEAD") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+            throw new SecurityException("Access denied: Only project leads and workspace admins can update roles");
+        }
+
+        if (projectMember.getRole() == ProjectMemberRole.LEAD && role != ProjectMemberRole.LEAD) {
+            if (isLastLead(projectId, userId)) {
+                throw new SecurityException("Cannot demote the last project lead");
+            }
+        }
+
         projectMember.setRole(role);
         ProjectMember updated = projectMemberRepository.save(projectMember);
         return mapToResponse(updated);
@@ -88,6 +111,26 @@ public class ProjectMemberService {
     public void removeMemberFromProject(UUID projectId, UUID userId) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+        UUID workspaceId = project.getWorkspace().getId();
+
+        User currentUser = rbacService.getCurrentUser();
+        if (currentUser == null) {
+            throw new SecurityException("User not authenticated");
+        }
+        UUID currentUserId = currentUser.getId();
+
+        boolean isSelf = currentUserId.equals(userId);
+        boolean isProjectLead = rbacService.hasProjectRole(projectId, "LEAD");
+        boolean isWorkspaceAdmin = rbacService.hasWorkspaceRole(workspaceId, "ADMIN");
+
+        if (!isSelf && !isProjectLead && !isWorkspaceAdmin) {
+            throw new SecurityException("Access denied: Only project leads, workspace admins, or the members themselves can remove members");
+        }
+
+        if (isLastLead(projectId, userId)) {
+            throw new SecurityException("Cannot remove the last project lead");
+        }
 
         ProjectMember projectMember = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
@@ -99,6 +142,16 @@ public class ProjectMemberService {
             project.setMembersCount(project.getMembersCount() - 1);
             projectRepository.save(project);
         }
+    }
+
+    private boolean isLastLead(UUID projectId, UUID userId) {
+        ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+
+        if (member.getRole() != ProjectMemberRole.LEAD) return false;
+
+        long leadCount = projectMemberRepository.countByProjectIdAndRole(projectId, ProjectMemberRole.LEAD);
+        return leadCount <= 1;
     }
 
     private ProjectMemberResponse mapToResponse(ProjectMember member) {

@@ -10,6 +10,7 @@ import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.repository.TeamRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
+import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,11 +28,16 @@ public class TeamMemberService {
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final RbacService rbacService;
 
     @Transactional(readOnly = true)
     public List<TeamMemberResponse> getMembersByTeam(UUID teamId) {
-        if (!teamRepository.existsById(teamId)) {
-            throw new IllegalArgumentException("Team not found");
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+
+        UUID workspaceId = team.getWorkspace().getId();
+        if (!rbacService.hasTeamRole(teamId, "MEMBER") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+            throw new SecurityException("Access denied: Must be a team member or workspace admin");
         }
 
         return teamMemberRepository.findAllByTeamId(teamId)
@@ -45,10 +51,15 @@ public class TeamMemberService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
+        UUID workspaceId = team.getWorkspace().getId();
+        if (!rbacService.hasTeamRole(teamId, "LEAD") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+            throw new SecurityException("Access denied: Only team leads and workspace admins can add members");
+        }
+
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        boolean isInWorkspace = workspaceMemberRepository.existsByWorkspaceIdAndUserId(team.getWorkspace().getId(), request.getUserId());
+        boolean isInWorkspace = workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, request.getUserId());
         if (!isInWorkspace) {
             throw new SecurityException("User must be a workspace member before joining a team");
         }
@@ -80,6 +91,18 @@ public class TeamMemberService {
         TeamMember teamMember = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
 
+        Team team = teamMember.getTeam();
+        UUID workspaceId = team.getWorkspace().getId();
+        if (!rbacService.hasTeamRole(teamId, "LEAD") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+            throw new SecurityException("Access denied: Only team leads and workspace admins can update roles");
+        }
+
+        if (teamMember.getRole() == TeamMemberRole.LEAD && role != TeamMemberRole.LEAD) {
+            if (isLastLead(teamId, userId)) {
+                throw new SecurityException("Cannot demote the last team lead");
+            }
+        }
+
         teamMember.setRole(role);
         TeamMember updated = teamMemberRepository.save(teamMember);
         return mapToResponse(updated);
@@ -89,6 +112,26 @@ public class TeamMemberService {
     public void removeMemberFromTeam(UUID teamId, UUID userId) {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+
+        UUID workspaceId = team.getWorkspace().getId();
+
+        User currentUser = rbacService.getCurrentUser();
+        if (currentUser == null) {
+            throw new SecurityException("User not authenticated");
+        }
+        UUID currentUserId = currentUser.getId();
+
+        boolean isSelf = currentUserId.equals(userId);
+        boolean isTeamLead = rbacService.hasTeamRole(teamId, "LEAD");
+        boolean isWorkspaceAdmin = rbacService.hasWorkspaceRole(workspaceId, "ADMIN");
+
+        if (!isSelf && !isTeamLead && !isWorkspaceAdmin) {
+            throw new SecurityException("Access denied: Only team leads, workspace admins, or the members themselves can remove members");
+        }
+
+        if (isLastLead(teamId, userId)) {
+            throw new SecurityException("Cannot remove the last team lead");
+        }
 
         TeamMember teamMember = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
@@ -100,6 +143,16 @@ public class TeamMemberService {
             team.setMembersCount(team.getMembersCount() - 1);
             teamRepository.save(team);
         }
+    }
+
+    private boolean isLastLead(UUID teamId, UUID userId) {
+        TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+
+        if (member.getRole() != TeamMemberRole.LEAD) return false;
+
+        long leadCount = teamMemberRepository.countByTeamIdAndRole(teamId, TeamMemberRole.LEAD);
+        return leadCount <= 1;
     }
 
     private TeamMemberResponse mapToResponse(TeamMember member) {

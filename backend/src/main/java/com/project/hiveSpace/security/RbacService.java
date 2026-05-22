@@ -23,7 +23,7 @@ public class RbacService {
     private final ProjectMemberRepository projectMemberRepository;
     private final TeamMemberRepository teamMemberRepository;
 
-    private User getCurrentUser() {
+    public User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof User) {
             return (User) auth.getPrincipal();
