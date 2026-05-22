@@ -79,3 +79,10 @@ export async function removeTaskAssignee(taskId: string, userId: string): Promis
     method: "DELETE",
   });
 }
+
+export async function updateTaskStatus(taskId: string, status: string): Promise<TaskResponse> {
+  return apiFetch(`/api/tasks/${taskId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}

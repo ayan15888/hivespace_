@@ -42,4 +42,15 @@ public class TaskController {
     public ResponseEntity<List<TaskResponse>> getAllTasks() {
         return ResponseEntity.ok(taskService.getAllTasks());
     }
+
+    @PatchMapping("/tasks/{taskId}/status")
+    public ResponseEntity<TaskResponse> updateTaskStatus(
+            @PathVariable UUID taskId,
+            @RequestBody java.util.Map<String, String> body) {
+        String status = body.get("status");
+        if (status == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(taskService.updateTaskStatus(taskId, status));
+    }
 }

@@ -49,7 +49,8 @@ import {
   addTaskAssignee, 
   changeTaskOwner, 
   removeTaskAssignee, 
-  TaskAssigneeResponse 
+  TaskAssigneeResponse,
+  updateTaskStatus
 } from "@/lib/api/tasks";
 import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
@@ -98,6 +99,41 @@ export default function SprintThreeBoardPage() {
 
   const { tasks, refresh } = useTasks();
   const updateTask = useTaskStore((state) => state.updateTask);
+  const [activeDragColumn, setActiveDragColumn] = useState<string | null>(null);
+
+  const handleTaskDrop = async (taskId: string, columnName: string) => {
+    const status = columnName.toLowerCase().replace(/\s+/g, '_');
+    const targetTask = tasks.find(t => t.id === taskId);
+    if (!targetTask) return;
+    
+    const originalTask = { ...targetTask };
+    
+    let backendStatus = "TODO";
+    if (status === "backlog") {
+      backendStatus = "BACKLOG";
+    } else if (status === "todo") {
+      backendStatus = "TODO";
+    } else if (status === "in_progress") {
+      backendStatus = "IN_PROGRESS";
+    } else if (status === "review" || status === "in_review") {
+      backendStatus = "IN_REVIEW";
+    } else if (status === "done") {
+      backendStatus = "DONE";
+    }
+
+    const updatedTask = { ...targetTask, status: backendStatus };
+    
+    updateTask(updatedTask);
+    
+    try {
+      await updateTaskStatus(taskId, backendStatus);
+      toast.success(`Moved to ${columnName}`);
+      refresh();
+    } catch (err) {
+      updateTask(originalTask);
+      toast.error("Failed to move task");
+    }
+  };
 
   const toInitials = (name: string) => {
     if (!name) return "U";
@@ -133,6 +169,9 @@ export default function SprintThreeBoardPage() {
     const normalizedName = name.toLowerCase().replace(/\s+/g, '_');
     const filteredTasks = tasks.filter(t => {
       const taskStatus = t.status.toLowerCase();
+      if (normalizedName === "review" && taskStatus === "in_review") {
+        return true;
+      }
       return taskStatus === normalizedName || taskStatus === name.toLowerCase();
     });
     
@@ -239,7 +278,29 @@ export default function SprintThreeBoardPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="flex flex-col w-[280px] shrink-0 bg-hs-nav rounded-lg h-full overflow-hidden shadow-sm"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (activeDragColumn !== col.name) {
+                      setActiveDragColumn(col.name);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (activeDragColumn === col.name) {
+                      setActiveDragColumn(null);
+                    }
+                  }}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    setActiveDragColumn(null);
+                    const taskId = e.dataTransfer.getData("text/plain");
+                    if (taskId) {
+                      handleTaskDrop(taskId, col.name);
+                    }
+                  }}
+                  className={cn(
+                    "flex flex-col w-[280px] shrink-0 bg-hs-nav rounded-lg h-full overflow-hidden shadow-sm transition-all duration-200 border border-transparent",
+                    activeDragColumn === col.name && "border-hs-accent/40 bg-hs-nav/80 ring-2 ring-hs-accent/10"
+                  )}
                 >
                   
                   {/* Column Header */}
@@ -282,6 +343,10 @@ export default function SprintThreeBoardPage() {
                             isMuted={col.muted} 
                             onClick={() => handleTaskClick(task)} 
                             themeColor={themeColor}
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData("text/plain", task.id);
+                              e.dataTransfer.effectAllowed = "move";
+                            }}
                           />
                         </motion.div>
                       ))}
@@ -574,14 +639,28 @@ export default function SprintThreeBoardPage() {
 
 // --- SUB-COMPONENTS ---
 
-function TaskCard({ task, isMuted, onClick, themeColor }: { task: TaskResponse; isMuted?: boolean; onClick: () => void; themeColor: string }) {
+function TaskCard({ 
+  task, 
+  isMuted, 
+  onClick, 
+  themeColor,
+  onDragStart
+}: { 
+  task: TaskResponse; 
+  isMuted?: boolean; 
+  onClick: () => void; 
+  themeColor: string;
+  onDragStart?: (e: React.DragEvent) => void;
+}) {
   const isDone = isMuted;
 
   return (
     <div 
       onClick={onClick}
+      draggable
+      onDragStart={onDragStart}
       className={cn(
-        "group relative flex flex-col gap-2.5 bg-hs-card p-3 rounded-md border border-border/50 hover:bg-muted/20 cursor-pointer transition-all",
+        "group relative flex flex-col gap-2.5 bg-hs-card p-3 rounded-md border border-border/50 hover:bg-muted/20 cursor-grab active:cursor-grabbing transition-all hover:scale-[1.01] duration-150",
         isDone && "opacity-50"
       )}
       style={task.status === "IN_PROGRESS" ? { borderLeftWidth: "2px", borderLeftColor: themeColor } : {}}

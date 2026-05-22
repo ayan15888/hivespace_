@@ -149,6 +149,30 @@ public class TaskService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public TaskResponse updateTaskStatus(UUID taskId, String statusStr) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+
+        TaskStatus status;
+        String normalized = statusStr.trim().toUpperCase().replace(" ", "_");
+        if (normalized.equals("REVIEW")) {
+            status = TaskStatus.IN_REVIEW;
+        } else {
+            try {
+                status = TaskStatus.valueOf(normalized);
+            } catch (IllegalArgumentException e) {
+                status = TaskStatus.TODO;
+            }
+        }
+
+        task.setStatus(status);
+        task.setUpdatedAt(new Date());
+
+        Task saved = taskRepository.save(task);
+        return mapToResponse(saved);
+    }
+
     private TaskResponse mapToResponse(Task task) {
         TaskResponse response = TaskResponse.builder()
                 .id(task.getId())

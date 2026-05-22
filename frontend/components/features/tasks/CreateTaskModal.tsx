@@ -79,7 +79,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
         : status === "Review"
         ? "IN_REVIEW"
         : status === "Backlog"
-        ? "TODO"
+        ? "BACKLOG"
         : status.toUpperCase();
 
       const mappedPriority = priority === "normal"
