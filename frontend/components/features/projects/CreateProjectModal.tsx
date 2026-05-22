@@ -33,6 +33,9 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
   const { workspaces, activeWorkspace } = useWorkspaceStore();
   const addProject = useProjectStore(state => state.addProject);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [selectedColor, setSelectedColor] = useState(PROJECT_COLORS[1]);
   const [loading, setLoading] = useState(false);
 
@@ -49,16 +52,24 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
     try {
       const newProject = await createProject(activeWorkspace.id, {
         name,
-        description: "", 
+        description, 
         status: "ACTIVE",
         workspaceId: activeWorkspace.id,
         color: selectedColor.value,
+        startDate: startDate ? new Date(startDate).toISOString() : undefined,
+        endDate: endDate ? new Date(endDate).toISOString() : undefined,
       });
       
       toast.success("Project created successfully");
       
       // Update global store
       addProject(newProject);
+      
+      // Reset form fields
+      setName("");
+      setDescription("");
+      setStartDate("");
+      setEndDate("");
       
       if (onSuccess) onSuccess();
       onClose();
@@ -124,8 +135,42 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                           value={name}
                           onChange={handleNameChange}
                           required
-                          className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground"
+                          className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground text-sm"
                         />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="p-desc" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Description</Label>
+                        <textarea 
+                          id="p-desc" 
+                          placeholder="Provide a brief project description..." 
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          className="w-full bg-muted/30 border border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground text-sm p-3 h-20 resize-none outline-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="p-start" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Start Date</Label>
+                          <Input 
+                            id="p-start" 
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground text-xs block w-full cursor-pointer"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="p-end" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">End Date</Label>
+                          <Input 
+                            id="p-end" 
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground text-xs block w-full cursor-pointer"
+                          />
+                        </div>
                       </div>
     
                       <div className="space-y-2">

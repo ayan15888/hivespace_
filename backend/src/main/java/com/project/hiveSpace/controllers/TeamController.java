@@ -3,6 +3,8 @@ package com.project.hiveSpace.controllers;
 import com.project.hiveSpace.dto.TeamRequest;
 import com.project.hiveSpace.dto.TeamResponse;
 import com.project.hiveSpace.services.TeamService;
+import com.project.hiveSpace.models.User;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,9 +23,10 @@ public class TeamController {
     @PostMapping
     public ResponseEntity<TeamResponse> createTeam(
             @PathVariable UUID workspaceId,
-            @Valid @RequestBody TeamRequest request) {
+            @Valid @RequestBody TeamRequest request,
+            @AuthenticationPrincipal User creator) {
         request.setWorkspaceId(workspaceId);
-        return ResponseEntity.ok(teamService.createTeam(request));
+        return ResponseEntity.ok(teamService.createTeam(request, creator));
     }
 
     @GetMapping

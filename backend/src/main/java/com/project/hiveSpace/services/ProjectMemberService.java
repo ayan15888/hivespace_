@@ -8,6 +8,7 @@ import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.UserRepository;
+import com.project.hiveSpace.repository.WorkspaceMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +25,9 @@ public class ProjectMemberService {
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
 
+    @Transactional(readOnly = true)
     public List<ProjectMemberResponse> getMembersByProject(UUID projectId) {
         if (!projectRepository.existsById(projectId)) {
             throw new IllegalArgumentException("Project not found");
@@ -43,6 +46,11 @@ public class ProjectMemberService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        boolean isInWorkspace = workspaceMemberRepository.existsByWorkspaceIdAndUserId(project.getWorkspace().getId(), userId);
+        if (!isInWorkspace) {
+            throw new SecurityException("User must be a workspace member before joining a project");
+        }
 
         if (projectMemberRepository.existsByProjectAndUser(project, user)) {
             throw new IllegalArgumentException("User is already a member of this project");

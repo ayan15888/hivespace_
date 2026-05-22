@@ -43,20 +43,26 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
   const [projectId, setProjectId] = useState(initialProjectId || "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState(defaultStatus || "Todo");
+  const [status, setStatus] = useState("Todo");
   const [priority, setPriority] = useState("normal");
   const [dueDate, setDueDate] = useState("");
 
-  // Reset fields when modal opens or initialProjectId changes
+  // Reset fields when modal opens or initialProjectId/defaultStatus changes
   useEffect(() => {
     if (isOpen) {
+      setTitle("");
+      setDescription("");
+      setStatus(defaultStatus || "Todo");
+      setPriority("normal");
+      setDueDate("");
+      
       if (initialProjectId) {
         setProjectId(initialProjectId);
-      } else if (projects.length > 0 && !projectId) {
+      } else if (projects.length > 0) {
         setProjectId(projects[0].id);
       }
     }
-  }, [isOpen, initialProjectId, projects, projectId]);
+  }, [isOpen, initialProjectId, projects, defaultStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,12 +73,25 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
 
     setLoading(true);
     try {
+      // Map status and priority to the correct values expected by the backend enums/database check constraints.
+      const mappedStatus = status === "In Progress"
+        ? "IN_PROGRESS"
+        : status === "Review"
+        ? "IN_REVIEW"
+        : status === "Backlog"
+        ? "TODO"
+        : status.toUpperCase();
+
+      const mappedPriority = priority === "normal"
+        ? "MEDIUM"
+        : priority.toUpperCase();
+
       const taskData: TaskRequest = {
         title,
         description,
-        status,
-        priority,
-        dueDate: dueDate || undefined,
+        status: mappedStatus,
+        priority: mappedPriority,
+        dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       };
 
       const newTask = await createTask(projectId, taskData);
@@ -88,9 +107,9 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       setDueDate("");
       onSuccess?.();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create task:", error);
-      toast.error("Failed to create task. Please try again.");
+      toast.error(error instanceof Error ? error.message : "Failed to create task. Please try again.");
     } finally {
       setLoading(false);
     }

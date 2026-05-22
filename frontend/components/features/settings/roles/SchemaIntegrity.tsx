@@ -57,7 +57,7 @@ export default function SchemaIntegrity({
               Performance Indices
             </span>
             <div className="space-y-1.5">
-              {activeDetail.indexes.map((idx, i) => (
+              {activeDetail.indexes.map((idx: string, i: number) => (
                 <div key={i} className="flex items-center gap-2 bg-zinc-950/50 px-2.5 py-1.5 rounded border border-zinc-850 font-mono text-[9px] text-[#7C5CFC]">
                   <Fingerprint className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
                   <span className="truncate">{idx}</span>

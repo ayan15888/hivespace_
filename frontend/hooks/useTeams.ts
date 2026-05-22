@@ -1,25 +1,23 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { getTeamsByWorkspace, TeamResponse } from "@/lib/api/teams";
-import { queryKeys } from "@/lib/queryKeys";
+import { useEffect, useCallback } from "react";
+import { useTeamStore } from "@/store/teamStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
 export function useTeams(workspaceId?: string) {
-  const query = useQuery<TeamResponse[], Error>({
-    queryKey: workspaceId ? queryKeys.teams(workspaceId) : ["teams", "none"],
-    queryFn: () => {
-      if (!workspaceId) return Promise.resolve([]);
-      return getTeamsByWorkspace(workspaceId);
-    },
-    enabled: !!workspaceId,
-    staleTime: 30_000,
-    retry: 1,
-  });
+  const activeWorkspace = useWorkspaceStore((state) => state.activeWorkspace);
+  const resolvedWorkspaceId = workspaceId || activeWorkspace?.id;
 
-  return {
-    teams: query.data ?? [],
-    loading: query.isLoading || query.isFetching,
-    error: query.error?.message ?? null,
-    refresh: query.refetch,
-  };
+  const { teams, loading, error, fetchTeams } = useTeamStore();
+
+  const refresh = useCallback(async () => {
+    if (!resolvedWorkspaceId) return;
+    await fetchTeams(resolvedWorkspaceId);
+  }, [fetchTeams, resolvedWorkspaceId]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { teams, loading, error, refresh };
 }

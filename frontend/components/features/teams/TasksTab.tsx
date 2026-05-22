@@ -49,7 +49,7 @@ export function TasksTab() {
               key={p}
               className={cn(
                 "px-3 py-1.5 rounded-md text-xs transition-colors",
-                p === "All" ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300"
+                p === "All" ? "bg-hs-accent text-white" : "text-zinc-500 hover:text-foreground"
               )}
             >
               {p}
@@ -58,7 +58,7 @@ export function TasksTab() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Group By:</span>
-          <button className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-zinc-800 bg-zinc-800/30 text-xs text-zinc-300">
+          <button className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border/50 bg-hs-card text-xs text-foreground">
             Project
             <ChevronDown className="h-3 w-3" />
           </button>
@@ -68,12 +68,12 @@ export function TasksTab() {
       <div className="space-y-6">
         {TASK_GROUPS.map((group) => (
           <div key={group.name} className="space-y-2">
-            <div className="flex items-center gap-2 px-2 py-1 select-none cursor-pointer hover:bg-zinc-800/20 rounded transition-colors group">
+            <div className="flex items-center gap-2 px-2 py-1 select-none cursor-pointer hover:bg-muted/20 rounded transition-colors group">
               <ChevronDown className="h-4 w-4 text-zinc-600 group-hover:text-zinc-400" />
               <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", group.dot)} />
-              <span className="text-sm font-medium text-[#E5E1E4]">{group.name}</span>
+              <span className="text-sm font-medium text-foreground">{group.name}</span>
               <span className="text-[10px] text-zinc-500 uppercase tracking-tight ml-2">{group.workspace}</span>
-              <Badge variant="outline" className="ml-2 h-4 px-1.5 bg-zinc-800/40 border-zinc-800 text-[10px] text-zinc-500 font-medium">
+              <Badge variant="outline" className="ml-2 h-4 px-1.5 bg-hs-card border-border/50 text-[10px] text-zinc-500 font-medium">
                 {group.tasks.length}
               </Badge>
             </div>
@@ -82,12 +82,12 @@ export function TasksTab() {
               {group.tasks.map((task) => (
                 <div 
                   key={task.id} 
-                  className="flex h-10 items-center gap-4 px-2 hover:bg-zinc-800/30 border-b border-transparent hover:border-zinc-800/10 transition-all cursor-pointer group rounded-md"
+                  className="flex h-10 items-center gap-4 px-2 hover:bg-muted/30 border-b border-transparent hover:border-border/10 transition-all cursor-pointer group rounded-md"
                 >
-                  <Checkbox className="h-4 w-4 border-zinc-700 data-[state=checked]:bg-violet-500 data-[state=checked]:border-violet-500" />
+                  <Checkbox className="h-4 w-4 border-zinc-700 data-[state=checked]:bg-hs-accent data-[state=checked]:border-hs-accent" />
                   <div className={cn("h-2 w-2 rounded-full shrink-0", task.priority)} />
                   <span className="w-16 text-[10px] font-mono text-zinc-600 shrink-0">{task.id}</span>
-                  <span className="flex-1 text-sm text-zinc-300 truncate">{task.title}</span>
+                  <span className="flex-1 text-sm text-muted-foreground truncate">{task.title}</span>
                   
                   <div className="flex items-center gap-4 shrink-0">
                     <Badge variant="outline" className="bg-zinc-800 border-zinc-700/50 text-[10px] text-zinc-500 font-normal py-0">

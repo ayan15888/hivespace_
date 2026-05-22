@@ -9,6 +9,7 @@ import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.repository.TeamRepository;
 import com.project.hiveSpace.repository.UserRepository;
+import com.project.hiveSpace.repository.WorkspaceMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +26,9 @@ public class TeamMemberService {
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
 
+    @Transactional(readOnly = true)
     public List<TeamMemberResponse> getMembersByTeam(UUID teamId) {
         if (!teamRepository.existsById(teamId)) {
             throw new IllegalArgumentException("Team not found");
@@ -44,6 +47,11 @@ public class TeamMemberService {
 
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        boolean isInWorkspace = workspaceMemberRepository.existsByWorkspaceIdAndUserId(team.getWorkspace().getId(), request.getUserId());
+        if (!isInWorkspace) {
+            throw new SecurityException("User must be a workspace member before joining a team");
+        }
 
         if (teamMemberRepository.existsByTeamAndUser(team, user)) {
             throw new IllegalArgumentException("User is already a member of this team");

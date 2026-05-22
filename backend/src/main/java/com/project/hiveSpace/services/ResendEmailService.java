@@ -20,12 +20,43 @@ public class ResendEmailService {
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
     public void sendInvitationEmail(String toEmail, String orgName, String role, String inviter, String inviteUrl, String pin) {
+        sendInvitationEmail(toEmail, orgName, null, null, role, inviter, inviteUrl, pin);
+    }
+
+    public void sendInvitationEmail(String toEmail, String orgName, String workspaceName, String teamName, String role, String inviter, String inviteUrl, String pin) {
         if (resendApiKey == null || resendApiKey.isBlank()) {
             System.err.println("⚠️ RESEND_API_KEY is not configured. Skipping email sending.");
             return;
         }
 
         try {
+            String description;
+            String buttonText;
+            String subject;
+
+            if (teamName != null && !teamName.isBlank()) {
+                description = String.format(
+                    "You have been invited to join the <strong>%s</strong> organization and its <strong>%s</strong> workspace on HiveSpace as a <strong>%s</strong> by <strong>%s</strong>. You will be added directly to the <strong>%s</strong> team.",
+                    orgName, workspaceName != null && !workspaceName.isBlank() ? workspaceName : "associated", role, inviter, teamName
+                );
+                buttonText = "Join Team";
+                subject = String.format("Invitation to join team %s in %s on HiveSpace", teamName, orgName);
+            } else if (workspaceName != null && !workspaceName.isBlank()) {
+                description = String.format(
+                    "You have been invited to join the <strong>%s</strong> organization and its <strong>%s</strong> workspace on HiveSpace as a <strong>%s</strong> by <strong>%s</strong>.",
+                    orgName, workspaceName, role, inviter
+                );
+                buttonText = "Join Workspace";
+                subject = String.format("Invitation to join workspace %s in %s on HiveSpace", workspaceName, orgName);
+            } else {
+                description = String.format(
+                    "You have been invited to join the <strong>%s</strong> organization on HiveSpace as a <strong>%s</strong> by <strong>%s</strong>.",
+                    orgName, role, inviter
+                );
+                buttonText = "Join Organization";
+                subject = String.format("Invitation to join %s on HiveSpace", orgName);
+            }
+
             String htmlContent = String.format(
                 "<!DOCTYPE html>\n" +
                 "<html>\n" +
@@ -46,9 +77,9 @@ public class ResendEmailService {
                 "  <div class=\"card\">\n" +
                 "    <h1>Welcome to HiveSpace</h1>\n" +
                 "    <p>Hi there,</p>\n" +
-                "    <p>You have been invited to join the <strong>%s</strong> organization on HiveSpace as a <strong>%s</strong> by <strong>%s</strong>.</p>\n" +
+                "    <p>%s</p>\n" +
                 "    <p>To accept the invitation, please click the button below to sign up and join:</p>\n" +
-                "    <a href=\"%s\" class=\"btn\">Join Organization</a>\n" +
+                "    <a href=\"%s\" class=\"btn\">%s</a>\n" +
                 "    <div class=\"pin-box\">\n" +
                 "      <div class=\"pin-title\">Security PIN</div>\n" +
                 "      <div class=\"pin-value\">%s</div>\n" +
@@ -60,7 +91,7 @@ public class ResendEmailService {
                 "  </div>\n" +
                 "</body>\n" +
                 "</html>",
-                orgName, role, inviter, inviteUrl, pin
+                description, inviteUrl, buttonText, pin
             );
 
             // Resend API expects escaping of quotes or simple JSON payload construction
@@ -78,7 +109,7 @@ public class ResendEmailService {
             String jsonPayload = "{"
                 + "\"from\":\"HiveSpace <" + fromEmail + ">\","
                 + "\"to\":[\"" + toEmail + "\"],"
-                + "\"subject\":\"Invitation to join " + orgName + " on HiveSpace\","
+                + "\"subject\":\"" + subject + "\","
                 + "\"html\":\"" + escapedHtml + "\""
                 + "}";
 

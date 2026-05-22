@@ -4,6 +4,7 @@ export interface TeamRequest {
   name: string;
   description?: string;
   workspaceId: string;
+  projectId?: string;
 }
 
 export interface TeamResponse {
@@ -12,6 +13,7 @@ export interface TeamResponse {
   description: string;
   membersCount: number;
   workspaceId: string;
+  projectId?: string;
   createdAt: string;
 }
 
