@@ -116,7 +116,7 @@ export function NavRail() {
               <DropdownMenuSeparator className="bg-zinc-800/50 my-1" />
               <DropdownMenuLabel className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">Organization</DropdownMenuLabel>
               <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer text-zinc-400">Org Settings</DropdownMenuItem>
-              {/* <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer text-zinc-400">Members</DropdownMenuItem> */}
+              <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer text-zinc-400">Members</DropdownMenuItem>
               <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer text-zinc-400">Billing</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
