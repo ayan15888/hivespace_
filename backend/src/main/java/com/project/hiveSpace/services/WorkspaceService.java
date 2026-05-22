@@ -6,10 +6,13 @@ import com.project.hiveSpace.dto.WorkspaceResponse;
 import com.project.hiveSpace.models.Tenant;
 import com.project.hiveSpace.models.Workspace;
 import com.project.hiveSpace.models.WorkspaceMember;
+import com.project.hiveSpace.models.WorkspaceMemberRole;
+import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.repository.TenantRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
 import com.project.hiveSpace.repository.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,8 +29,18 @@ public class WorkspaceService {
     private final TenantRepository tenantRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
 
+    private User getCurrentUser() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof User) {
+            return (User) principal;
+        }
+        throw new IllegalStateException("User not authenticated");
+    }
+
     @Transactional
     public WorkspaceResponse createWorkspace(WorkspaceRequest request) {
+        User currentUser = getCurrentUser();
+
         Tenant tenant = tenantRepository.findById(request.getTenantId())
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
@@ -41,11 +54,22 @@ public class WorkspaceService {
                 .name(request.getName())
                 .description(request.getDescription())
                 .tenant(tenant)
+                .createdBy(currentUser)
+                .membersCount(1) // Creator is included
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
 
         Workspace savedWorkspace = workspaceRepository.save(workspace);
+
+        // Add creator as the first workspace member with ADMIN role
+        WorkspaceMember creatorMember = WorkspaceMember.builder()
+                .workspace(savedWorkspace)
+                .user(currentUser)
+                .role(WorkspaceMemberRole.ADMIN)
+                .joinedAt(new Date())
+                .build();
+        workspaceMemberRepository.save(creatorMember);
 
         // Increment workspaces count on tenant
         tenant.setWorkspacesCount(tenant.getWorkspacesCount() + 1);

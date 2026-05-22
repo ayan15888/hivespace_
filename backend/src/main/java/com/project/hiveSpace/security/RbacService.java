@@ -5,6 +5,7 @@ import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.repository.TenantMemberRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
+import com.project.hiveSpace.repository.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,6 +23,7 @@ public class RbacService {
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final WorkspaceRepository workspaceRepository;
 
     public User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -54,8 +56,18 @@ public class RbacService {
         User user = getCurrentUser();
         if (user == null || workspaceId == null) return false;
 
-        return workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, user.getId())
+        boolean hasExplicitRole = workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, user.getId())
                 .map(member -> hasSufficientRole(member.getRole().name(), requiredRole))
+                .orElse(false);
+
+        if (hasExplicitRole) return true;
+
+        // Fallback: Tenant owners and admins automatically have admin rights to workspaces within their organization
+        return workspaceRepository.findById(workspaceId)
+                .map(workspace -> {
+                    UUID tenantId = workspace.getTenant().getId();
+                    return isTenantOwner(tenantId) || isTenantAdmin(tenantId);
+                })
                 .orElse(false);
     }
     
