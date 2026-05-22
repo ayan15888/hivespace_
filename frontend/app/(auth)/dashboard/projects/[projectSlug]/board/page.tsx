@@ -38,12 +38,22 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useParams } from "next/navigation";
 
-import { cn } from "@/lib/utils";
+import { cn, getAvatarColorClass } from "@/lib/utils";
 import { useTasks } from "@/hooks/useTasks";
 import { useProjects } from "@/hooks/useProjects";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
 import { motion, AnimatePresence } from "framer-motion";
-import { TaskResponse } from "@/lib/api/tasks";
+import { 
+  TaskResponse, 
+  getTaskAssignees, 
+  addTaskAssignee, 
+  changeTaskOwner, 
+  removeTaskAssignee, 
+  TaskAssigneeResponse 
+} from "@/lib/api/tasks";
+import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
+import { useTaskStore } from "@/store/taskStore";
 import { CreateTaskModal } from "@/components/features/tasks/CreateTaskModal";
 
 // --- TYPES & CONSTANTS ---
@@ -83,11 +93,34 @@ export default function SprintThreeBoardPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [defaultStatus, setDefaultStatus] = useState("Todo");
 
+  const [assignees, setAssignees] = useState<TaskAssigneeResponse[]>([]);
+  const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+
   const { tasks, refresh } = useTasks();
+  const updateTask = useTaskStore((state) => state.updateTask);
+
+  const toInitials = (name: string) => {
+    if (!name) return "U";
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  const fetchAssigneesAndMembers = async (taskId: string) => {
+    try {
+      const [assigneeData, memberData] = await Promise.all([
+        getTaskAssignees(taskId),
+        getProjectMembers(projectId)
+      ]);
+      setAssignees(assigneeData);
+      setProjectMembers(memberData);
+    } catch (err) {
+      console.error("Failed to fetch assignees or project members", err);
+    }
+  };
 
   const handleTaskClick = (task: TaskResponse) => {
     setSelectedTask(task);
     setEditedTitle(task.title);
+    fetchAssigneesAndMembers(task.id);
   };
 
   const handleNewTask = (status?: string) => {
@@ -162,8 +195,8 @@ export default function SprintThreeBoardPage() {
           
           <div className="flex items-center ml-2 mr-2">
             {["MV", "RK", "PL", "RS"].map((initials, i) => (
-              <Avatar key={initials} className={`h-6 w-6 ring-2 ring-background -ml-1.5 first:ml-0 bg-muted border border-border/50`}>
-                <AvatarFallback className="bg-muted text-[9px] text-muted-foreground font-medium">{initials}</AvatarFallback>
+              <Avatar key={initials} className={`h-6 w-6 ring-2 ring-background -ml-1.5 first:ml-0 border border-border/50`}>
+                <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass(initials))}>{initials}</AvatarFallback>
               </Avatar>
             ))}
           </div>
@@ -305,20 +338,111 @@ export default function SprintThreeBoardPage() {
               <div className="flex flex-col text-[13px]">
                 <MetadataRow label="Owner">
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-5 w-5 bg-muted border border-border/50">
-                      <AvatarFallback className="text-[9px] uppercase">{selectedTask?.assigneeInitials}</AvatarFallback>
+                    <Avatar className="h-5 w-5 border border-border/50">
+                      <AvatarFallback className={cn("text-[9px] font-semibold uppercase", getAvatarColorClass(selectedTask?.assigneeInitials || ""))}>
+                        {selectedTask?.assigneeInitials || "U"}
+                      </AvatarFallback>
                     </Avatar>
-                    <span className="text-foreground">{selectedTask?.assigneeName || "Unassigned"}</span>
+                    <select
+                      value={selectedTask?.assigneeId || ""}
+                      onChange={async (e) => {
+                        const newOwnerId = e.target.value;
+                        if (!newOwnerId || !selectedTask) return;
+                        try {
+                          await changeTaskOwner(selectedTask.id, newOwnerId);
+                          toast.success("Owner changed successfully");
+                          const ownerMember = projectMembers.find(m => m.userId === newOwnerId);
+                          if (ownerMember) {
+                            const updatedTask = {
+                              ...selectedTask,
+                              assigneeId: newOwnerId,
+                              assigneeName: ownerMember.fullName,
+                              assigneeInitials: toInitials(ownerMember.fullName)
+                            };
+                            // Update local detail panel state
+                            setSelectedTask(updatedTask);
+                            // Sync to global Zustand store so board cards update immediately
+                            updateTask(updatedTask);
+                          }
+                          fetchAssigneesAndMembers(selectedTask.id);
+                        } catch (err) {
+                          toast.error("Failed to change owner");
+                        }
+                      }}
+                      className="bg-transparent border-none text-foreground outline-none text-xs cursor-pointer font-medium hover:underline bg-[#1B1B1D]"
+                    >
+                      <option value="" disabled className="bg-[#1B1B1D]">Unassigned</option>
+                      {projectMembers.map((m) => (
+                        <option key={m.id} value={m.userId} className="bg-[#1B1B1D]">
+                          {m.fullName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </MetadataRow>
                 
                 <MetadataRow label="Collaborators">
-                  <div className="flex items-center">
-                    {["RK", "PL"].map((initials, i) => (
-                      <Avatar key={initials} className="h-5 w-5 ring-2 ring-hs-nav -ml-1.5 first:ml-0 bg-muted border border-border/50">
-                        <AvatarFallback className="text-[8px] font-medium">{initials}</AvatarFallback>
-                      </Avatar>
-                    ))}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {assignees.filter(a => a.role !== 'OWNER').map((assignee) => {
+                      const initials = toInitials(assignee.fullName);
+                      return (
+                        <div key={assignee.id} className="group relative flex items-center bg-hs-card border border-border/50 rounded-full pl-1.5 pr-2 py-0.5 text-xs gap-1.5 hover:bg-muted/30">
+                          <Avatar className="h-4.5 w-4.5 border border-border/50">
+                            <AvatarFallback className={cn("text-[8px] font-semibold", getAvatarColorClass(initials))}>
+                              {initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-[11px] text-zinc-300 font-medium">{assignee.fullName}</span>
+                          <span className="text-[9px] text-zinc-500 uppercase tracking-wider">{assignee.role.toLowerCase()}</span>
+                          <button
+                            onClick={async () => {
+                              if (!selectedTask) return;
+                              try {
+                                await removeTaskAssignee(selectedTask.id, assignee.userId);
+                                toast.success("Assignee removed");
+                                fetchAssigneesAndMembers(selectedTask.id);
+                              } catch (err) {
+                                toast.error("Failed to remove assignee");
+                              }
+                            }}
+                            className="text-zinc-500 hover:text-red-400 font-bold ml-1 text-[10px]"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                    
+                    {selectedTask && (
+                      <div className="relative flex items-center">
+                        <select
+                          value=""
+                          onChange={async (e) => {
+                            const val = e.target.value;
+                            if (!val) return;
+                            const [userId, role] = val.split(":");
+                            try {
+                              await addTaskAssignee(selectedTask.id, userId, role);
+                              toast.success("Assignee added");
+                              fetchAssigneesAndMembers(selectedTask.id);
+                            } catch (err) {
+                              toast.error("Failed to add assignee");
+                            }
+                          }}
+                          className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 rounded-full px-2 py-0.5 text-[10px] outline-none cursor-pointer hover:bg-zinc-700 transition-colors"
+                        >
+                          <option value="">+ Add</option>
+                          {projectMembers
+                            .filter(m => !assignees.some(a => a.userId === m.userId))
+                            .map((m) => (
+                              <optgroup key={m.id} label={m.fullName} className="bg-[#1B1B1D]">
+                                <option value={`${m.userId}:COLLABORATOR`} className="bg-[#1B1B1D]">As Collaborator</option>
+                                <option value={`${m.userId}:REVIEWER`} className="bg-[#1B1B1D]">As Reviewer</option>
+                              </optgroup>
+                            ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </MetadataRow>
 
@@ -392,7 +516,7 @@ export default function SprintThreeBoardPage() {
                   <div className="absolute left-3 top-2 bottom-0 w-[1px] bg-zinc-800" />
                   <div className="relative flex flex-col gap-1">
                     <Avatar className="absolute -left-7 top-0 h-6 w-6 ring-4 ring-[#1B1B1D]">
-                      <AvatarFallback className="bg-zinc-800 text-[9px]">DK</AvatarFallback>
+                      <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass("DK"))}>DK</AvatarFallback>
                     </Avatar>
                     <div className="flex items-start justify-between">
                       <p className="text-xs text-zinc-300 leading-tight">
@@ -404,7 +528,7 @@ export default function SprintThreeBoardPage() {
 
                   <div className="relative flex flex-col gap-1">
                     <Avatar className="absolute -left-7 top-0 h-6 w-6 ring-4 ring-[#1B1B1D]">
-                      <AvatarFallback className="bg-zinc-800 text-[9px]">SM</AvatarFallback>
+                      <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass("SM"))}>SM</AvatarFallback>
                     </Avatar>
                     <div className="flex items-start justify-between">
                       <p className="text-xs text-zinc-300 leading-tight">
@@ -528,8 +652,8 @@ function TaskCard({ task, isMuted, onClick, themeColor }: { task: TaskResponse; 
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Avatar className={`h-6 w-6 rounded-full border-none ${ASSIGNEE_COLORS[task.assigneeInitials || ''] || 'bg-muted'}`}>
-                  <AvatarFallback className="bg-transparent text-white text-xs font-bold">{task.assigneeInitials}</AvatarFallback>
+                <Avatar className="h-6 w-6 rounded-full border border-border/40 shrink-0">
+                  <AvatarFallback className={cn("text-xs font-semibold", getAvatarColorClass(task.assigneeInitials || ""))}>{task.assigneeInitials}</AvatarFallback>
                 </Avatar>
               </TooltipTrigger>
               <TooltipContent className="bg-black text-[10px] border-zinc-800">{task.assigneeName || "Unassigned"}</TooltipContent>

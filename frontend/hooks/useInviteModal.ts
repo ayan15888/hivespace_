@@ -127,18 +127,59 @@ export function useInviteModal(params: { setOpen: (open: boolean) => void }): Us
   )
 
   const sendInvitesMutation = useMutation({
-    mutationFn: async (args: { targetEmails: string[]; role: TenantRole }) => {
+    mutationFn: async (args: {
+      targetEmails: string[]
+      role: TenantRole
+      selectedTeams: string[]
+      selectedWorkspaces: string[]
+    }) => {
       if (!activeOrg) throw new Error("No active organization found")
 
-      const invitePromises = args.targetEmails.map((email) =>
-        generateInvite({
-          tenantId: activeOrg.id,
-          workspaceId: activeWorkspace?.id,
-          role: args.role,
-          maxUses: 1,
-          email,
-        }),
-      )
+      const payloads: any[] = []
+
+      args.targetEmails.forEach((email) => {
+        if (args.selectedTeams.length > 0) {
+          args.selectedTeams.forEach((teamId) => {
+            payloads.push({
+              tenantId: activeOrg.id,
+              workspaceId: activeWorkspace?.id,
+              teamId,
+              role: args.role,
+              maxUses: 1,
+              email,
+            })
+          })
+        } else if (args.selectedWorkspaces.length > 0) {
+          args.selectedWorkspaces.forEach((workspaceId) => {
+            payloads.push({
+              tenantId: activeOrg.id,
+              workspaceId,
+              role: args.role,
+              maxUses: 1,
+              email,
+            })
+          })
+          if (activeWorkspace && !args.selectedWorkspaces.includes(activeWorkspace.id)) {
+            payloads.push({
+              tenantId: activeOrg.id,
+              workspaceId: activeWorkspace.id,
+              role: args.role,
+              maxUses: 1,
+              email,
+            })
+          }
+        } else {
+          payloads.push({
+            tenantId: activeOrg.id,
+            workspaceId: activeWorkspace?.id,
+            role: args.role,
+            maxUses: 1,
+            email,
+          })
+        }
+      })
+
+      const invitePromises = payloads.map((payload) => generateInvite(payload))
       return Promise.all(invitePromises)
     },
     retry: 0,
@@ -177,15 +218,20 @@ export function useInviteModal(params: { setOpen: (open: boolean) => void }): Us
       return
     }
 
-    sendInvitesMutation.mutate({ targetEmails, role })
-  }, [activeOrg, emailInput, emails, role, sendInvitesMutation])
+    sendInvitesMutation.mutate({ targetEmails, role, selectedTeams, selectedWorkspaces })
+  }, [activeOrg, emailInput, emails, role, selectedTeams, selectedWorkspaces, sendInvitesMutation])
 
   const generateShareableMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (args: { selectedTeams: string[]; selectedWorkspaces: string[] }) => {
       if (!activeOrg) throw new Error("No active organization found")
+      
+      const teamId = args.selectedTeams.length > 0 ? args.selectedTeams[0] : undefined
+      const workspaceId = args.selectedWorkspaces.length > 0 ? args.selectedWorkspaces[0] : activeWorkspace?.id
+
       return generateInvite({
         tenantId: activeOrg.id,
-        workspaceId: activeWorkspace?.id,
+        workspaceId: teamId ? activeWorkspace?.id : workspaceId,
+        teamId,
         role,
         maxUses: 100,
       })
@@ -206,8 +252,8 @@ export function useInviteModal(params: { setOpen: (open: boolean) => void }): Us
 
   const generateShareableInvite = React.useCallback(() => {
     if (!activeOrg) return
-    generateShareableMutation.mutate()
-  }, [activeOrg, generateShareableMutation])
+    generateShareableMutation.mutate({ selectedTeams, selectedWorkspaces })
+  }, [activeOrg, selectedTeams, selectedWorkspaces, generateShareableMutation])
 
   const copyInviteLink = React.useCallback(() => {
     if (shareableInvite) {

@@ -18,6 +18,7 @@ public class TeamResponse {
     private String description;
     private int membersCount;
     private UUID workspaceId;
+    private UUID projectId;
     private Date createdAt;
     private Date updatedAt;
 }

@@ -58,6 +58,9 @@ public class User implements UserDetails {
         @Column(columnDefinition = "TEXT")
         private String bio;
 
+        @Column(name = "avatar_color")
+        private String avatarColor;
+
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "tenant_id")
         private Tenant tenant;

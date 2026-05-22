@@ -7,6 +7,8 @@ import com.project.hiveSpace.models.Task;
 import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.models.TaskAssignee;
 import com.project.hiveSpace.models.TaskAssigneeRole;
+import com.project.hiveSpace.models.TaskActivity;
+import com.project.hiveSpace.repository.TaskActivityRepository;
 import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.TaskRepository;
 import com.project.hiveSpace.repository.UserRepository;
@@ -29,15 +31,16 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
+    private final TaskActivityRepository taskActivityRepository;
 
     @Transactional
-    public TaskResponse createTask(UUID projectId, TaskRequest request) {
+    public TaskResponse createTask(UUID projectId, TaskRequest request, User creator) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
-        User assignee = null;
+        User ownerUser = creator;
         if (request.getAssigneeId() != null) {
-            assignee = userRepository.findById(request.getAssigneeId()).orElse(null);
+            ownerUser = userRepository.findById(request.getAssigneeId()).orElse(creator);
         }
 
         Task task = Task.builder()
@@ -49,26 +52,35 @@ public class TaskService {
                 .dueDate(request.getDueDate())
                 .points(request.getPoints())
                 .project(project)
-                .assignee(assignee)
+                .assignee(ownerUser)
+                .createdBy(creator)
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
 
         Task savedTask = taskRepository.save(task);
 
-        if (assignee != null) {
-            TaskAssignee taskAssignee = TaskAssignee.builder()
-                    .task(savedTask)
-                    .user(assignee)
-                    .role(TaskAssigneeRole.OWNER)
-                    .assignedAt(new Date())
-                    .build();
-            taskAssigneeRepository.save(taskAssignee);
-        }
+        TaskAssignee taskAssignee = TaskAssignee.builder()
+                .task(savedTask)
+                .user(ownerUser)
+                .role(TaskAssigneeRole.OWNER)
+                .assignedAt(new Date())
+                .build();
+        taskAssigneeRepository.save(taskAssignee);
+
+        TaskActivity activity = TaskActivity.builder()
+                .task(savedTask)
+                .user(creator)
+                .type("CREATED")
+                .newValue(creator.getUsername())
+                .createdAt(new Date())
+                .build();
+        taskActivityRepository.save(activity);
 
         return mapToResponse(savedTask);
     }
 
+    @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByProject(UUID projectId) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
@@ -79,6 +91,7 @@ public class TaskService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<TaskResponse> getAllTasks() {
         return taskRepository.findAllByOrderByUpdatedAtDesc()
                 .stream()

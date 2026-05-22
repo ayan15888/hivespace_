@@ -54,3 +54,19 @@ export async function joinOrganization(inviteCode: string): Promise<void> {
 export async function getOrganizationMembers(orgId: string): Promise<MemberResponse[]> {
   return apiFetch(`/api/tenants/${orgId}/members`);
 }
+
+export async function updateOrganizationMemberRole(
+  orgId: string,
+  userId: string,
+  role: string
+): Promise<MemberResponse> {
+  return apiFetch(`/api/tenants/${orgId}/members/${userId}/role?role=${encodeURIComponent(role)}`, {
+    method: "PUT",
+  });
+}
+
+export async function removeOrganizationMember(orgId: string, userId: string): Promise<void> {
+  return apiFetch(`/api/tenants/${orgId}/members/${userId}`, {
+    method: "DELETE",
+  });
+}

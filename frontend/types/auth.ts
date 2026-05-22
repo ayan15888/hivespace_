@@ -10,6 +10,7 @@ export interface User {
   jobTitle?: string;
   bio?: string;
   avatarUrl?: string;
+  avatarColor?: string;
 }
 
 export interface AuthResponse extends User {

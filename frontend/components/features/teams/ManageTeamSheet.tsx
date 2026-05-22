@@ -30,7 +30,7 @@ import {
   deleteTeam,
   TeamMemberResponse
 } from "@/lib/api/teams"
-import { getOrganizationMembers, MemberResponse } from "@/lib/api/orgs"
+import { getWorkspaceMembers, WorkspaceMemberResponse } from "@/lib/api/workspaces"
 import { useWorkspaceStore } from "@/store/workspaceStore"
 import { gooeyToast as toast } from "@/components/ui/goey-toaster"
 
@@ -53,8 +53,8 @@ const ROLE_CONFIG = {
   MEMBER: {
     label: "Member",
     icon: Shield,
-    className: "bg-violet-500/15 text-violet-400 border-violet-500/25",
-    dotColor: "bg-violet-400",
+    className: "bg-hs-accent/15 text-hs-accent border-hs-accent/25",
+    dotColor: "bg-hs-accent",
   },
 }
 
@@ -100,7 +100,7 @@ export function ManageTeamSheet({
   const [name, setName] = useState(initialName)
   const [description, setDescription] = useState(initialDescription)
   const [members, setMembers] = useState<TeamMemberResponse[]>([])
-  const [allOrgMembers, setAllOrgMembers] = useState<MemberResponse[]>([])
+  const [allWorkspaceMembers, setAllWorkspaceMembers] = useState<WorkspaceMemberResponse[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [addingMemberId, setAddingMemberId] = useState<string | null>(null)
@@ -112,16 +112,16 @@ export function ManageTeamSheet({
     try {
       const teamMembersList = await getTeamMembers(teamId)
       setMembers(teamMembersList)
-      if (activeWorkspace?.tenantId) {
-        const orgMembersList = await getOrganizationMembers(activeWorkspace.tenantId)
-        setAllOrgMembers(orgMembersList)
+      if (workspaceId) {
+        const workspaceMembersList = await getWorkspaceMembers(workspaceId)
+        setAllWorkspaceMembers(workspaceMembersList)
       }
     } catch (err: unknown) {
       toast.error((err as Error).message || "Failed to load team data")
     } finally {
       setLoading(false)
     }
-  }, [open, teamId, activeWorkspace?.tenantId])
+  }, [open, teamId, workspaceId])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -200,8 +200,8 @@ export function ManageTeamSheet({
     }
   }
 
-  const availableOrgMembers = allOrgMembers.filter(
-    orgM => !members.some(teamM => teamM.userId === orgM.id)
+  const availableWorkspaceMembers = allWorkspaceMembers.filter(
+    workspaceM => !members.some(teamM => teamM.userId === workspaceM.userId)
   )
   const currentLead = members.find(m => m.role === "LEAD")
 
@@ -209,19 +209,19 @@ export function ManageTeamSheet({
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
       <SheetContent
-        className="flex w-[440px] flex-col border-0 bg-[#111113] p-0 text-[#E5E1E4] shadow-2xl"
-        style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}
+        className="flex w-[440px] flex-col border-0 bg-hs-card p-0 text-foreground shadow-2xl"
+        style={{ borderLeft: "1px solid var(--border)" }}
       >
         {/* ── Header ── */}
-        <SheetHeader className="relative overflow-hidden border-b border-white/5 px-6 pb-5 pt-6">
+        <SheetHeader className="relative overflow-hidden border-b border-border/5 px-6 pb-5 pt-6">
           {/* gradient glow backdrop */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-violet-600/10 via-transparent to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-hs-accent/10 via-transparent to-transparent" />
           <div className="relative flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/15 ring-1 ring-violet-500/30">
-              <Users className="h-4 w-4 text-violet-400" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-hs-accent/15 ring-1 ring-hs-accent/30">
+              <Users className="h-4 w-4 text-hs-accent" />
             </div>
             <div>
-              <SheetTitle className="text-base font-semibold text-white">
+              <SheetTitle className="text-base font-semibold text-foreground">
                 {name || "Manage Team"}
               </SheetTitle>
               <p className="mt-0.5 text-[11px] text-zinc-500">
@@ -236,8 +236,8 @@ export function ManageTeamSheet({
         {loading ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3">
             <div className="relative">
-              <div className="h-10 w-10 rounded-full border border-violet-500/20 bg-violet-500/5" />
-              <Loader2 className="absolute inset-0 m-auto h-5 w-5 animate-spin text-violet-400" />
+              <div className="h-10 w-10 rounded-full border border-hs-accent/20 bg-hs-accent/5" />
+              <Loader2 className="absolute inset-0 m-auto h-5 w-5 animate-spin text-hs-accent" />
             </div>
             <p className="text-xs text-zinc-600">Loading team data…</p>
           </div>
@@ -245,7 +245,7 @@ export function ManageTeamSheet({
           <div className="flex-1 space-y-1 overflow-y-auto px-3 py-3 pb-24 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-800">
 
             {/* ── Section: Team Details ── */}
-            <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+            <div className="rounded-xl border border-border/5 bg-hs-main/10 p-4">
               <p className="mb-3 text-[10px] font-bold tracking-widest text-zinc-600 uppercase">Team Details</p>
               <div className="space-y-3">
                 <div className="space-y-1.5">
@@ -254,8 +254,8 @@ export function ManageTeamSheet({
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder="Team name"
-                    className="h-9 border-white/8 bg-[#0C0C0E] text-sm text-white placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-violet-500/50 focus-visible:ring-offset-0"
-                    style={{ borderColor: "rgba(255,255,255,0.07)" }}
+                    className="h-9 border-border/50 bg-hs-main text-sm text-foreground placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-hs-accent/50 focus-visible:ring-offset-0"
+                    style={{ borderColor: "var(--border)" }}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -264,23 +264,23 @@ export function ManageTeamSheet({
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                     placeholder="What does this team do?"
-                    className="min-h-[80px] resize-none border-white/8 bg-[#0C0C0E] text-sm text-white placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-violet-500/50 focus-visible:ring-offset-0"
-                    style={{ borderColor: "rgba(255,255,255,0.07)" }}
+                    className="min-h-[80px] resize-none border-border/50 bg-hs-main text-sm text-foreground placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-hs-accent/50 focus-visible:ring-offset-0"
+                    style={{ borderColor: "var(--border)" }}
                   />
                 </div>
               </div>
             </div>
 
             {/* ── Section: Members ── */}
-            <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+            <div className="rounded-xl border border-border/5 bg-hs-main/10 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-[10px] font-bold tracking-widest text-zinc-600 uppercase">
                   Members <span className="ml-1 rounded-full bg-zinc-800 px-1.5 py-0.5 text-[9px] text-zinc-400">{members.length}</span>
                 </p>
-                {availableOrgMembers.length > 0 && (
+                {availableWorkspaceMembers.length > 0 && (
                   <button
                     onClick={() => setShowAddMember(v => !v)}
-                    className="flex items-center gap-1 rounded-lg border border-violet-500/20 bg-violet-500/10 px-2.5 py-1 text-[10px] font-semibold text-violet-400 transition-all hover:bg-violet-500/20"
+                    className="flex items-center gap-1 rounded-lg border border-hs-accent/20 bg-hs-accent/10 px-2.5 py-1 text-[10px] font-semibold text-hs-accent transition-all hover:bg-hs-accent/20"
                   >
                     <UserPlus className="h-3 w-3" />
                     Add
@@ -290,24 +290,24 @@ export function ManageTeamSheet({
               </div>
 
               {/* Add member dropdown */}
-              {showAddMember && availableOrgMembers.length > 0 && (
-                <div className="mb-3 rounded-lg border border-white/5 bg-[#0C0C0E] p-1">
-                  {availableOrgMembers.map(user => (
+              {showAddMember && availableWorkspaceMembers.length > 0 && (
+                <div className="mb-3 rounded-lg border border-border/5 bg-hs-main p-1">
+                  {availableWorkspaceMembers.map(user => (
                     <button
-                      key={user.id}
-                      disabled={addingMemberId === user.id}
-                      onClick={() => handleAddMember(user.id)}
+                      key={user.userId}
+                      disabled={addingMemberId === user.userId}
+                      onClick={() => handleAddMember(user.userId)}
                       className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm transition-colors hover:bg-white/5 disabled:opacity-50"
                     >
-                      <div className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[9px] font-bold text-white", getAvatarColor(user.id))}>
+                      <div className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[9px] font-bold text-white", getAvatarColor(user.userId))}>
                         {getInitials(user.fullName || user.username || "?")}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-medium text-zinc-200">{user.fullName || user.username}</p>
                         <p className="truncate text-[10px] text-zinc-600">{user.email}</p>
                       </div>
-                      {addingMemberId === user.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin text-violet-400" />
+                      {addingMemberId === user.userId ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-hs-accent" />
                       ) : (
                         <Plus className="h-3 w-3 text-zinc-600" />
                       )}
@@ -338,15 +338,15 @@ export function ManageTeamSheet({
                         <SelectTrigger className="h-6 w-auto gap-1 border-0 bg-transparent p-0 text-[10px] shadow-none focus:ring-0">
                           <RoleBadge role={member.role} />
                         </SelectTrigger>
-                        <SelectContent className="border-zinc-800 bg-[#1A1A1C] text-[#E5E1E4]">
+                        <SelectContent className="border-border/50 bg-hs-card text-foreground">
                           <SelectItem value="LEAD">
                             <span className="flex items-center gap-1.5">
-                              <Crown className="h-3 w-3 text-amber-400" /> Lead
+                              <Crown className="h-3 w-3 text-amber-500" /> Lead
                             </span>
                           </SelectItem>
                           <SelectItem value="MEMBER">
                             <span className="flex items-center gap-1.5">
-                              <Shield className="h-3 w-3 text-violet-400" /> Member
+                              <Shield className="h-3 w-3 text-hs-accent" /> Member
                             </span>
                           </SelectItem>
                         </SelectContent>
@@ -394,11 +394,11 @@ export function ManageTeamSheet({
         )}
 
         {/* ── Footer: Save Button ── */}
-        <div className="absolute bottom-0 left-0 right-0 border-t border-white/5 bg-[#111113]/90 p-4 backdrop-blur-sm">
+        <div className="absolute bottom-0 left-0 right-0 border-t border-border/5 bg-hs-card/90 p-4 backdrop-blur-sm">
           <Button
             onClick={handleSaveChanges}
             disabled={saving || loading}
-            className="relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 py-5 text-xs font-bold tracking-widest text-white uppercase shadow-lg shadow-violet-500/20 transition-all hover:from-violet-500 hover:to-violet-400 hover:shadow-violet-500/30 disabled:opacity-50"
+            className="relative w-full overflow-hidden rounded-xl bg-hs-accent py-5 text-xs font-bold tracking-widest text-white uppercase shadow-lg shadow-hs-accent/20 transition-all hover:opacity-90 hover:shadow-hs-accent/30 disabled:opacity-50"
           >
             {saving ? (
               <span className="flex items-center gap-2">

@@ -32,7 +32,8 @@ public class UserMapper {
                 user.getAvatarUrl(),
                 user.getFullName(),
                 user.getJobTitle(),
-                user.getBio()
+                user.getBio(),
+                user.getAvatarColor()
         );
     }
 }

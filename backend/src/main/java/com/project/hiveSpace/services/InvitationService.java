@@ -149,6 +149,8 @@ public class InvitationService {
             resendEmailService.sendInvitationEmail(
                 request.getEmail().trim(),
                 tenant.getName(),
+                workspace != null ? workspace.getName() : null,
+                team != null ? team.getName() : null,
                 request.getRole() != null ? request.getRole() : "MEMBER",
                 currentUser.getUsername(),
                 inviteUrl,

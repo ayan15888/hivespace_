@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { CTAButton } from "@/components/common/CTAButton"
-import { cn } from "@/lib/utils"
+import { cn, getAvatarColorClass } from "@/lib/utils"
 import { useAuth } from "@/hooks/useAuth"
 import { useAuthStore } from "@/store/authStore"
 import { roleLabel } from "@/types/roles"
@@ -75,9 +75,9 @@ export default function ProfilePage() {
 
       {/* AVATAR SECTION */}
       <div className="flex items-center">
-        <Avatar className="h-20 w-20 rounded-full bg-zinc-700">
+        <Avatar className="h-20 w-20 rounded-full">
           <AvatarImage src={user?.avatarUrl} />
-          <AvatarFallback className="text-2xl font-medium text-[#E5E1E4] bg-zinc-700">
+          <AvatarFallback className={cn("text-2xl font-semibold", getAvatarColorClass(user?.avatarColor || user?.fullName || user?.username || "JD"))}>
             {displayName}
           </AvatarFallback>
         </Avatar>

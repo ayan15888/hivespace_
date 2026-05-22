@@ -26,3 +26,19 @@ export async function createWorkspace(data: WorkspaceRequest): Promise<Workspace
 export async function getWorkspacesByTenant(tenantId: string): Promise<WorkspaceResponse[]> {
   return apiFetch(`/api/workspaces/t/${tenantId}`);
 }
+
+export interface WorkspaceMemberResponse {
+  id: string;
+  workspaceId: string;
+  userId: string;
+  username: string;
+  email: string;
+  fullName: string;
+  avatarUrl: string;
+  role: string; // ADMIN, MEMBER, VIEWER
+  joinedAt: string;
+}
+
+export async function getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberResponse[]> {
+  return apiFetch(`/api/workspaces/${workspaceId}/members`);
+}
