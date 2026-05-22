@@ -4,7 +4,17 @@ import { ChevronRight, Users, Settings, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ManageTeamSheet } from "./ManageTeamSheet";
 
-export function TeamBreadcrumbs({ teamName }: { teamName: string }) {
+export function TeamBreadcrumbs({ 
+  teamName, 
+  teamId,
+  projectId,
+  refresh
+}: { 
+  teamName: string;
+  teamId?: string;
+  projectId?: string;
+  refresh?: () => void;
+}) {
   return (
     <div className="sticky top-0 z-30 flex h-[44px] w-full items-center justify-between border-b border-zinc-800/50 bg-[#0E0E10]/80 px-6 backdrop-blur-sm">
       <div className="flex items-center gap-2">
@@ -19,12 +29,18 @@ export function TeamBreadcrumbs({ teamName }: { teamName: string }) {
       </div>
 
       <div className="flex items-center gap-2">
-        <ManageTeamSheet trigger={(
-          <Button variant="ghost" size="sm" className="h-8 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800/50 px-2 gap-2">
-            <Settings className="h-3.5 w-3.5" />
-            Manage Team
-          </Button>
-        )} />
+        <ManageTeamSheet 
+          teamId={teamId}
+          projectId={projectId || "placeholder"}
+          teamName={teamName}
+          refresh={refresh}
+          trigger={(
+            <Button variant="ghost" size="sm" className="h-8 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800/50 px-2 gap-2">
+              <Settings className="h-3.5 w-3.5" />
+              Manage Team
+            </Button>
+          )} 
+        />
         
         <Button variant="ghost" size="sm" className="h-8 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800/50 px-2 gap-2">
           <UserPlus className="h-3.5 w-3.5" />

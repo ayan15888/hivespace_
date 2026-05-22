@@ -45,22 +45,34 @@ import { MembersTab } from "@/components/features/teams/MembersTab";
 import { TasksTab } from "@/components/features/teams/TasksTab";
 import { ChannelsTab } from "@/components/features/teams/ChannelsTab";
 import { ManageTeamSheet } from "@/components/features/teams/ManageTeamSheet";
+import { useWorkspaceStore } from "@/store/workspaceStore";
+import { useTeams } from "@/hooks/useTeams";
 import { useParams } from "next/navigation";
 
 export default function BackendTeamPage() {
   const params = useParams();
-  const teamSlug = params?.teamSlug as string || "backend";
-  const displayTitle = teamSlug
+  const teamId = params?.teamSlug as string || "";
+  const { activeWorkspace } = useWorkspaceStore();
+  const { teams, refresh: refreshTeams } = useTeams(activeWorkspace?.id);
+  const currentTeam = teams.find(t => t.id === teamId);
+
+  const formattedSlug = teamId
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ") + " Team";
+
+  const displayTitle = currentTeam ? currentTeam.name : formattedSlug;
 
   const [activeTab, setActiveTab] = useState("overview");
 
   return (
     <div className="flex h-screen flex-col bg-[#201F21] text-[#E5E1E4] overflow-hidden">
       {/* TOP BREADCRUMB BAR */}
-      <TeamBreadcrumbs teamName={displayTitle} />
+      <TeamBreadcrumbs 
+        teamName={displayTitle} 
+        teamId={teamId}
+        refresh={refreshTeams}
+      />
 
       <div className="flex-1 flex flex-col overflow-y-auto">
         {/* TEAM HEADER SECTION */}
