@@ -67,7 +67,7 @@ export function MembersTab() {
         </div>
         <h3 className="text-sm font-medium text-zinc-400">No members yet</h3>
         <p className="text-xs text-zinc-500 mt-1 max-w-[200px]">Invite people to join this team and start collaborating.</p>
-        <Button className="mt-6 bg-gradient-to-br from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 text-white text-xs uppercase tracking-wider font-bold h-9">
+        <Button className="mt-6 bg-hs-accent hover:opacity-90 text-white text-xs uppercase tracking-wider font-bold h-9">
           Invite Members
         </Button>
       </div>
@@ -80,7 +80,7 @@ export function MembersTab() {
         <div 
           key={member.name} 
           className={cn(
-            "group bg-[#272629] border border-zinc-800/50 rounded-lg p-4 hover:border-zinc-700 transition-all duration-300 flex flex-col",
+            "group bg-hs-card border border-border/50 rounded-lg p-4 hover:border-border transition-all duration-300 flex flex-col",
             member.overloaded && "border-red-500/30"
           )}
         >
@@ -91,15 +91,15 @@ export function MembersTab() {
                 <AvatarFallback className={cn("text-xs font-semibold", getAvatarColorClass(member.initials || member.name))}>{member.initials}</AvatarFallback>
               </Avatar>
               <div className={cn(
-                "absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[#272629]",
+                "absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-hs-card",
                 member.status === "online" ? "bg-green-400" : member.status === "away" ? "bg-amber-400" : "bg-zinc-600"
               )} />
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-[#E5E1E4] leading-none mb-0.5">{member.name}</span>
+              <span className="text-sm font-medium text-foreground leading-none mb-0.5">{member.name}</span>
               <div className={cn(
                 "w-fit px-1.5 py-0.5 rounded-sm text-[10px] font-medium tracking-wide uppercase",
-                member.role === "LEAD" ? "bg-violet-500/20 text-violet-400" : "bg-zinc-800 text-zinc-500"
+                member.role === "LEAD" ? "bg-hs-accent/20 text-hs-accent" : "bg-zinc-800 text-zinc-500"
               )}>
                 {roleLabel(member.role)}
               </div>
@@ -121,23 +121,23 @@ export function MembersTab() {
           </div>
 
           {/* STATS ROW */}
-          <div className="grid grid-cols-3 border-t border-zinc-800 pt-4 mt-auto">
+          <div className="grid grid-cols-3 border-t border-border/50 pt-4 mt-auto">
             <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium text-[#E5E1E4]">{member.stats.open}</span>
+              <span className="text-sm font-medium text-foreground">{member.stats.open}</span>
               <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-medium">Open Tasks</span>
             </div>
-            <div className="flex flex-col gap-0.5 border-x border-zinc-800/10 px-2">
-              <span className="text-sm font-medium text-[#E5E1E4]">{member.stats.completed}</span>
+            <div className="flex flex-col gap-0.5 border-x border-border/10 px-2">
+              <span className="text-sm font-medium text-foreground">{member.stats.completed}</span>
               <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-medium">Completed</span>
             </div>
             <div className="flex flex-col gap-0.5 pl-2">
-              <span className="text-sm font-medium text-[#E5E1E4]">{member.stats.prs}</span>
+              <span className="text-sm font-medium text-foreground">{member.stats.prs}</span>
               <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-medium">PRs</span>
             </div>
           </div>
 
           {/* MESSAGE BUTTON */}
-          <Button variant="ghost" className="mt-4 w-full h-8 text-[11px] text-zinc-400 hover:text-white hover:bg-zinc-800/50 gap-2 border border-zinc-700/10 group-hover:border-zinc-700/30">
+          <Button variant="ghost" className="mt-4 w-full h-8 text-[11px] text-zinc-400 hover:text-foreground hover:bg-muted/50 gap-2 border border-border/10 group-hover:border-border/30">
             <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.5} />
             Message
           </Button>

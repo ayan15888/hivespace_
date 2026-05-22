@@ -58,7 +58,7 @@ export default function BackendTeamPage() {
   const [activeTab, setActiveTab] = useState("overview");
 
   return (
-    <div className="flex h-screen flex-col bg-[#201F21] text-[#E5E1E4] overflow-hidden">
+    <div className="flex h-screen flex-col bg-hs-main text-foreground overflow-hidden">
       {/* TOP BREADCRUMB BAR */}
       <TeamBreadcrumbs teamName={displayTitle} />
 
@@ -68,29 +68,29 @@ export default function BackendTeamPage() {
 
         {/* TAB NAVIGATION */}
         <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
-          <div className="sticky top-0 z-20 border-b border-zinc-800/50 bg-[#201F21] px-6">
+          <div className="sticky top-0 z-20 border-b border-border/50 bg-hs-main px-6">
           <TabsList className="h-12 w-full justify-start gap-8 bg-transparent p-0">
             <TabsTrigger 
               value="overview" 
-              className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-4 text-sm font-medium text-zinc-500 data-[state=active]:border-violet-500 data-[state=active]:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none shadow-none"
+              className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-4 text-sm font-medium text-zinc-500 data-[state=active]:border-hs-accent data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none shadow-none"
             >
               Overview
             </TabsTrigger>
             <TabsTrigger 
               value="members"
-              className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-4 text-sm font-medium text-zinc-500 data-[state=active]:border-violet-500 data-[state=active]:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none shadow-none"
+              className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-4 text-sm font-medium text-zinc-500 data-[state=active]:border-hs-accent data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none shadow-none"
             >
               Members
             </TabsTrigger>
             <TabsTrigger 
               value="tasks"
-              className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-4 text-sm font-medium text-zinc-500 data-[state=active]:border-violet-500 data-[state=active]:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none shadow-none"
+              className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-4 text-sm font-medium text-zinc-500 data-[state=active]:border-hs-accent data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none shadow-none"
             >
               Tasks
             </TabsTrigger>
             <TabsTrigger 
               value="channels"
-              className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-4 text-sm font-medium text-zinc-500 data-[state=active]:border-violet-500 data-[state=active]:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none shadow-none"
+              className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-4 text-sm font-medium text-zinc-500 data-[state=active]:border-hs-accent data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none shadow-none"
             >
               Channels
             </TabsTrigger>

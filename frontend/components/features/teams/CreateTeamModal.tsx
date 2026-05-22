@@ -28,7 +28,7 @@ interface CreateTeamModalProps {
   onSuccess?: () => void;
 }
 
-export function CreateTeamModal({ isOpen, workspaceId, themeColor = "#7C5CFC", onClose, onSuccess }: CreateTeamModalProps) {
+export function CreateTeamModal({ isOpen, workspaceId, themeColor = "var(--hs-accent)", onClose, onSuccess }: CreateTeamModalProps) {
   const { projects } = useProjectStore();
   const addTeam = useTeamStore((state) => state.addTeam);
   const [name, setName] = useState("");
@@ -69,7 +69,7 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "#7C5CFC", o
     <Dialog open={isOpen} onOpenChange={onClose}>
       <AnimatePresence>
         {isOpen && (
-          <DialogContent className="sm:max-w-[425px] bg-[#1B1B1D] border-zinc-800 text-[#E5E1E4] overflow-hidden p-0 rounded-[28px] shadow-2xl">
+          <DialogContent className="sm:max-w-[425px] bg-hs-card border-border/50 text-foreground overflow-hidden p-0 rounded-[28px] shadow-2xl">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -83,7 +83,7 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "#7C5CFC", o
               
               <div className="p-6">
                 <DialogHeader className="mb-4">
-                  <DialogTitle className="text-xl font-semibold tracking-tight text-[#E5E1E4]">Create Team</DialogTitle>
+                  <DialogTitle className="text-xl font-semibold tracking-tight text-foreground">Create Team</DialogTitle>
                   <DialogDescription className="text-zinc-500 text-xs">
                     Create a specialized group within this workspace. Teams allow you to bundle members and tasks.
                   </DialogDescription>
@@ -98,7 +98,7 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "#7C5CFC", o
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       required
-                      className="bg-[#0E0E10] border-zinc-800 focus:border-violet-500/50 focus:ring-0 rounded-xl text-[#E5E1E4] placeholder-zinc-700"
+                      className="bg-hs-main border-border/50 focus:border-hs-accent/50 focus:ring-0 rounded-xl text-foreground placeholder-zinc-700"
                     />
                   </div>
 
@@ -108,11 +108,11 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "#7C5CFC", o
                       id="t-project"
                       value={projectId}
                       onChange={(e) => setProjectId(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-[#0E0E10] border border-zinc-800 focus:border-violet-500/50 focus:ring-0 rounded-xl text-[#E5E1E4] outline-none text-xs"
+                      className="w-full px-3 py-2.5 bg-hs-main border border-border/50 focus:border-hs-accent/50 focus:ring-0 rounded-xl text-foreground outline-none text-xs"
                     >
                       <option value="">None (Workspace-wide Team)</option>
                       {projects.map((p) => (
-                        <option key={p.id} value={p.id} className="bg-[#1B1B1D]">
+                        <option key={p.id} value={p.id} className="bg-hs-card">
                           {p.name}
                         </option>
                       ))}
@@ -126,12 +126,12 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "#7C5CFC", o
                       placeholder="Describe the responsibilities of this team..." 
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      className="bg-[#0E0E10] border-zinc-800 focus:border-violet-500/50 focus:ring-0 rounded-xl text-[#E5E1E4] placeholder-zinc-700 min-h-[100px] resize-none"
+                      className="bg-hs-main border-border/50 focus:border-hs-accent/50 focus:ring-0 rounded-xl text-foreground placeholder-zinc-700 min-h-[100px] resize-none"
                     />
                   </div>
 
                   <DialogFooter className="pt-6">
-                    <Button type="button" variant="ghost" onClick={onClose} className="rounded-xl text-zinc-500 hover:text-[#E5E1E4] hover:bg-zinc-900/50">
+                    <Button type="button" variant="ghost" onClick={onClose} className="rounded-xl text-zinc-500 hover:text-foreground hover:bg-muted/50">
                       Cancel
                     </Button>
                     <Button 

@@ -57,12 +57,12 @@ export function OverviewTab() {
                     <AvatarFallback className="bg-zinc-800 text-zinc-400 text-[10px]">{member.initials}</AvatarFallback>
                   </Avatar>
                   <div className={cn(
-                    "absolute bottom-0 right-0 h-2 w-2 rounded-full border border-[#201F21]",
+                    "absolute bottom-0 right-0 h-2 w-2 rounded-full border border-hs-main",
                     member.status === "online" ? "bg-green-400" : member.status === "away" ? "bg-amber-400" : "bg-zinc-600"
                   )} />
                 </div>
                 <div className="w-24 flex-shrink-0">
-                  <span className="text-sm text-[#E5E1E4]">{member.name}</span>
+                  <span className="text-sm text-foreground">{member.name}</span>
                 </div>
                 <div className="px-1.5 py-0.5 rounded-sm bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-500">
                   {member.role}
@@ -94,7 +94,7 @@ export function OverviewTab() {
           <div className="relative pl-4 border-l border-zinc-800 ml-3 space-y-6">
             {RECENT_ACTIVITY.map((activity, i) => (
               <div key={i} className="relative flex items-center gap-3">
-                <div className="absolute -left-[20px] h-2.5 w-2.5 rounded-full bg-zinc-800 border-2 border-[#201F21]" />
+                <div className="absolute -left-[20px] h-2.5 w-2.5 rounded-full bg-zinc-800 border-2 border-hs-main" />
                 <Avatar className="h-6 w-6 border border-zinc-800">
                   <AvatarFallback className="bg-zinc-800 text-zinc-500 text-[9px]">{activity.user}</AvatarFallback>
                 </Avatar>
@@ -117,12 +117,12 @@ export function OverviewTab() {
           <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Active Projects</h3>
           <div className="space-y-2">
             {ACTIVE_PROJECTS.map((project) => (
-              <div key={project.name} className="p-3 bg-[#272629] border border-zinc-800/50 rounded-md hover:border-zinc-700 transition-colors cursor-pointer group">
+              <div key={project.name} className="p-3 bg-hs-card border border-border/50 rounded-md hover:border-border transition-colors cursor-pointer group">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <div className={cn("h-2 w-2 rounded-sm", project.dot)} />
                     <div>
-                      <h4 className="text-sm font-medium text-[#E5E1E4] leading-none mb-1">{project.name}</h4>
+                      <h4 className="text-sm font-medium text-foreground leading-none mb-1">{project.name}</h4>
                       <p className="text-[10px] text-zinc-500 leading-none">{project.space}</p>
                     </div>
                   </div>
@@ -133,7 +133,7 @@ export function OverviewTab() {
                 <div className="space-y-1.5 pt-2">
                   <div className="h-1.5 w-full bg-zinc-800/50 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-violet-500 transition-all duration-500" 
+                      className="h-full bg-hs-accent transition-all duration-500" 
                       style={{ width: `${project.progress}%` }} 
                     />
                   </div>
