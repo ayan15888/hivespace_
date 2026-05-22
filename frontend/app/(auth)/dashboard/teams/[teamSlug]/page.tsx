@@ -72,6 +72,8 @@ export default function BackendTeamPage() {
       <TeamBreadcrumbs 
         teamName={displayTitle} 
         teamId={teamId}
+        projectId={currentTeam?.projectId}
+        teamDescription={currentTeam?.description}
         refresh={refreshTeams}
       />
 

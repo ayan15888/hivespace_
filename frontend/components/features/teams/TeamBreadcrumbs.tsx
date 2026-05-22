@@ -8,11 +8,13 @@ export function TeamBreadcrumbs({
   teamName, 
   teamId,
   projectId,
+  teamDescription,
   refresh
 }: { 
   teamName: string;
   teamId?: string;
   projectId?: string;
+  teamDescription?: string;
   refresh?: () => void;
 }) {
   return (
@@ -29,12 +31,19 @@ export function TeamBreadcrumbs({
       </div>
 
       <div className="flex items-center gap-2">
-        <ManageTeamSheet trigger={(
-          <Button variant="ghost" size="sm" className="h-8 text-xs text-zinc-400 hover:text-foreground hover:bg-muted/50 px-2 gap-2">
-            <Settings className="h-3.5 w-3.5" />
-            Manage Team
-          </Button>
-        )} />
+        <ManageTeamSheet 
+          teamId={teamId}
+          projectId={projectId}
+          teamName={teamName}
+          teamDescription={teamDescription}
+          refresh={refresh}
+          trigger={(
+            <Button variant="ghost" size="sm" className="h-8 text-xs text-zinc-400 hover:text-foreground hover:bg-muted/50 px-2 gap-2">
+              <Settings className="h-3.5 w-3.5" />
+              Manage Team
+            </Button>
+          )} 
+        />
         
         <Button variant="ghost" size="sm" className="h-8 text-xs text-zinc-400 hover:text-foreground hover:bg-muted/50 px-2 gap-2">
           <UserPlus className="h-3.5 w-3.5" />
