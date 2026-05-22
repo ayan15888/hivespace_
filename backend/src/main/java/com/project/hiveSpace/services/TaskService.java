@@ -2,17 +2,9 @@ package com.project.hiveSpace.services;
 
 import com.project.hiveSpace.dto.TaskRequest;
 import com.project.hiveSpace.dto.TaskResponse;
-import com.project.hiveSpace.models.Project;
-import com.project.hiveSpace.models.Task;
-import com.project.hiveSpace.models.User;
-import com.project.hiveSpace.models.TaskAssignee;
-import com.project.hiveSpace.models.TaskAssigneeRole;
-import com.project.hiveSpace.models.TaskActivity;
-import com.project.hiveSpace.repository.TaskActivityRepository;
-import com.project.hiveSpace.repository.ProjectRepository;
-import com.project.hiveSpace.repository.TaskRepository;
-import com.project.hiveSpace.repository.UserRepository;
-import com.project.hiveSpace.repository.TaskAssigneeRepository;
+import com.project.hiveSpace.dto.TaskAssigneeResponse;
+import com.project.hiveSpace.models.*;
+import com.project.hiveSpace.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +21,8 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final TeamRepository teamRepository;
     private final UserRepository userRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
     private final TaskActivityRepository taskActivityRepository;
@@ -38,28 +32,66 @@ public class TaskService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
-        User ownerUser = creator;
-        if (request.getAssigneeId() != null) {
-            ownerUser = userRepository.findById(request.getAssigneeId()).orElse(creator);
+        // 1. Verify user is a project member and not a VIEWER
+        ProjectMember member = projectMemberRepository
+                .findByProjectIdAndUserId(projectId, creator.getId())
+                .orElseThrow(() -> new SecurityException("Not a project member"));
+
+        if (member.getRole() == ProjectMemberRole.VIEWER) {
+            throw new SecurityException("Viewers cannot create tasks");
         }
 
+        // 2. Resolve default status and priority if they are null
+        TaskStatus status = request.getStatus() != null ? request.getStatus() : TaskStatus.TODO;
+        TaskPriority priority = request.getPriority() != null ? request.getPriority() : TaskPriority.MEDIUM;
+
+        // 3. Resolve parent task if parentId is provided
+        Task parentTask = null;
+        if (request.getParentId() != null) {
+            parentTask = taskRepository.findById(request.getParentId())
+                    .orElseThrow(() -> new IllegalArgumentException("Parent task not found"));
+        }
+
+        // 4. Resolve team if teamId is provided
+        Team team = null;
+        if (request.getTeamId() != null) {
+            team = teamRepository.findById(request.getTeamId())
+                    .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+        }
+
+        // 5. Create the task
         Task task = Task.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .status(request.getStatus())
-                .priority(request.getPriority())
+                .status(status)
+                .priority(priority)
                 .labels(request.getLabels())
                 .dueDate(request.getDueDate())
                 .points(request.getPoints())
                 .project(project)
-                .assignee(ownerUser)
+                .parentTask(parentTask)
+                .team(team)
                 .createdBy(creator)
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
 
+        // 6. Assign the owner
+        User ownerUser = creator;
+        if (request.getAssigneeId() != null) {
+            User explicitlyAssigned = userRepository.findById(request.getAssigneeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
+            // Verify if the assignee is a member of this project
+            if (!projectMemberRepository.existsByProjectAndUser(project, explicitlyAssigned)) {
+                throw new IllegalArgumentException("Assignee must be a member of this project");
+            }
+            ownerUser = explicitlyAssigned;
+        }
+        task.setAssignee(ownerUser);
+
         Task savedTask = taskRepository.save(task);
 
+        // 7. Save owner assignee record
         TaskAssignee taskAssignee = TaskAssignee.builder()
                 .task(savedTask)
                 .user(ownerUser)
@@ -68,6 +100,7 @@ public class TaskService {
                 .build();
         taskAssigneeRepository.save(taskAssignee);
 
+        // 8. Save activity log
         TaskActivity activity = TaskActivity.builder()
                 .task(savedTask)
                 .user(creator)
@@ -81,11 +114,28 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
+    public TaskResponse getTaskById(UUID taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        TaskResponse response = mapToResponse(task);
+
+        // Fetch subtasks only if this is a parent task
+        if (task.getParentTask() == null) {
+            List<Task> subtasks = taskRepository.findAllByParentTaskOrderByCreatedAtAsc(task);
+            response.setSubtasks(subtasks.stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList()));
+        }
+
+        return response;
+    }
+
+    @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByProject(UUID projectId) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
-        return taskRepository.findAllByProject(project)
+        return taskRepository.findAllByProjectAndParentTaskIsNullOrderByCreatedAtDesc(project)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -116,9 +166,34 @@ public class TaskService {
                 .updatedAt(task.getUpdatedAt())
                 .build();
 
+        if (task.getTeam() != null) {
+            response.setTeamId(task.getTeam().getId());
+        }
+        if (task.getParentTask() != null) {
+            response.setParentId(task.getParentTask().getId());
+        }
+
+        // Dynamically compute the sequential task identifier (e.g. HS-001)
+        int seq = taskRepository.countByProjectAndCreatedAtLessThanEqual(task.getProject(), task.getCreatedAt());
+        response.setTaskIdentifier("HS-" + String.format("%03d", seq));
+
+        // Subtask counts
+        int subtaskCount = taskRepository.countByParentTask(task);
+        int completedSubtaskCount = taskRepository.countByParentTaskAndStatus(task, TaskStatus.DONE);
+        response.setSubtaskCount(subtaskCount);
+        response.setCompletedSubtaskCount(completedSubtaskCount);
+
+        // Fetch assignees
+        List<TaskAssignee> assignees = taskAssigneeRepository.findAllByTask(task);
+        response.setAssignees(assignees.stream()
+                .map(this::mapToAssigneeResponse)
+                .collect(Collectors.toList()));
+
         User assigneeUser = task.getAssignee();
         if (assigneeUser == null) {
-            Optional<TaskAssignee> assigneeOpt = taskAssigneeRepository.findFirstByTask(task);
+            Optional<TaskAssignee> assigneeOpt = assignees.stream()
+                    .filter(ta -> ta.getRole() == TaskAssigneeRole.OWNER)
+                    .findFirst();
             if (assigneeOpt.isPresent()) {
                 assigneeUser = assigneeOpt.get().getUser();
             }
@@ -131,6 +206,19 @@ public class TaskService {
         }
 
         return response;
+    }
+
+    private TaskAssigneeResponse mapToAssigneeResponse(TaskAssignee assignee) {
+        return TaskAssigneeResponse.builder()
+                .id(assignee.getId())
+                .taskId(assignee.getTask().getId())
+                .userId(assignee.getUser().getId())
+                .fullName(assignee.getUser().getFullName())
+                .username(assignee.getUser().getUsername())
+                .avatarUrl(assignee.getUser().getAvatarUrl())
+                .role(assignee.getRole())
+                .assignedAt(assignee.getAssignedAt())
+                .build();
     }
 
     private String toInitials(String fullName) {

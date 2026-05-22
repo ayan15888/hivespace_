@@ -4,6 +4,7 @@ import com.project.hiveSpace.models.TaskPriority;
 import com.project.hiveSpace.models.TaskStatus;
 import lombok.*;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -25,6 +26,13 @@ public class TaskResponse {
     private UUID assigneeId;
     private String assigneeName;
     private String assigneeInitials;
+    private UUID teamId;
+    private UUID parentId;
+    private String taskIdentifier;
+    private Integer subtaskCount;
+    private Integer completedSubtaskCount;
+    private List<TaskAssigneeResponse> assignees;
+    private List<TaskResponse> subtasks;
     private Date createdAt;
     private Date updatedAt;
 }
