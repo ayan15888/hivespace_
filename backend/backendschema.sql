@@ -42,6 +42,16 @@ CREATE TABLE public.project_members (
   CONSTRAINT project_members_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
   CONSTRAINT project_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.project_teams (
+  project_id uuid NOT NULL,
+  team_id uuid NOT NULL,
+  assigned_at timestamp without time zone NOT NULL DEFAULT now(),
+  assigned_by uuid,
+  CONSTRAINT project_teams_pkey PRIMARY KEY (project_id, team_id),
+  CONSTRAINT project_teams_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT project_teams_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT project_teams_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.users(id)
+);
 CREATE TABLE public.projects (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name character varying NOT NULL,
@@ -120,14 +130,12 @@ CREATE TABLE public.teams (
   name character varying NOT NULL,
   description character varying,
   workspace_id uuid NOT NULL,
-  project_id uuid,
   created_by uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
   members_count integer NOT NULL,
   CONSTRAINT teams_pkey PRIMARY KEY (id),
   CONSTRAINT teams_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
-  CONSTRAINT teams_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
   CONSTRAINT teams_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );
 CREATE TABLE public.tenant_members (

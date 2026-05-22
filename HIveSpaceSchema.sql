@@ -29,6 +29,7 @@ CREATE TABLE users (
   job_title VARCHAR,
   github_id BIGINT,
   github_username VARCHAR,
+  avatar_color VARCHAR,
   active BOOLEAN NOT NULL DEFAULT true,
   tenant_id UUID REFERENCES tenants(id) ON DELETE SET NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
@@ -93,6 +94,15 @@ CREATE TABLE project_members (
     CHECK (role IN ('LEAD', 'MEMBER', 'VIEWER')),
   joined_at TIMESTAMP NOT NULL DEFAULT now(),
   UNIQUE (project_id, user_id)
+);
+
+-- PROJECTS TEAMS 
+CREATE TABLE project_teams (
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMP NOT NULL DEFAULT now(),
+  assigned_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  PRIMARY KEY (project_id, team_id)
 );
 
 -- TEAMS
@@ -398,6 +408,8 @@ CREATE INDEX idx_shareable_links_team ON shareable_links(team_id);
 CREATE INDEX idx_shareable_links_token ON shareable_links(token);
 CREATE INDEX idx_shareable_links_project ON shareable_links(project_id);
 CREATE INDEX idx_tenants_slug ON tenants(slug);
+CREATE INDEX idx_project_teams_project ON project_teams(project_id);
+CREATE INDEX idx_project_teams_team ON project_teams(team_id);
 -- INDEXES 
 CREATE INDEX idx_workspace_members_user ON workspace_members(user_id);
 CREATE INDEX idx_workspace_members_workspace ON workspace_members(workspace_id);
