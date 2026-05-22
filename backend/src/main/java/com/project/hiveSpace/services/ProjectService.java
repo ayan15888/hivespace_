@@ -65,6 +65,7 @@ public class ProjectService {
         return mapToResponse(savedProject);
     }
 
+    @Transactional(readOnly = true)
     public List<ProjectResponse> getProjectsByWorkspace(UUID workspaceId) {
         Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));

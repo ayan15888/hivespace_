@@ -109,7 +109,7 @@ export function WorkspaceSidebar() {
                   {workspace.name}
                 </span>
                 {activeWorkspace?.id === workspace.id && (
-                  <Check className="h-4 w-4 text-[#7C5CFC]" strokeWidth={1.5} />
+                  <Check className="h-4 w-4 text-hs-accent" strokeWidth={1.5} />
                 )}
               </div>
             ))}
@@ -150,7 +150,7 @@ export function WorkspaceSidebar() {
               >
                 <span className="text-xs">{org.name}</span>
                 {activeOrg?.id === org.id && (
-                  <Check className="h-3 w-3 text-blue-500" strokeWidth={1.5} />
+                  <Check className="h-3 w-3 text-hs-accent" strokeWidth={1.5} />
                 )}
               </div>
             ))}
@@ -184,7 +184,7 @@ export function WorkspaceSidebar() {
                 const projectPath = `/dashboard/projects/${project.id}`;
                 const isActive = pathname.startsWith(projectPath);
                 const isExpanded = expandedProjectId === project.id;
-                const dotColor = PROJECT_COLOR_MAP[project.color || ""] || "#7C5CFC";
+                const dotColor = PROJECT_COLOR_MAP[project.color || ""] || "var(--hs-accent)";
                 
                 return (
                   <motion.div 
@@ -203,13 +203,13 @@ export function WorkspaceSidebar() {
                           !isActive && "border-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                         )}
                         style={isActive ? {
-                          backgroundColor: `${dotColor}20`,
+                          backgroundColor: `color-mix(in srgb, ${dotColor} 20%, transparent)`,
                           borderColor: dotColor,
                           color: "var(--foreground)"
                         } : undefined}
                       >
                         <div className="flex items-center gap-1.5 min-w-0 pl-4">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-sm" style={{ backgroundColor: `${dotColor}20` }}>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-sm" style={{ backgroundColor: `color-mix(in srgb, ${dotColor} 20%, transparent)` }}>
                             <Layout className="h-2.5 w-2.5" style={{ color: dotColor }} />
                           </div>
                           <span className="text-sm truncate font-medium">{project.name}</span>
@@ -349,7 +349,7 @@ export function WorkspaceSidebar() {
                 const path = `/dashboard/chat/${channel.name}`;
                 const isActive = pathname === path;
                 const channelProject = projects.find(p => p.id === channel.projectId);
-                const channelColor = PROJECT_COLOR_MAP[channelProject?.color || ""] || "#7C5CFC";
+                const channelColor = PROJECT_COLOR_MAP[channelProject?.color || ""] || "var(--hs-accent)";
 
                 return (
                   <Link 
@@ -360,7 +360,7 @@ export function WorkspaceSidebar() {
                       !isActive && "border-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                     )}
                     style={isActive ? {
-                      backgroundColor: `${channelColor}20`,
+                      backgroundColor: `color-mix(in srgb, ${channelColor} 20%, transparent)`,
                       borderColor: channelColor,
                       color: "var(--foreground)"
                     } : undefined}
@@ -422,7 +422,7 @@ function SubItem({
   label, 
   href, 
   isActive,
-  activeColor = "#7C5CFC"
+  activeColor = "var(--hs-accent)"
 }: { 
   icon: React.ElementType; 
   label: string; 
@@ -438,7 +438,7 @@ function SubItem({
         !isActive && "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
       )}
       style={isActive ? {
-        backgroundColor: `${activeColor}15`,
+        backgroundColor: `color-mix(in srgb, ${activeColor} 15%, transparent)`,
         color: "white"
       } : undefined}
     >

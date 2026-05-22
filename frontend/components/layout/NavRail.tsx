@@ -12,8 +12,10 @@ import {
   Mail,
   Sparkles,
   Settings,
-  Hexagon
+  Hexagon,
+  Palette
 } from "lucide-react"
+import { useTheme } from "next-themes"
 import {
   Tooltip,
   TooltipContent,
@@ -36,6 +38,7 @@ import { useOrgStore } from "@/store/orgStore"
 import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
 import { cn, getAvatarColorClass } from "@/lib/utils"
+import { motion } from "framer-motion"
 
 export function NavRail() {
   const pathname = usePathname()
@@ -43,6 +46,14 @@ export function NavRail() {
   const { user, logout } = useAuth()
   const { orgs, loading: orgsLoading } = useOrgs()
   const { activeOrg, setActiveOrg } = useOrgStore()
+  const { theme, setTheme } = useTheme()
+
+  const cycleTheme = () => {
+    if (theme === "light") setTheme("dark")
+    else if (theme === "dark") setTheme("dark-blue")
+    else if (theme === "dark-blue") setTheme("claude")
+    else setTheme("light")
+  }
 
   useEffect(() => {
     if (!orgsLoading && orgs.length > 0 && !activeOrg) {
@@ -123,7 +134,12 @@ export function NavRail() {
         </div>
 
         {/* Middle Section */}
-        <div className="mt-4 flex w-full flex-1 flex-col items-center gap-2 overflow-y-auto px-2">
+        <motion.div
+          className="mt-4 flex w-full flex-1 flex-col items-center gap-2 overflow-y-auto px-2"
+          initial="hidden"
+          animate="visible"
+          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.05 } } }}
+        >
           {items.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -133,34 +149,43 @@ export function NavRail() {
               <Tooltip key={item.name}>
                 <TooltipTrigger asChild>
                   {item.soon ? (
-                    <div className="group flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-md opacity-50">
+                    <motion.div
+                      variants={{ hidden: { opacity: 0, x: -8 }, visible: { opacity: 1, x: 0 } }}
+                      className="flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-md opacity-50"
+                    >
                       <div className="relative flex items-center justify-center">
                         <Icon strokeWidth={1.5} className="h-[18px] w-[18px] text-zinc-600" />
                       </div>
-                    </div>
+                    </motion.div>
                   ) : (
-                    <Link
-                      href={item.href}
-                      className={`group flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
-                        isActive ? "bg-[#7C5CFC]" : "hover:bg-zinc-800"
-                      }`}
+                    <motion.div
+                      variants={{ hidden: { opacity: 0, x: -8 }, visible: { opacity: 1, x: 0, transition: { duration: 0.25 } } }}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.93 }}
                     >
-                      <div className="relative flex items-center justify-center">
-                        <Icon
-                          strokeWidth={1.5}
-                          className={`h-[18px] w-[18px] transition-colors ${
-                            isActive
-                              ? "text-[#E5E1E4]"
-                              : "text-zinc-500 group-hover:text-zinc-400"
-                          }`}
-                        />
-                        {item.badge && (
-                          <Badge className="absolute -top-1.5 -right-2 flex h-3 w-3 items-center justify-center rounded-full border-none bg-[#f95b4e] p-0 text-[8px] text-white hover:bg-[#f95b4e]">
-                            {item.badge}
-                          </Badge>
-                        )}
-                      </div>
-                    </Link>
+                      <Link
+                        href={item.href}
+                        className={`group flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
+                          isActive ? "bg-hs-accent" : "hover:bg-zinc-800"
+                        }`}
+                      >
+                        <div className="relative flex items-center justify-center">
+                          <Icon
+                            strokeWidth={1.5}
+                            className={`h-[18px] w-[18px] transition-colors ${
+                              isActive
+                                ? "text-white"
+                                : "text-zinc-500 group-hover:text-zinc-400"
+                            }`}
+                          />
+                          {item.badge && (
+                            <Badge className="absolute -top-1.5 -right-2 flex h-3 w-3 items-center justify-center rounded-full border-none bg-[#f95b4e] p-0 text-[8px] text-white hover:bg-[#f95b4e]">
+                              {item.badge}
+                            </Badge>
+                          )}
+                        </div>
+                      </Link>
+                    </motion.div>
                   )}
                 </TooltipTrigger>
                 <TooltipContent
@@ -182,17 +207,34 @@ export function NavRail() {
               </Tooltip>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* Bottom Section */}
         <div className="flex w-full flex-col items-center gap-6 px-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={cycleTheme}
+                className="group flex h-9 w-9 items-center justify-center rounded-md transition-colors text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400 cursor-pointer"
+              >
+                <Palette strokeWidth={1.5} className="h-[18px] w-[18px]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent
+              side="right"
+              className="ml-2 border border-[#484555]/15 bg-background/70 text-foreground backdrop-blur-[20px] rounded-md"
+            >
+              <span className="capitalize">Theme: {theme === "system" ? "light" : theme}</span>
+            </TooltipContent>
+          </Tooltip>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
                 href="/settings"
                 className={`group flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
                   pathname === "/settings" || pathname.startsWith("/settings/")
-                    ? "bg-[#7C5CFC] text-[#E5E1E4]"
+                    ? "bg-hs-accent text-white"
                     : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400"
                 }`}
               >
