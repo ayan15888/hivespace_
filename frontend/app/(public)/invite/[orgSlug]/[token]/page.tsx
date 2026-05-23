@@ -373,6 +373,11 @@ export default function InviteAcceptancePage() {
                   <Badge variant="outline" className="bg-[#7C5CFC]/5 border-[#7C5CFC]/20 text-[#7C5CFC] text-[9px] py-0.5 rounded-sm">
                     {inviteDetails.workspaceName || "Default Workspace"}
                   </Badge>
+                  {inviteDetails.workspaceIds && inviteDetails.workspaceIds.length > 1 && (
+                    <Badge variant="outline" className="bg-[#7C5CFC]/5 border-[#7C5CFC]/10 text-zinc-400 text-[9px] py-0.5 rounded-sm">
+                      + {inviteDetails.workspaceIds.length - 1} other workspace{inviteDetails.workspaceIds.length > 2 ? "s" : ""}
+                    </Badge>
+                  )}
                   {inviteDetails.teamName && (
                     <>
                       <ChevronRight className="h-3 w-3 text-zinc-600" />
@@ -380,6 +385,11 @@ export default function InviteAcceptancePage() {
                         {inviteDetails.teamName}
                       </Badge>
                     </>
+                  )}
+                  {inviteDetails.teamIds && inviteDetails.teamIds.length > 1 && (
+                    <Badge variant="outline" className="bg-emerald-500/5 border-emerald-500/10 text-zinc-400 text-[9px] py-0.5 rounded-sm">
+                      + {inviteDetails.teamIds.length - 1} other team{inviteDetails.teamIds.length > 2 ? "s" : ""}
+                    </Badge>
                   )}
                 </div>
               </div>
@@ -508,13 +518,19 @@ export default function InviteAcceptancePage() {
                   {inviteDetails.workspaceName && (
                     <div className="flex items-center justify-between text-[9px] text-zinc-500">
                       <span className="flex items-center gap-1"><Building2 className="h-3 w-3 text-blue-400" /> Workspace to join</span>
-                      <span className="font-mono text-zinc-300 font-bold">{inviteDetails.workspaceName}</span>
+                      <span className="font-mono text-zinc-300 font-bold">
+                        {inviteDetails.workspaceName}
+                        {inviteDetails.workspaceIds && inviteDetails.workspaceIds.length > 1 && ` (+ ${inviteDetails.workspaceIds.length - 1} others)`}
+                      </span>
                     </div>
                   )}
                   {inviteDetails.teamName && (
                     <div className="flex items-center justify-between text-[9px] text-zinc-500">
                       <span className="flex items-center gap-1"><Users className="h-3 w-3 text-emerald-400" /> Team to join</span>
-                      <span className="font-mono text-zinc-300 font-bold">{inviteDetails.teamName}</span>
+                      <span className="font-mono text-zinc-300 font-bold">
+                        {inviteDetails.teamName}
+                        {inviteDetails.teamIds && inviteDetails.teamIds.length > 1 && ` (+ ${inviteDetails.teamIds.length - 1} others)`}
+                      </span>
                     </div>
                   )}
                   <div className="flex items-center justify-between text-[9px] text-zinc-500">

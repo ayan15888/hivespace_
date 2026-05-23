@@ -1,5 +1,8 @@
 import { useAuthStore } from '@/store/authStore';
 import { useWorkspaceStore } from '@/store/workspaceStore';
+import { useOrgStore } from '@/store/orgStore';
+import { useMembers } from '@/hooks/useMembers';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import * as TenantPerms from '@/lib/permissions/tenant';
 import * as WorkspacePerms from '@/lib/permissions/workspace';
 import * as ProjectPerms from '@/lib/permissions/project';
@@ -8,9 +11,20 @@ import { TenantRole } from '@/types/roles';
 
 export function usePermission() {
   const { user } = useAuthStore();
-  const { workspaceRole } = useWorkspaceStore();
+  const { activeWorkspace } = useWorkspaceStore();
+  const { activeOrg } = useOrgStore();
 
-  const tenantRole: TenantRole = (user?.role as TenantRole) || 'MEMBER';
+  const { members: orgMembers } = useMembers();
+  const { members: workspaceMembers } = useWorkspaceMembers(activeWorkspace?.id);
+
+  // Derive tenantRole from org membership
+  const currentOrgMember = orgMembers.find((m) => m.email.toLowerCase() === user?.email?.toLowerCase());
+  const tenantRole: TenantRole = currentOrgMember ? (currentOrgMember.role as TenantRole) : (user?.role as TenantRole) || 'MEMBER';
+
+  // Derive workspaceRole from workspace membership
+  const currentWorkspaceMember = workspaceMembers.find((m) => m.userId === user?.id);
+  const workspaceRole = currentWorkspaceMember ? currentWorkspaceMember.role : null;
+
   const ctx = { tenantRole, workspaceRole };
 
   return {

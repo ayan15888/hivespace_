@@ -29,6 +29,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { useProjects } from "@/hooks/useProjects";
 import { useTaskStore } from "@/store/taskStore";
+import { useAuthStore } from "@/store/authStore";
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -52,16 +53,36 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
   const [points, setPoints] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !projectId) {
       setProjectMembers([]);
+      setMembersLoading(false);
+      setMembersError(false);
       return;
     }
+    setMembersLoading(true);
+    setMembersError(false);
     getProjectMembers(projectId)
-      .then(setProjectMembers)
-      .catch(() => setProjectMembers([]));
+      .then((data) => {
+        setProjectMembers(data);
+        setMembersLoading(false);
+      })
+      .catch((err) => {
+        setProjectMembers([]);
+        setMembersLoading(false);
+        setMembersError(true);
+      });
   }, [isOpen, projectId]);
+
+  const { user } = useAuthStore();
+  const currentUserProjectMember = projectMembers.find(m => m.userId === user?.id);
+  const projectRole = currentUserProjectMember?.role || null;
+  const canCreate = !projectId || membersLoading || 
+                    (!membersError && projectMembers.length === 0) || 
+                    (projectRole === "MEMBER" || projectRole === "LEAD");
 
   // Reset fields when modal opens or initialProjectId/defaultStatus changes
   useEffect(() => {
@@ -146,6 +167,11 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                 </DialogHeader>
 
                 <div className="grid gap-4 p-6">
+                  {!canCreate && (
+                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl flex items-center gap-2 mb-2 animate-pulse">
+                      <span>⚠️ You do not have permission to create tasks in this project.</span>
+                    </div>
+                  )}
                   {!initialProjectId && (
                     <div className="grid gap-2">
                       <Label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Project</Label>
@@ -290,7 +316,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                   <Button 
                     type="submit" 
                     className="bg-primary hover:opacity-90 text-primary-foreground rounded-xl px-8"
-                    disabled={loading}
+                    disabled={loading || !canCreate}
                   >
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Task"}
                   </Button>
