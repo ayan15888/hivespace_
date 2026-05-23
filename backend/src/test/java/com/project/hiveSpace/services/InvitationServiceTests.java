@@ -126,15 +126,10 @@ class InvitationServiceTests {
         request.setEmail("invitee@example.com");
         request.setProjectId(projectId);
 
-        TenantMember inviterMember = TenantMember.builder()
-                .tenant(tenant)
-                .user(currentUser)
-                .role(TenantMemberRole.ADMIN)
-                .build();
-
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
-        when(tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId()))
-                .thenReturn(Optional.of(inviterMember));
+        when(rbacService.canManageInvite(tenantId)).thenReturn(true);
+        when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
+        when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
 
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
@@ -185,15 +180,8 @@ class InvitationServiceTests {
         request.setMaxUses(1);
         request.setPin("123456");
 
-        TenantMember inviterMember = TenantMember.builder()
-                .tenant(tenant)
-                .user(currentUser)
-                .role(TenantMemberRole.BILLING_ADMIN)
-                .build();
-
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
-        when(tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId()))
-                .thenReturn(Optional.of(inviterMember));
+        when(rbacService.canManageInvite(tenantId)).thenReturn(false);
 
         SecurityException exception = assertThrows(SecurityException.class, () ->
                 invitationService.createInvite(request)
@@ -214,15 +202,10 @@ class InvitationServiceTests {
         request.setMaxUses(1);
         request.setPin("123456");
 
-        TenantMember inviterMember = TenantMember.builder()
-                .tenant(tenant)
-                .user(currentUser)
-                .role(TenantMemberRole.ADMIN)
-                .build();
-
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
-        when(tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId()))
-                .thenReturn(Optional.of(inviterMember));
+        when(rbacService.canManageInvite(tenantId)).thenReturn(true);
+        when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
+        when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(invalidWorkspace));
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
@@ -245,15 +228,10 @@ class InvitationServiceTests {
         request.setMaxUses(1);
         request.setPin("123456");
 
-        TenantMember inviterMember = TenantMember.builder()
-                .tenant(tenant)
-                .user(currentUser)
-                .role(TenantMemberRole.ADMIN)
-                .build();
-
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
-        when(tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId()))
-                .thenReturn(Optional.of(inviterMember));
+        when(rbacService.canManageInvite(tenantId)).thenReturn(true);
+        when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
+        when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(invalidTeam));
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
@@ -276,15 +254,10 @@ class InvitationServiceTests {
         request.setMaxUses(1);
         request.setPin("123456");
 
-        TenantMember inviterMember = TenantMember.builder()
-                .tenant(tenant)
-                .user(currentUser)
-                .role(TenantMemberRole.ADMIN)
-                .build();
-
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
-        when(tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId()))
-                .thenReturn(Optional.of(inviterMember));
+        when(rbacService.canManageInvite(tenantId)).thenReturn(true);
+        when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
+        when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(invalidProject));
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
@@ -303,15 +276,10 @@ class InvitationServiceTests {
         request.setMaxUses(1);
         request.setPin("123456");
 
-        TenantMember inviterMember = TenantMember.builder()
-                .tenant(tenant)
-                .user(currentUser)
-                .role(TenantMemberRole.ADMIN)
-                .build();
-
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
-        when(tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId()))
-                .thenReturn(Optional.of(inviterMember));
+        when(rbacService.canManageInvite(tenantId)).thenReturn(true);
+        when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
+        when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
 
         when(rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.MEMBER)).thenReturn(false);
@@ -320,7 +288,7 @@ class InvitationServiceTests {
                 invitationService.createInvite(request)
         );
 
-        assertEquals("Cannot invite users to a workspace with a role that exceeds your own workspace role", exception.getMessage());
+        assertEquals("You must have at least Member access to 'Test Workspace' to invite others into it", exception.getMessage());
     }
 
     @Test

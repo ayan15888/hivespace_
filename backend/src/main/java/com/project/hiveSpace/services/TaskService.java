@@ -302,11 +302,7 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
-        UUID projectId = task.getProject().getId();
-        UUID workspaceId = task.getProject().getWorkspace().getId();
-        boolean isProjectLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
-        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
-        if (!isProjectLead && !isWorkspaceAdmin) {
+        if (!rbacService.canDeleteTask(taskId)) {
             throw new SecurityException("Access denied: Only project leads and workspace admins can delete tasks");
         }
 

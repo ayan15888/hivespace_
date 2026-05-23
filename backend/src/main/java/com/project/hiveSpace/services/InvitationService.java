@@ -47,26 +47,16 @@ public class InvitationService {
         Tenant tenant = tenantRepository.findById(request.getTenantId())
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
-        // Security Check: Is the inviter an OWNER or ADMIN of this organization?
-        TenantMember inviterMember = tenantMemberRepository.findByTenantIdAndUserId(tenant.getId(), currentUser.getId())
-                .orElse(null);
-                
-        // Backward-compatible ownership check
-        boolean isOwner = tenant.getOwnerEmail().equalsIgnoreCase(currentUser.getEmail());
-        boolean isAuthorized = isOwner || (inviterMember != null &&
-                (inviterMember.getRole() == TenantMemberRole.OWNER
-                        || inviterMember.getRole() == TenantMemberRole.ADMIN));
-
-        if (!isAuthorized) {
+        if (!rbacService.canManageInvite(tenant.getId())) {
             throw new SecurityException("Only organization owners or administrators can create invitations");
         }
 
         // Determine inviter's actual role
         TenantMemberRole inviterRole = TenantMemberRole.MEMBER;
-        if (isOwner) {
+        if (rbacService.isTenantOwner(tenant.getId())) {
             inviterRole = TenantMemberRole.OWNER;
-        } else if (inviterMember != null) {
-            inviterRole = inviterMember.getRole();
+        } else if (rbacService.hasTenantRole(tenant.getId(), TenantMemberRole.ADMIN)) {
+            inviterRole = TenantMemberRole.ADMIN;
         }
 
         // Validate target role permission
@@ -142,7 +132,7 @@ public class InvitationService {
 
         for (Workspace w : allInviteWorkspaces) {
             if (!rbacService.hasWorkspaceRole(w.getId(), WorkspaceMemberRole.MEMBER)) {
-                throw new SecurityException("Cannot invite users to a workspace with a role that exceeds your own workspace role");
+                throw new SecurityException("You must have at least Member access to '" + w.getName() + "' to invite others into it");
             }
         }
 

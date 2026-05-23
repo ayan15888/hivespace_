@@ -23,6 +23,8 @@ public class RbacService {
     private final ProjectRepository projectRepository;
     private final TeamRepository teamRepository;
     private final TaskRepository taskRepository;
+    private final TaskAssigneeRepository taskAssigneeRepository;
+    // private final TenantRepository tenantRepository;
 
     public User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -209,6 +211,43 @@ public class RbacService {
         return projectRepository.findById(projectId)
                 .map(project -> canAdminWorkspace(project.getWorkspace().getId()))
                 .orElse(false);
+    }
+
+    public boolean canDeleteTask(UUID taskId) {
+        User user = getCurrentUser();
+        if (user == null || taskId == null) return false;
+        return taskRepository.findById(taskId)
+                .map(task -> {
+                    UUID projectId = task.getProject().getId();
+                    if (hasProjectRole(projectId, ProjectMemberRole.LEAD)) return true;
+                    return canAdminWorkspace(task.getProject().getWorkspace().getId());
+                })
+                .orElse(false);
+    }
+
+    public boolean canAddTaskAssignee(UUID taskId) {
+        User user = getCurrentUser();
+        if (user == null || taskId == null) return false;
+        return taskRepository.findById(taskId)
+                .map(task -> {
+                    UUID projectId = task.getProject().getId();
+                    boolean isTaskOwner = taskAssigneeRepository
+                            .findByTaskIdAndUserId(taskId, user.getId())
+                            .map(a -> a.getRole() == TaskAssigneeRole.OWNER)
+                            .orElse(false);
+                    if (isTaskOwner) return true;
+                    if (hasProjectRole(projectId, ProjectMemberRole.LEAD)) return true;
+                    return canAdminWorkspace(task.getProject().getWorkspace().getId());
+                })
+                .orElse(false);
+    }
+
+    public boolean canManageInvite(UUID tenantId) {
+        User user = getCurrentUser();
+        if (user == null || tenantId == null) return false;
+        TenantMemberRole role = getTenantRole(user.getId(), tenantId);
+        // Explicit check — BILLING_ADMIN is intentionally excluded
+        return role == TenantMemberRole.OWNER || role == TenantMemberRole.ADMIN;
     }
 
     // --- PRIVATE ROLE RETRIEVAL HELPERS ---
