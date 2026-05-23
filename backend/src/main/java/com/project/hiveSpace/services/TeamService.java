@@ -16,6 +16,8 @@ import com.project.hiveSpace.repository.ProjectTeamRepository;
 import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.repository.WorkspaceRepository;
 import com.project.hiveSpace.repository.TeamRepository;
+import com.project.hiveSpace.repository.WorkspaceMemberRepository;
+import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,8 @@ public class TeamService {
     private final TeamMemberRepository teamMemberRepository;
     private final RbacService rbacService;
     private final ProjectTeamRepository projectTeamRepository;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public TeamResponse createTeam(TeamRequest request, User creator) {
@@ -44,8 +48,8 @@ public class TeamService {
             throw new IllegalArgumentException("Workspace ID is required");
         }
 
-        if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.MEMBER)) {
-            throw new SecurityException("Access denied: Must be a member of the workspace to create a team");
+        if (!rbacService.canCreateTeam(workspaceId)) {
+            throw new SecurityException("Access denied: You do not have permission to create a team in this workspace");
         }
 
         Workspace workspace = workspaceRepository.findById(workspaceId)
@@ -68,25 +72,61 @@ public class TeamService {
             }
         }
 
+        UUID leadUserId = request.getLeadUserId();
+
+        // Validate lead user is a workspace member first (if provided)
+        if (leadUserId != null) {
+            boolean isWorkspaceMember = workspaceMemberRepository
+                    .existsByWorkspaceIdAndUserId(workspaceId, leadUserId);
+            if (!isWorkspaceMember) {
+                throw new SecurityException("Assigned lead must be a workspace member first");
+            }
+        }
+
+        int initialMembersCount = (leadUserId != null && !leadUserId.equals(creator.getId())) ? 2 : 1;
+
         Team team = Team.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .workspace(workspace)
                 .createdBy(creator)
-                .membersCount(1) // Creator is included
+                .membersCount(initialMembersCount)
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
 
         Team savedTeam = teamRepository.save(team);
 
-        TeamMember lead = TeamMember.builder()
-                .team(savedTeam)
-                .user(creator)
-                .role(TeamMemberRole.LEAD)
-                .joinedAt(new Date())
-                .build();
-        teamMemberRepository.save(lead);
+        if (leadUserId != null) {
+            User leadUser = userRepository.findById(leadUserId)
+                    .orElseThrow(() -> new IllegalArgumentException("Lead user not found"));
+
+            TeamMember leadMember = TeamMember.builder()
+                    .team(savedTeam)
+                    .user(leadUser)
+                    .role(TeamMemberRole.LEAD)
+                    .joinedAt(new Date())
+                    .build();
+            teamMemberRepository.save(leadMember);
+
+            if (!leadUserId.equals(creator.getId())) {
+                TeamMember creatorMember = TeamMember.builder()
+                        .team(savedTeam)
+                        .user(creator)
+                        .role(TeamMemberRole.MEMBER)
+                        .joinedAt(new Date())
+                        .build();
+                teamMemberRepository.save(creatorMember);
+            }
+        } else {
+            TeamMember lead = TeamMember.builder()
+                    .team(savedTeam)
+                    .user(creator)
+                    .role(TeamMemberRole.LEAD)
+                    .joinedAt(new Date())
+                    .build();
+            teamMemberRepository.save(lead);
+        }
 
         if (associatedProject != null) {
             ProjectTeam projectTeam = ProjectTeam.builder()

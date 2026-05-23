@@ -11,6 +11,8 @@ import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.repository.TenantRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
 import com.project.hiveSpace.repository.WorkspaceRepository;
+import com.project.hiveSpace.security.RbacService;
+import com.project.hiveSpace.models.TenantMemberRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ public class WorkspaceService {
     private final WorkspaceRepository workspaceRepository;
     private final TenantRepository tenantRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final RbacService rbacService;
 
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -40,6 +43,10 @@ public class WorkspaceService {
     @Transactional
     public WorkspaceResponse createWorkspace(WorkspaceRequest request) {
         User currentUser = getCurrentUser();
+
+        if (!rbacService.hasTenantRole(request.getTenantId(), TenantMemberRole.ADMIN)) {
+            throw new SecurityException("Access denied: Only organization admins and owners can create workspaces");
+        }
 
         Tenant tenant = tenantRepository.findById(request.getTenantId())
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));

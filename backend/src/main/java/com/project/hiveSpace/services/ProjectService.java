@@ -15,6 +15,8 @@ import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.TeamRepository;
 import com.project.hiveSpace.repository.ProjectTeamRepository;
 import com.project.hiveSpace.repository.WorkspaceRepository;
+import com.project.hiveSpace.repository.WorkspaceMemberRepository;
+import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,9 +37,15 @@ public class ProjectService {
     private final TeamRepository teamRepository;
     private final ProjectTeamRepository projectTeamRepository;
     private final RbacService rbacService;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public ProjectResponse createProject(UUID workspaceId, ProjectRequest request, User creator) {
+        if (!rbacService.canCreateProject(workspaceId)) {
+            throw new SecurityException("Access denied: You do not have permission to create a project in this workspace");
+        }
+
         Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
 
@@ -46,6 +54,19 @@ public class ProjectService {
                     "A project with the name '" + request.getName() + "' already exists in this workspace");
         }
 
+        UUID leadUserId = request.getLeadUserId();
+        
+        // Validate lead user is a workspace member first (if provided)
+        if (leadUserId != null) {
+            boolean isWorkspaceMember = workspaceMemberRepository
+                    .existsByWorkspaceIdAndUserId(workspaceId, leadUserId);
+            if (!isWorkspaceMember) {
+                throw new SecurityException("Assigned lead must be a workspace member first");
+            }
+        }
+
+        int initialMembersCount = (leadUserId != null && !leadUserId.equals(creator.getId())) ? 2 : 1;
+
         Project project = Project.builder()
                 .name(request.getName())
                 .description(request.getDescription())
@@ -53,7 +74,7 @@ public class ProjectService {
                 .workspace(workspace)
                 .createdBy(creator)
                 .teamsCount(0)
-                .membersCount(1) // Creator is a member initially
+                .membersCount(initialMembersCount)
                 .color(request.getColor())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
@@ -63,13 +84,36 @@ public class ProjectService {
 
         Project savedProject = projectRepository.save(project);
 
-        ProjectMember projectMember = ProjectMember.builder()
-                .project(savedProject)
-                .user(creator)
-                .role(ProjectMemberRole.LEAD)
-                .joinedAt(new Date())
-                .build();
-        projectMemberRepository.save(projectMember);
+        if (leadUserId != null) {
+            User leadUser = userRepository.findById(leadUserId)
+                    .orElseThrow(() -> new IllegalArgumentException("Lead user not found"));
+
+            ProjectMember leadMember = ProjectMember.builder()
+                    .project(savedProject)
+                    .user(leadUser)
+                    .role(ProjectMemberRole.LEAD)
+                    .joinedAt(new Date())
+                    .build();
+            projectMemberRepository.save(leadMember);
+
+            if (!leadUserId.equals(creator.getId())) {
+                ProjectMember creatorMember = ProjectMember.builder()
+                        .project(savedProject)
+                        .user(creator)
+                        .role(ProjectMemberRole.MEMBER)
+                        .joinedAt(new Date())
+                        .build();
+                projectMemberRepository.save(creatorMember);
+            }
+        } else {
+            ProjectMember projectMember = ProjectMember.builder()
+                    .project(savedProject)
+                    .user(creator)
+                    .role(ProjectMemberRole.LEAD)
+                    .joinedAt(new Date())
+                    .build();
+            projectMemberRepository.save(projectMember);
+        }
 
         return mapToResponse(savedProject);
     }
