@@ -197,6 +197,20 @@ CREATE TABLE invitation_attempts (
   success BOOLEAN NOT NULL DEFAULT false
 );
 
+-- INVITATION WORKSPACES
+CREATE TABLE invitation_workspaces (
+  invitation_id UUID NOT NULL REFERENCES invitations(id) ON DELETE CASCADE,
+  workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  PRIMARY KEY (invitation_id, workspace_id)
+);
+
+-- INVITATION TEAMS
+CREATE TABLE invitation_teams (
+  invitation_id UUID NOT NULL REFERENCES invitations(id) ON DELETE CASCADE,
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  PRIMARY KEY (invitation_id, team_id)
+);
+
 ==========================================================================
 ---------------------------------------------------------------------------
 ---------------------- NOT ADDED IN THE DB YET ----------------------------
