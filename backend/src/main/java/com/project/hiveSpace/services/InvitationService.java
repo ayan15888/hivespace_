@@ -70,7 +70,7 @@ public class InvitationService {
         }
 
         // Validate target role permission
-        String requestedRoleStr = request.getRole() != null ? request.getRole().trim().toUpperCase() : "MEMBER";
+        String requestedRoleStr = request.getTenantRole() != null ? request.getTenantRole().trim().toUpperCase() : "MEMBER";
         TenantMemberRole targetRole = TenantMemberRole.MEMBER;
         try {
             targetRole = TenantMemberRole.valueOf(requestedRoleStr);
@@ -88,23 +88,39 @@ public class InvitationService {
             }
         }
 
-        Workspace workspace = null;
-        if (request.getWorkspaceId() != null) {
-            workspace = workspaceRepository.findById(request.getWorkspaceId())
-                    .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
-            if (!workspace.getTenant().getId().equals(tenant.getId())) {
-                throw new IllegalArgumentException("Workspace does not belong to the specified tenant");
+        // --- Collect target workspaces from single workspaceId + workspaceIds list ---
+        java.util.Set<UUID> allWorkspaceIds = new java.util.LinkedHashSet<>();
+        if (request.getWorkspaceId() != null) allWorkspaceIds.add(request.getWorkspaceId());
+        if (request.getWorkspaceIds() != null) allWorkspaceIds.addAll(request.getWorkspaceIds());
+
+        java.util.Set<Workspace> targetWorkspaceSet = new java.util.LinkedHashSet<>();
+        for (UUID wsId : allWorkspaceIds) {
+            Workspace ws = workspaceRepository.findById(wsId)
+                    .orElseThrow(() -> new IllegalArgumentException("Workspace not found: " + wsId));
+            if (!ws.getTenant().getId().equals(tenant.getId())) {
+                throw new IllegalArgumentException("Workspace " + wsId + " does not belong to the specified tenant");
             }
+            targetWorkspaceSet.add(ws);
         }
 
-        Team team = null;
-        if (request.getTeamId() != null) {
-            team = teamRepository.findById(request.getTeamId())
-                    .orElseThrow(() -> new IllegalArgumentException("Team not found"));
-            if (team.getWorkspace() == null || !team.getWorkspace().getTenant().getId().equals(tenant.getId())) {
-                throw new IllegalArgumentException("Team's workspace does not belong to the specified tenant");
+        // --- Collect target teams from single teamId + teamIds list ---
+        java.util.Set<UUID> allTeamIds = new java.util.LinkedHashSet<>();
+        if (request.getTeamId() != null) allTeamIds.add(request.getTeamId());
+        if (request.getTeamIds() != null) allTeamIds.addAll(request.getTeamIds());
+
+        java.util.Set<Team> targetTeamSet = new java.util.LinkedHashSet<>();
+        for (UUID tId : allTeamIds) {
+            Team t = teamRepository.findById(tId)
+                    .orElseThrow(() -> new IllegalArgumentException("Team not found: " + tId));
+            if (t.getWorkspace() == null || !t.getWorkspace().getTenant().getId().equals(tenant.getId())) {
+                throw new IllegalArgumentException("Team " + tId + " does not belong to the specified tenant");
             }
+            targetTeamSet.add(t);
         }
+
+        // Backward compat single fields
+        Workspace workspace = targetWorkspaceSet.isEmpty() ? null : targetWorkspaceSet.iterator().next();
+        Team team = targetTeamSet.isEmpty() ? null : targetTeamSet.iterator().next();
 
         Project project = null;
         if (request.getProjectId() != null) {
@@ -115,27 +131,16 @@ public class InvitationService {
             }
         }
 
-        // Cross-scope consistency validation
-        if (workspace != null && team != null && !team.getWorkspace().getId().equals(workspace.getId())) {
-            throw new IllegalArgumentException("Team does not belong to the specified workspace");
-        }
-        if (workspace != null && project != null && !project.getWorkspace().getId().equals(workspace.getId())) {
-            throw new IllegalArgumentException("Project does not belong to the specified workspace");
-        }
-
         // Validate caller's workspace role for all workspaces the invitee will join
-        java.util.Set<Workspace> targetWorkspaces = new java.util.HashSet<>();
-        if (workspace != null) {
-            targetWorkspaces.add(workspace);
-        }
-        if (team != null && team.getWorkspace() != null) {
-            targetWorkspaces.add(team.getWorkspace());
+        java.util.Set<Workspace> allInviteWorkspaces = new java.util.HashSet<>(targetWorkspaceSet);
+        for (Team t : targetTeamSet) {
+            if (t.getWorkspace() != null) allInviteWorkspaces.add(t.getWorkspace());
         }
         if (project != null && project.getWorkspace() != null) {
-            targetWorkspaces.add(project.getWorkspace());
+            allInviteWorkspaces.add(project.getWorkspace());
         }
 
-        for (Workspace w : targetWorkspaces) {
+        for (Workspace w : allInviteWorkspaces) {
             if (!rbacService.hasWorkspaceRole(w.getId(), WorkspaceMemberRole.MEMBER)) {
                 throw new SecurityException("Cannot invite users to a workspace with a role that exceeds your own workspace role");
             }
@@ -158,8 +163,10 @@ public class InvitationService {
                 .workspace(workspace)
                 .team(team)
                 .project(project)
+                .workspaces(targetWorkspaceSet)
+                .teams(targetTeamSet)
                 .inviter(currentUser)
-                .role(request.getRole() != null ? request.getRole() : "MEMBER")
+                .tenantRole(request.getTenantRole() != null ? request.getTenantRole() : "MEMBER")
                 .maxUses(request.getMaxUses() != null ? request.getMaxUses() : 1)
                 .currentUses(0)
                 .status(InvitationStatus.ACTIVE)
@@ -187,7 +194,7 @@ public class InvitationService {
                 tenant.getName(),
                 workspace != null ? workspace.getName() : null,
                 team != null ? team.getName() : null,
-                request.getRole() != null ? request.getRole() : "MEMBER",
+                request.getTenantRole() != null ? request.getTenantRole() : "MEMBER",
                 currentUser.getUsername(),
                 inviteUrl,
                 rawPin
@@ -251,46 +258,35 @@ public class InvitationService {
 
         // 4. Enroll User Hierarchically into Memberships
         Tenant tenant = invitation.getTenant();
-        Workspace workspace = invitation.getWorkspace();
-        Team team = invitation.getTeam();
         Project project = invitation.getProject();
 
-        // Structural Consistency Validation (Restructuring check)
-        if (workspace != null) {
-            if (workspace.getTenant() == null || !workspace.getTenant().getId().equals(tenant.getId())) {
-                throw new IllegalArgumentException("Workspace no longer belongs to the invitation's tenant");
+        // Collect all workspaces from the junction table
+        java.util.Set<Workspace> inviteWorkspaces = invitation.getWorkspaces();
+        // Collect all teams from the junction table
+        java.util.Set<Team> inviteTeams = invitation.getTeams();
+
+        // Structural Consistency Validation — verify all junction-table workspaces still belong to the tenant
+        for (Workspace ws : inviteWorkspaces) {
+            if (ws.getTenant() == null || !ws.getTenant().getId().equals(tenant.getId())) {
+                throw new IllegalArgumentException("Workspace " + ws.getId() + " no longer belongs to the invitation's tenant");
             }
         }
-
-        if (team != null) {
-            Workspace teamWorkspace = team.getWorkspace();
-            if (teamWorkspace == null) {
-                throw new IllegalArgumentException("Team is not associated with a workspace");
-            }
-            if (teamWorkspace.getTenant() == null || !teamWorkspace.getTenant().getId().equals(tenant.getId())) {
-                throw new IllegalArgumentException("Team's workspace no longer belongs to the invitation's tenant");
-            }
-            if (workspace != null && !teamWorkspace.getId().equals(workspace.getId())) {
-                throw new IllegalArgumentException("Team does not belong to the invitation's workspace");
+        for (Team t : inviteTeams) {
+            Workspace tw = t.getWorkspace();
+            if (tw == null || tw.getTenant() == null || !tw.getTenant().getId().equals(tenant.getId())) {
+                throw new IllegalArgumentException("Team " + t.getId() + " no longer belongs to the invitation's tenant");
             }
         }
-
         if (project != null) {
-            Workspace projectWorkspace = project.getWorkspace();
-            if (projectWorkspace == null) {
-                throw new IllegalArgumentException("Project is not associated with a workspace");
-            }
-            if (projectWorkspace.getTenant() == null || !projectWorkspace.getTenant().getId().equals(tenant.getId())) {
+            Workspace pw = project.getWorkspace();
+            if (pw == null || pw.getTenant() == null || !pw.getTenant().getId().equals(tenant.getId())) {
                 throw new IllegalArgumentException("Project's workspace no longer belongs to the invitation's tenant");
-            }
-            if (workspace != null && !projectWorkspace.getId().equals(workspace.getId())) {
-                throw new IllegalArgumentException("Project does not belong to the invitation's workspace");
             }
         }
 
         // --- 1. Join Tenant ---
         if (!tenantMemberRepository.existsByTenantAndUser(tenant, currentUser)) {
-            TenantMemberRole assignedTenantRole = parseTenantMemberRole(invitation.getRole());
+            TenantMemberRole assignedTenantRole = parseTenantMemberRole(invitation.getTenantRole());
             TenantMember tenantMember = TenantMember.builder()
                     .tenant(tenant)
                     .user(currentUser)
@@ -298,7 +294,7 @@ public class InvitationService {
                     .joinedAt(new Date())
                     .build();
             tenantMemberRepository.save(tenantMember);
-            
+
             tenant.setMembersCount(tenant.getMembersCount() + 1);
             tenantRepository.save(tenant);
         }
@@ -309,80 +305,73 @@ public class InvitationService {
             userRepository.save(currentUser);
         }
 
-        // --- 2. Join Workspace (if specified) ---
-        if (workspace != null && !workspaceMemberRepository.existsByWorkspaceAndUser(workspace, currentUser)) {
-            WorkspaceMember workspaceMember = WorkspaceMember.builder()
-                    .workspace(workspace)
-                    .user(currentUser)
-                    .role(WorkspaceMemberRole.MEMBER)
-                    .joinedAt(new Date())
-                    .build();
-            workspaceMemberRepository.save(workspaceMember);
-
-            workspace.setMembersCount(workspace.getMembersCount() + 1);
-            workspaceRepository.save(workspace);
+        // --- 2. Join all Workspaces from the junction table ---
+        for (Workspace ws : inviteWorkspaces) {
+            if (!workspaceMemberRepository.existsByWorkspaceAndUser(ws, currentUser)) {
+                WorkspaceMember wm = WorkspaceMember.builder()
+                        .workspace(ws)
+                        .user(currentUser)
+                        .role(WorkspaceMemberRole.MEMBER)
+                        .joinedAt(new Date())
+                        .build();
+                workspaceMemberRepository.save(wm);
+                ws.setMembersCount(ws.getMembersCount() + 1);
+                workspaceRepository.save(ws);
+            }
         }
 
-        // --- 3. Join Workspace and Team (if team is specified) ---
-        if (team != null) {
-            Workspace teamWorkspace = team.getWorkspace();
-            
-            // Join Workspace
-            if (!workspaceMemberRepository.existsByWorkspaceAndUser(teamWorkspace, currentUser)) {
-                WorkspaceMember workspaceMember = WorkspaceMember.builder()
+        // --- 3. Join all Teams from the junction table (and auto-join their workspaces) ---
+        for (Team t : inviteTeams) {
+            Workspace teamWorkspace = t.getWorkspace();
+            if (teamWorkspace != null && !workspaceMemberRepository.existsByWorkspaceAndUser(teamWorkspace, currentUser)) {
+                WorkspaceMember wm = WorkspaceMember.builder()
                         .workspace(teamWorkspace)
                         .user(currentUser)
                         .role(WorkspaceMemberRole.MEMBER)
                         .joinedAt(new Date())
                         .build();
-                workspaceMemberRepository.save(workspaceMember);
-                
+                workspaceMemberRepository.save(wm);
                 teamWorkspace.setMembersCount(teamWorkspace.getMembersCount() + 1);
                 workspaceRepository.save(teamWorkspace);
             }
-
-            // Join Team
-            if (!teamMemberRepository.existsByTeamAndUser(team, currentUser)) {
-                TeamMember teamMember = TeamMember.builder()
-                        .team(team)
+            if (!teamMemberRepository.existsByTeamAndUser(t, currentUser)) {
+                TeamMember tm = TeamMember.builder()
+                        .team(t)
                         .user(currentUser)
                         .role(TeamMemberRole.MEMBER)
                         .joinedAt(new Date())
                         .build();
-                teamMemberRepository.save(teamMember);
-
-                team.setMembersCount(team.getMembersCount() + 1);
-                teamRepository.save(team);
+                teamMemberRepository.save(tm);
+                t.setMembersCount(t.getMembersCount() + 1);
+                teamRepository.save(t);
             }
         }
 
         // --- 4. Join Project (if specified) ---
         if (project != null) {
             Workspace projectWorkspace = project.getWorkspace();
-            
-            // Join Workspace if they aren't in it
+
+            // Ensure user is in the project's workspace
             if (projectWorkspace != null && !workspaceMemberRepository.existsByWorkspaceAndUser(projectWorkspace, currentUser)) {
-                WorkspaceMember workspaceMember = WorkspaceMember.builder()
+                WorkspaceMember wm = WorkspaceMember.builder()
                         .workspace(projectWorkspace)
                         .user(currentUser)
                         .role(WorkspaceMemberRole.MEMBER)
                         .joinedAt(new Date())
                         .build();
-                workspaceMemberRepository.save(workspaceMember);
+                workspaceMemberRepository.save(wm);
                 projectWorkspace.setMembersCount(projectWorkspace.getMembersCount() + 1);
                 workspaceRepository.save(projectWorkspace);
             }
 
-            // Join Project
             if (!projectMemberRepository.existsByProjectAndUser(project, currentUser)) {
-                ProjectMember projectMember = ProjectMember.builder()
+                ProjectMember pm = ProjectMember.builder()
                         .project(project)
                         .user(currentUser)
                         .role(ProjectMemberRole.MEMBER)
                         .joinedAt(new Date())
                         .build();
-                projectMemberRepository.save(projectMember);
-
+                projectMemberRepository.save(pm);
                 project.setMembersCount(project.getMembersCount() + 1);
                 projectRepository.save(project);
             }
@@ -465,8 +454,10 @@ public class InvitationService {
                 .teamName(invite.getTeam() != null ? invite.getTeam().getName() : null)
                 .projectId(invite.getProject() != null ? invite.getProject().getId() : null)
                 .projectName(invite.getProject() != null ? invite.getProject().getName() : null)
+                .workspaceIds(invite.getWorkspaces().stream().map(Workspace::getId).collect(java.util.stream.Collectors.toList()))
+                .teamIds(invite.getTeams().stream().map(Team::getId).collect(java.util.stream.Collectors.toList()))
                 .inviterUsername(invite.getInviter().getUsername())
-                .role(invite.getRole())
+                .tenantRole(invite.getTenantRole())
                 .maxUses(invite.getMaxUses())
                 .currentUses(invite.getCurrentUses())
                 .status(invite.getStatus())

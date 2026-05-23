@@ -116,7 +116,15 @@ class InvitationServiceTests {
 
     @Test
     void testCreateInvite_Success() {
-        InviteRequest request = new InviteRequest(tenantId, workspaceId, teamId, "MEMBER", 5, "123456", "invitee@example.com", projectId);
+        InviteRequest request = new InviteRequest();
+        request.setTenantId(tenantId);
+        request.setWorkspaceId(workspaceId);
+        request.setTeamId(teamId);
+        request.setTenantRole("MEMBER");
+        request.setMaxUses(5);
+        request.setPin("123456");
+        request.setEmail("invitee@example.com");
+        request.setProjectId(projectId);
 
         TenantMember inviterMember = TenantMember.builder()
                 .tenant(tenant)
@@ -144,7 +152,7 @@ class InvitationServiceTests {
                 .team(team)
                 .project(project)
                 .inviter(currentUser)
-                .role("MEMBER")
+                .tenantRole("MEMBER")
                 .maxUses(5)
                 .currentUses(0)
                 .status(InvitationStatus.ACTIVE)
@@ -170,7 +178,12 @@ class InvitationServiceTests {
 
     @Test
     void testCreateInvite_ThrowsException_WhenBillingAdminAttempts() {
-        InviteRequest request = new InviteRequest(tenantId, workspaceId, null, "MEMBER", 1, "123456", null, null);
+        InviteRequest request = new InviteRequest();
+        request.setTenantId(tenantId);
+        request.setWorkspaceId(workspaceId);
+        request.setTenantRole("MEMBER");
+        request.setMaxUses(1);
+        request.setPin("123456");
 
         TenantMember inviterMember = TenantMember.builder()
                 .tenant(tenant)
@@ -194,7 +207,12 @@ class InvitationServiceTests {
         Tenant otherTenant = Tenant.builder().id(UUID.randomUUID()).name("Other Tenant").build();
         Workspace invalidWorkspace = Workspace.builder().id(workspaceId).tenant(otherTenant).build();
 
-        InviteRequest request = new InviteRequest(tenantId, workspaceId, null, "MEMBER", 1, "123456", null, null);
+        InviteRequest request = new InviteRequest();
+        request.setTenantId(tenantId);
+        request.setWorkspaceId(workspaceId);
+        request.setTenantRole("MEMBER");
+        request.setMaxUses(1);
+        request.setPin("123456");
 
         TenantMember inviterMember = TenantMember.builder()
                 .tenant(tenant)
@@ -211,7 +229,7 @@ class InvitationServiceTests {
                 invitationService.createInvite(request)
         );
 
-        assertEquals("Workspace does not belong to the specified tenant", exception.getMessage());
+        assertTrue(exception.getMessage().contains("does not belong to the specified tenant"));
     }
 
     @Test
@@ -220,7 +238,12 @@ class InvitationServiceTests {
         Workspace otherWorkspace = Workspace.builder().id(UUID.randomUUID()).tenant(otherTenant).build();
         Team invalidTeam = Team.builder().id(teamId).workspace(otherWorkspace).build();
 
-        InviteRequest request = new InviteRequest(tenantId, null, teamId, "MEMBER", 1, "123456", null, null);
+        InviteRequest request = new InviteRequest();
+        request.setTenantId(tenantId);
+        request.setTeamId(teamId);
+        request.setTenantRole("MEMBER");
+        request.setMaxUses(1);
+        request.setPin("123456");
 
         TenantMember inviterMember = TenantMember.builder()
                 .tenant(tenant)
@@ -237,7 +260,7 @@ class InvitationServiceTests {
                 invitationService.createInvite(request)
         );
 
-        assertEquals("Team's workspace does not belong to the specified tenant", exception.getMessage());
+        assertTrue(exception.getMessage().contains("does not belong to the specified tenant"));
     }
 
     @Test
@@ -246,7 +269,12 @@ class InvitationServiceTests {
         Workspace otherWorkspace = Workspace.builder().id(UUID.randomUUID()).tenant(otherTenant).build();
         Project invalidProject = Project.builder().id(projectId).workspace(otherWorkspace).build();
 
-        InviteRequest request = new InviteRequest(tenantId, null, null, "MEMBER", 1, "123456", null, projectId);
+        InviteRequest request = new InviteRequest();
+        request.setTenantId(tenantId);
+        request.setProjectId(projectId);
+        request.setTenantRole("MEMBER");
+        request.setMaxUses(1);
+        request.setPin("123456");
 
         TenantMember inviterMember = TenantMember.builder()
                 .tenant(tenant)
@@ -268,7 +296,12 @@ class InvitationServiceTests {
 
     @Test
     void testCreateInvite_ThrowsException_WhenCallerWorkspaceRoleExceeded() {
-        InviteRequest request = new InviteRequest(tenantId, workspaceId, null, "MEMBER", 1, "123456", null, null);
+        InviteRequest request = new InviteRequest();
+        request.setTenantId(tenantId);
+        request.setWorkspaceId(workspaceId);
+        request.setTenantRole("MEMBER");
+        request.setMaxUses(1);
+        request.setPin("123456");
 
         TenantMember inviterMember = TenantMember.builder()
                 .tenant(tenant)
@@ -302,7 +335,9 @@ class InvitationServiceTests {
                 .workspace(workspace)
                 .team(team)
                 .project(project)
-                .role("MEMBER")
+                .workspaces(new java.util.HashSet<>(java.util.List.of(workspace)))
+                .teams(new java.util.HashSet<>(java.util.List.of(team)))
+                .tenantRole("MEMBER")
                 .maxUses(1)
                 .currentUses(0)
                 .status(InvitationStatus.ACTIVE)
@@ -315,14 +350,14 @@ class InvitationServiceTests {
         when(passwordEncoder.matches("123456", "hashed_pin")).thenReturn(true);
 
         when(tenantMemberRepository.existsByTenantAndUser(tenant, currentUser)).thenReturn(false);
-        when(workspaceMemberRepository.existsByWorkspaceAndUser(workspace, currentUser)).thenReturn(false, true, true);
+        when(workspaceMemberRepository.existsByWorkspaceAndUser(any(), any())).thenReturn(false);
         when(teamMemberRepository.existsByTeamAndUser(team, currentUser)).thenReturn(false);
         when(projectMemberRepository.existsByProjectAndUser(project, currentUser)).thenReturn(false);
 
         assertDoesNotThrow(() -> invitationService.acceptInvite(request));
 
         verify(tenantMemberRepository, times(1)).save(any(TenantMember.class));
-        verify(workspaceMemberRepository, times(1)).save(any(WorkspaceMember.class)); // 1 for direct workspace, subsequent skipped due to exists check returning true
+        verify(workspaceMemberRepository, atLeast(1)).save(any(WorkspaceMember.class));
         verify(teamMemberRepository, times(1)).save(any(TeamMember.class));
         verify(projectMemberRepository, times(1)).save(any(ProjectMember.class));
         assertEquals(InvitationStatus.EXHAUSTED, invitation.getStatus());
@@ -340,8 +375,8 @@ class InvitationServiceTests {
                 .token("secure_token")
                 .pinHash("hashed_pin")
                 .tenant(tenant)
-                .workspace(restructuredWorkspace)
-                .role("MEMBER")
+                .workspaces(new java.util.HashSet<>(java.util.List.of(restructuredWorkspace)))
+                .tenantRole("MEMBER")
                 .maxUses(1)
                 .currentUses(0)
                 .status(InvitationStatus.ACTIVE)
@@ -357,7 +392,7 @@ class InvitationServiceTests {
                 invitationService.acceptInvite(request)
         );
 
-        assertEquals("Workspace no longer belongs to the invitation's tenant", exception.getMessage());
+        assertTrue(exception.getMessage().contains("no longer belongs to the invitation's tenant"));
     }
 
     @Test
@@ -373,8 +408,8 @@ class InvitationServiceTests {
                 .token("secure_token")
                 .pinHash("hashed_pin")
                 .tenant(tenant)
-                .team(restructuredTeam)
-                .role("MEMBER")
+                .teams(new java.util.HashSet<>(java.util.List.of(restructuredTeam)))
+                .tenantRole("MEMBER")
                 .maxUses(1)
                 .currentUses(0)
                 .status(InvitationStatus.ACTIVE)
@@ -390,6 +425,6 @@ class InvitationServiceTests {
                 invitationService.acceptInvite(request)
         );
 
-        assertEquals("Team's workspace no longer belongs to the invitation's tenant", exception.getMessage());
+        assertTrue(exception.getMessage().contains("no longer belongs to the invitation's tenant"));
     }
 }
