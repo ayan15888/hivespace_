@@ -19,7 +19,15 @@ role and permission notworking
 teneant is not  uniqye 
 assign memebers to task not working 
 wokspace page should be there to asign or to kickoutmemebr
+
+sanjay24
 auto join team even if lead is selected
+
+
+ayan24
+there should be dedicated memeber setting near org seeting  for all member in there and only workspce memeber fropm setting page  
+team lead is not updating if owner 
+toast problem of team removbing
 
 
 //need refactoring 
