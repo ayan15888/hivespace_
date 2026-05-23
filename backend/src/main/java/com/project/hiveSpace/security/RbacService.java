@@ -242,6 +242,13 @@ public class RbacService {
                 .orElse(false);
     }
 
+    public boolean canRemoveTaskAssignee(UUID taskId, UUID targetUserId) {
+        User user = getCurrentUser();
+        if (user == null || taskId == null || targetUserId == null) return false;
+        if (user.getId().equals(targetUserId)) return true;
+        return canAddTaskAssignee(taskId);
+    }
+
     public boolean canManageInvite(UUID tenantId) {
         User user = getCurrentUser();
         if (user == null || tenantId == null) return false;

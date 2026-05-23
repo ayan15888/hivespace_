@@ -115,19 +115,11 @@ public class TaskAssigneeService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
-        // Validate caller: task OWNER, project LEAD, or workspace ADMIN
-        boolean isTaskOwner = taskAssigneeRepository.findByTaskAndUser(task, currentUser)
-                .map(ta -> ta.getRole() == TaskAssigneeRole.OWNER)
-                .orElse(false);
-
-        UUID projectId = task.getProject().getId();
-        UUID workspaceId = task.getProject().getWorkspace().getId();
-        boolean isProjectLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
-        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
-
-        if (!isTaskOwner && !isProjectLead && !isWorkspaceAdmin) {
+        if (!rbacService.canAddTaskAssignee(taskId)) {
             throw new SecurityException("Access denied: Only the task owner, project leads, or workspace admins can change task ownership");
         }
+
+        UUID projectId = task.getProject().getId();
 
         User newOwner = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -187,18 +179,7 @@ public class TaskAssigneeService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
-        // Validate caller: task OWNER, project LEAD, workspace ADMIN, or self
-        boolean isSelf = currentUser.getId().equals(targetUserId);
-        boolean isTaskOwner = taskAssigneeRepository.findByTaskAndUser(task, currentUser)
-                .map(ta -> ta.getRole() == TaskAssigneeRole.OWNER)
-                .orElse(false);
-
-        UUID projectId = task.getProject().getId();
-        UUID workspaceId = task.getProject().getWorkspace().getId();
-        boolean isProjectLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
-        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
-
-        if (!isSelf && !isTaskOwner && !isProjectLead && !isWorkspaceAdmin) {
+        if (!rbacService.canRemoveTaskAssignee(taskId, targetUserId)) {
             throw new SecurityException("Access denied: Only the task owner, project leads, workspace admins, or the user themselves can remove assignments");
         }
 
