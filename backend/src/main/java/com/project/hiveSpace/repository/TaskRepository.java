@@ -15,6 +15,7 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     List<Task> findAllByProject(Project project);
     List<Task> findAllByProjectAndParentTaskIsNullOrderByCreatedAtDesc(Project project);
     List<Task> findAllByOrderByUpdatedAtDesc();
+    List<Task> findAllByProjectInOrderByUpdatedAtDesc(List<Project> projects);
     List<Task> findAllByParentTaskOrderByCreatedAtAsc(Task parentTask);
     int countByProjectAndCreatedAtLessThanEqual(Project project, Date createdAt);
     int countByParentTask(Task parentTask);

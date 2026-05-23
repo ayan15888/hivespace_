@@ -13,6 +13,8 @@ import com.project.hiveSpace.repository.TaskAssigneeRepository;
 import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.TaskActivityRepository;
+import com.project.hiveSpace.security.RbacService;
+import com.project.hiveSpace.models.ProjectMemberRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,9 +34,14 @@ public class TaskAssigneeService {
     private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
     private final TaskActivityRepository taskActivityRepository;
+    private final RbacService rbacService;
 
     @Transactional(readOnly = true)
     public List<TaskAssigneeResponse> getAssigneesForTask(UUID taskId) {
+        if (!rbacService.canViewTask(taskId)) {
+            throw new SecurityException("Access denied: You do not have permission to view assignees for this task");
+        }
+
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
         return taskAssigneeRepository.findAllByTask(task)
@@ -45,15 +52,33 @@ public class TaskAssigneeService {
 
     @Transactional
     public TaskAssigneeResponse addAssignee(UUID taskId, AddAssigneeRequest request, User actor) {
+        User currentUser = actor != null ? actor : rbacService.getCurrentUser();
+        if (currentUser == null) {
+            throw new SecurityException("User not authenticated");
+        }
+
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+
+        // Validate caller: task OWNER, project LEAD, or workspace ADMIN
+        boolean isTaskOwner = taskAssigneeRepository.findByTaskAndUser(task, currentUser)
+                .map(ta -> ta.getRole() == TaskAssigneeRole.OWNER)
+                .orElse(false);
+
+        UUID projectId = task.getProject().getId();
+        UUID workspaceId = task.getProject().getWorkspace().getId();
+        boolean isProjectLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
+        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
+
+        if (!isTaskOwner && !isProjectLead && !isWorkspaceAdmin) {
+            throw new SecurityException("Access denied: Only the task owner, project leads, or workspace admins can add assignees");
+        }
 
         User targetUser = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         // RULE: User must be a member of the project
-        boolean isMember = projectMemberRepository.existsByProjectAndUser(task.getProject(), targetUser);
-        if (!isMember) {
+        if (!rbacService.hasProjectRoleForUser(targetUser.getId(), projectId, ProjectMemberRole.VIEWER)) {
             throw new IllegalArgumentException("Assignee must be a member of this project");
         }
 
@@ -86,15 +111,33 @@ public class TaskAssigneeService {
 
     @Transactional
     public TaskAssigneeResponse changeOwner(UUID taskId, ChangeOwnerRequest request, User actor) {
+        User currentUser = actor != null ? actor : rbacService.getCurrentUser();
+        if (currentUser == null) {
+            throw new SecurityException("User not authenticated");
+        }
+
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+
+        // Validate caller: task OWNER, project LEAD, or workspace ADMIN
+        boolean isTaskOwner = taskAssigneeRepository.findByTaskAndUser(task, currentUser)
+                .map(ta -> ta.getRole() == TaskAssigneeRole.OWNER)
+                .orElse(false);
+
+        UUID projectId = task.getProject().getId();
+        UUID workspaceId = task.getProject().getWorkspace().getId();
+        boolean isProjectLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
+        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
+
+        if (!isTaskOwner && !isProjectLead && !isWorkspaceAdmin) {
+            throw new SecurityException("Access denied: Only the task owner, project leads, or workspace admins can change task ownership");
+        }
 
         User newOwner = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         // RULE: Must be a member of the project
-        boolean isMember = projectMemberRepository.existsByProjectAndUser(task.getProject(), newOwner);
-        if (!isMember) {
+        if (!rbacService.hasProjectRoleForUser(newOwner.getId(), projectId, ProjectMemberRole.VIEWER)) {
             throw new IllegalArgumentException("New owner must be a member of this project");
         }
 
@@ -139,8 +182,28 @@ public class TaskAssigneeService {
 
     @Transactional
     public void removeAssignee(UUID taskId, UUID targetUserId, User actor) {
+        User currentUser = actor != null ? actor : rbacService.getCurrentUser();
+        if (currentUser == null) {
+            throw new SecurityException("User not authenticated");
+        }
+
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+
+        // Validate caller: task OWNER, project LEAD, workspace ADMIN, or self
+        boolean isSelf = currentUser.getId().equals(targetUserId);
+        boolean isTaskOwner = taskAssigneeRepository.findByTaskAndUser(task, currentUser)
+                .map(ta -> ta.getRole() == TaskAssigneeRole.OWNER)
+                .orElse(false);
+
+        UUID projectId = task.getProject().getId();
+        UUID workspaceId = task.getProject().getWorkspace().getId();
+        boolean isProjectLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
+        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
+
+        if (!isSelf && !isTaskOwner && !isProjectLead && !isWorkspaceAdmin) {
+            throw new SecurityException("Access denied: Only the task owner, project leads, workspace admins, or the user themselves can remove assignments");
+        }
 
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));

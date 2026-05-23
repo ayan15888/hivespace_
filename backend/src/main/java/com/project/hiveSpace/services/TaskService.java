@@ -6,6 +6,7 @@ import com.project.hiveSpace.dto.TaskAssigneeResponse;
 import com.project.hiveSpace.dto.UpdateTaskRequest;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
+import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,19 +28,15 @@ public class TaskService {
     private final UserRepository userRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
     private final TaskActivityRepository taskActivityRepository;
+    private final RbacService rbacService;
 
     @Transactional
     public TaskResponse createTask(UUID projectId, TaskRequest request, User creator) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
-        // 1. Verify user is a project member and not a VIEWER
-        ProjectMember member = projectMemberRepository
-                .findByProjectIdAndUserId(projectId, creator.getId())
-                .orElseThrow(() -> new SecurityException("Not a project member"));
-
-        if (member.getRole() == ProjectMemberRole.VIEWER) {
-            throw new SecurityException("Viewers cannot create tasks");
+        if (!rbacService.canCreateTask(projectId)) {
+            throw new SecurityException("Access denied: You do not have permission to create tasks in this project");
         }
 
         // 2. Resolve default status and priority if they are null
@@ -83,7 +80,7 @@ public class TaskService {
             User explicitlyAssigned = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
             // Verify if the assignee is a member of this project
-            if (!projectMemberRepository.existsByProjectAndUser(project, explicitlyAssigned)) {
+            if (!rbacService.hasProjectRoleForUser(explicitlyAssigned.getId(), projectId, ProjectMemberRole.VIEWER)) {
                 throw new IllegalArgumentException("Assignee must be a member of this project");
             }
             ownerUser = explicitlyAssigned;
@@ -116,6 +113,10 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public TaskResponse getTaskById(UUID taskId) {
+        if (!rbacService.canViewTask(taskId)) {
+            throw new SecurityException("Access denied: You do not have permission to view this task");
+        }
+
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
         TaskResponse response = mapToResponse(task);
@@ -133,6 +134,10 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByProject(UUID projectId) {
+        if (!rbacService.canViewProject(projectId)) {
+            throw new SecurityException("Access denied: You do not have permission to view tasks in this project");
+        }
+
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
@@ -144,7 +149,21 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getAllTasks() {
-        return taskRepository.findAllByOrderByUpdatedAtDesc()
+        User currentUser = rbacService.getCurrentUser();
+        if (currentUser == null) {
+            throw new SecurityException("User not authenticated");
+        }
+
+        List<ProjectMember> memberships = projectMemberRepository.findAllByUserId(currentUser.getId());
+        if (memberships.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        List<Project> projects = memberships.stream()
+                .map(ProjectMember::getProject)
+                .collect(Collectors.toList());
+
+        return taskRepository.findAllByProjectInOrderByUpdatedAtDesc(projects)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -152,6 +171,10 @@ public class TaskService {
 
     @Transactional
     public TaskResponse updateTaskStatus(UUID taskId, String statusStr) {
+        if (!rbacService.canEditTask(taskId)) {
+            throw new SecurityException("Access denied: You do not have permission to update this task");
+        }
+
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
@@ -179,13 +202,8 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
-        // 1. Verify user is a project member and not a VIEWER
-        ProjectMember member = projectMemberRepository
-                .findByProjectIdAndUserId(task.getProject().getId(), actor.getId())
-                .orElseThrow(() -> new SecurityException("Not a project member"));
-
-        if (member.getRole() == ProjectMemberRole.VIEWER) {
-            throw new SecurityException("Viewers cannot update tasks");
+        if (!rbacService.canEditTask(taskId)) {
+            throw new SecurityException("Access denied: You do not have permission to update this task");
         }
 
         boolean changed = false;
@@ -226,7 +244,7 @@ public class TaskService {
             User newAssignee = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
             // Verify if the assignee is a member of this project
-            if (!projectMemberRepository.existsByProjectAndUser(task.getProject(), newAssignee)) {
+            if (!rbacService.hasProjectRoleForUser(newAssignee.getId(), task.getProject().getId(), ProjectMemberRole.VIEWER)) {
                 throw new IllegalArgumentException("Assignee must be a member of this project");
             }
             task.setAssignee(newAssignee);
@@ -273,12 +291,12 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
-        ProjectMember member = projectMemberRepository
-                .findByProjectIdAndUserId(task.getProject().getId(), actor.getId())
-                .orElseThrow(() -> new SecurityException("Not a project member"));
-
-        if (member.getRole() == ProjectMemberRole.VIEWER) {
-            throw new SecurityException("Viewers cannot delete tasks");
+        UUID projectId = task.getProject().getId();
+        UUID workspaceId = task.getProject().getWorkspace().getId();
+        boolean isProjectLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
+        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
+        if (!isProjectLead && !isWorkspaceAdmin) {
+            throw new SecurityException("Access denied: Only project leads and workspace admins can delete tasks");
         }
 
         taskRepository.delete(task);

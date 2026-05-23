@@ -86,6 +86,14 @@ public class RbacService {
                 .orElse(false);
     }
     
+    public boolean hasProjectRoleForUser(UUID userId, UUID projectId, ProjectMemberRole requiredRole) {
+        if (userId == null || projectId == null || requiredRole == null) return false;
+
+        return projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+                .map(member -> projectRank(member.getRole()) >= projectRank(requiredRole))
+                .orElse(false);
+    }
+    
     public boolean isProjectLead(UUID projectId) {
         return hasProjectRole(projectId, ProjectMemberRole.LEAD);
     }
