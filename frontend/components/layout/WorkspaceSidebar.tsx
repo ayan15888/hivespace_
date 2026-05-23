@@ -135,26 +135,27 @@ export function WorkspaceSidebar() {
                 <Plus className="h-3 w-3" />
               </Button>
             </div>
-            {orgs.map((org) => (
-              <div 
-                key={org.id}
-                onClick={() => {
-                  setActiveOrg(org);
-                  setActiveWorkspace(null); // Reset workspace when switching org
-                }}
-                className={cn(
-                  "flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-muted/50 rounded-sm border-l-2 transition-all",
-                  activeOrg?.id === org.id 
-                    ? "border-primary bg-muted/20 text-foreground" 
-                    : "border-transparent text-muted-foreground"
-                )}
-              >
-                <span className="text-xs">{org.name}</span>
-                {activeOrg?.id === org.id && (
-                  <Check className="h-3 w-3 text-hs-accent" strokeWidth={1.5} />
-                )}
-              </div>
-            ))}
+            {orgs.map((org) => {
+              const isActive = activeOrg?.id === org.id;
+              return (
+                <div 
+                  key={org.id}
+                  onClick={isActive ? undefined : () => {}}
+                  className={cn(
+                    "flex items-center justify-between px-2 py-1.5 rounded-sm border-l-2 transition-all",
+                    isActive 
+                      ? "border-primary bg-muted/20 text-foreground cursor-default" 
+                      : "border-transparent text-muted-foreground/45 cursor-not-allowed opacity-50"
+                  )}
+                  title={isActive ? undefined : "Switching organizations coming soon"}
+                >
+                  <span className="text-xs">{org.name}</span>
+                  {isActive && (
+                    <Check className="h-3 w-3 text-hs-accent" strokeWidth={1.5} />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </PopoverContent>
       </Popover>
