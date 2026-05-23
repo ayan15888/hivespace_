@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.Date;
 import java.util.UUID;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -26,8 +27,10 @@ public class InviteResponse {
     private String teamName;
     private UUID projectId;
     private String projectName;
+    private List<UUID> workspaceIds;
+    private List<UUID> teamIds;
     private String inviterUsername;
-    private String role;
+    private String tenantRole;
     private int maxUses;
     private int currentUses;
     private InvitationStatus status;

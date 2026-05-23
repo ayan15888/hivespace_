@@ -33,6 +33,8 @@ import {
 import { getWorkspaceMembers, WorkspaceMemberResponse } from "@/lib/api/workspaces"
 import { useWorkspaceStore } from "@/store/workspaceStore"
 import { gooeyToast as toast } from "@/components/ui/goey-toaster"
+import { useAuthStore } from "@/store/authStore"
+import { usePermission } from "@/hooks/usePermission"
 
 interface ManageTeamSheetProps {
   teamId?: string
@@ -105,6 +107,11 @@ export function ManageTeamSheet({
   const [saving, setSaving] = useState(false)
   const [addingMemberId, setAddingMemberId] = useState<string | null>(null)
   const [showAddMember, setShowAddMember] = useState(false)
+
+  const { user } = useAuthStore()
+  const { canManageTeam } = usePermission()
+  const currentUserTeamRole = members.find(m => m.userId === user?.id)?.role || null
+  const hasTeamManagement = canManageTeam(currentUserTeamRole)
 
   const loadData = useCallback(async () => {
     if (!open || !teamId) return
@@ -254,7 +261,8 @@ export function ManageTeamSheet({
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder="Team name"
-                    className="h-9 border-border/50 bg-hs-main text-sm text-foreground placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-hs-accent/50 focus-visible:ring-offset-0"
+                    disabled={!hasTeamManagement || saving || loading}
+                    className="h-9 border-border/50 bg-hs-main text-sm text-foreground placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-hs-accent/50 focus-visible:ring-offset-0 disabled:opacity-50"
                     style={{ borderColor: "var(--border)" }}
                   />
                 </div>
@@ -264,7 +272,8 @@ export function ManageTeamSheet({
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                     placeholder="What does this team do?"
-                    className="min-h-[80px] resize-none border-border/50 bg-hs-main text-sm text-foreground placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-hs-accent/50 focus-visible:ring-offset-0"
+                    disabled={!hasTeamManagement || saving || loading}
+                    className="min-h-[80px] resize-none border-border/50 bg-hs-main text-sm text-foreground placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-hs-accent/50 focus-visible:ring-offset-0 disabled:opacity-50"
                     style={{ borderColor: "var(--border)" }}
                   />
                 </div>
@@ -277,7 +286,7 @@ export function ManageTeamSheet({
                 <p className="text-[10px] font-bold tracking-widest text-zinc-600 uppercase">
                   Members <span className="ml-1 rounded-full bg-zinc-800 px-1.5 py-0.5 text-[9px] text-zinc-400">{members.length}</span>
                 </p>
-                {availableWorkspaceMembers.length > 0 && (
+                {hasTeamManagement && availableWorkspaceMembers.length > 0 && (
                   <button
                     onClick={() => setShowAddMember(v => !v)}
                     className="flex items-center gap-1 rounded-lg border border-hs-accent/20 bg-hs-accent/10 px-2.5 py-1 text-[10px] font-semibold text-hs-accent transition-all hover:bg-hs-accent/20"
@@ -334,6 +343,7 @@ export function ManageTeamSheet({
                       <Select
                         value={member.role}
                         onValueChange={val => handleRoleChange(member.userId, val)}
+                        disabled={!hasTeamManagement}
                       >
                         <SelectTrigger className="h-6 w-auto gap-1 border-0 bg-transparent p-0 text-[10px] shadow-none focus:ring-0">
                           <RoleBadge role={member.role} />
@@ -351,12 +361,14 @@ export function ManageTeamSheet({
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      <button
-                        onClick={() => handleRemoveMember(member.userId)}
-                        className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-700 opacity-0 transition-all hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+                      {hasTeamManagement && (
+                        <button
+                          onClick={() => handleRemoveMember(member.userId)}
+                          className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-700 opacity-0 transition-all hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )) : (
@@ -372,47 +384,51 @@ export function ManageTeamSheet({
             </div>
 
             {/* ── Section: Danger Zone ── */}
-            <div className="rounded-xl border border-red-500/10 bg-red-500/[0.03] p-4">
-              <div className="mb-3 flex items-start gap-2">
-                <Trash2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500/60" />
-                <div>
-                  <p className="text-xs font-semibold text-red-400">Delete Team</p>
-                  <p className="mt-0.5 text-[10px] leading-relaxed text-zinc-600">
-                    This will permanently remove the team. Members will remain in the organization.
-                  </p>
+            {hasTeamManagement && (
+              <div className="rounded-xl border border-red-500/10 bg-red-500/[0.03] p-4">
+                <div className="mb-3 flex items-start gap-2">
+                  <Trash2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500/60" />
+                  <div>
+                    <p className="text-xs font-semibold text-red-400">Delete Team</p>
+                    <p className="mt-0.5 text-[10px] leading-relaxed text-zinc-600">
+                      This will permanently remove the team. Members will remain in the organization.
+                    </p>
+                  </div>
                 </div>
+                <button
+                  onClick={handleDeleteTeam}
+                  className="w-full rounded-lg border border-red-500/15 bg-red-500/5 py-2 text-xs font-semibold text-red-500/80 transition-all hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
+                >
+                  Delete this team
+                </button>
               </div>
-              <button
-                onClick={handleDeleteTeam}
-                className="w-full rounded-lg border border-red-500/15 bg-red-500/5 py-2 text-xs font-semibold text-red-500/80 transition-all hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
-              >
-                Delete this team
-              </button>
-            </div>
+            )}
 
           </div>
         )}
 
         {/* ── Footer: Save Button ── */}
-        <div className="absolute bottom-0 left-0 right-0 border-t border-border/5 bg-hs-card/90 p-4 backdrop-blur-sm">
-          <Button
-            onClick={handleSaveChanges}
-            disabled={saving || loading}
-            className="relative w-full overflow-hidden rounded-xl bg-hs-accent py-5 text-xs font-bold tracking-widest text-white uppercase shadow-lg shadow-hs-accent/20 transition-all hover:opacity-90 hover:shadow-hs-accent/30 disabled:opacity-50"
-          >
-            {saving ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Saving…
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <Save className="h-3.5 w-3.5" />
-                Save Changes
-              </span>
-            )}
-          </Button>
-        </div>
+        {hasTeamManagement && (
+          <div className="absolute bottom-0 left-0 right-0 border-t border-border/5 bg-hs-card/90 p-4 backdrop-blur-sm">
+            <Button
+              onClick={handleSaveChanges}
+              disabled={saving || loading}
+              className="relative w-full overflow-hidden rounded-xl bg-hs-accent py-5 text-xs font-bold tracking-widest text-white uppercase shadow-lg shadow-hs-accent/20 transition-all hover:opacity-90 hover:shadow-hs-accent/30 disabled:opacity-50"
+            >
+              {saving ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving…
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Save className="h-3.5 w-3.5" />
+                  Save Changes
+                </span>
+              )}
+            </Button>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   )

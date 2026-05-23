@@ -5,7 +5,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useInviteModalContext } from "@/components/common/invite-modal/InviteModalContext"
 
 export function TeamSelectionSection() {
-  const { teams, teamsLoading, selectedTeams, setSelectedTeams } = useInviteModalContext()
+  const { activeWorkspace, teams, teamsLoading, selectedTeams, setSelectedTeams } = useInviteModalContext()
+
+  // If there's no active workspace, team selection is not applicable
+  if (!activeWorkspace) {
+    return null
+  }
 
   return (
     <section>

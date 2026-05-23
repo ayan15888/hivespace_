@@ -104,15 +104,36 @@ export function NavRail() {
                   <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
                 </div>
               ) : orgs.length > 0 ? (
-                orgs.map((org) => (
-                  <DropdownMenuItem 
-                    key={org.id} 
-                    className="hover:bg-zinc-800 cursor-pointer flex justify-between items-center"
-                    onClick={() => setActiveOrg(org)}
-                  >
-                    {org.name} {org.id === activeOrg?.id && <span className="text-[#7C5CFC] block">✓</span>}
-                  </DropdownMenuItem>
-                ))
+                orgs.map((org) => {
+                  const isActive = org.id === activeOrg?.id;
+                  if (isActive) {
+                    return (
+                      <DropdownMenuItem 
+                        key={org.id} 
+                        className="hover:bg-zinc-800 cursor-default flex justify-between items-center"
+                      >
+                        {org.name} <span className="text-[#7C5CFC] block">✓</span>
+                      </DropdownMenuItem>
+                    );
+                  }
+                  return (
+                    <Tooltip key={org.id}>
+                      <TooltipTrigger asChild>
+                        <span className="block w-full">
+                          <DropdownMenuItem 
+                            disabled
+                            className="opacity-50 cursor-not-allowed flex justify-between items-center w-full"
+                          >
+                            {org.name}
+                          </DropdownMenuItem>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="bg-zinc-800 text-xs text-white border-zinc-700 ml-2">
+                        Switching organizations coming soon
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })
               ) : (
                 <DropdownMenuItem className="text-zinc-500 text-xs py-3">No organizations found</DropdownMenuItem>
               )}
@@ -270,7 +291,18 @@ export function NavRail() {
               <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer" asChild>
                 <Link href="/account/security">Security</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer">Switch Org</DropdownMenuItem>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="block w-full">
+                    <DropdownMenuItem disabled className="opacity-50 cursor-not-allowed w-full">
+                      Switch Org
+                    </DropdownMenuItem>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-zinc-800 text-xs text-white border-zinc-700 ml-2">
+                  Switching organizations coming soon
+                </TooltipContent>
+              </Tooltip>
               <DropdownMenuSeparator className="bg-zinc-800/50 my-1" />
               <DropdownMenuItem 
                 className="text-[#f95b4e] hover:bg-zinc-800 hover:text-[#f95b4e] cursor-pointer"

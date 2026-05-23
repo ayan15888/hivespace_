@@ -33,7 +33,7 @@ export function InviteLinkSection() {
       </div>
 
       <div className="flex items-center mt-1.5">
-        {shareableInvite ? (
+        {shareableInvite && shareableInvite.pin ? (
           <div className="flex items-center gap-2">
             <span className="text-xs text-zinc-600">Security PIN:</span>
             <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono text-xs rounded-sm px-2 py-0.5 tracking-widest">
@@ -46,11 +46,8 @@ export function InviteLinkSection() {
         ) : (
           <div className="flex items-center gap-2">
             <span className="text-xs text-zinc-600">Security PIN:</span>
-            <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono text-xs rounded-sm px-2 py-0.5 tracking-widest">
-              ------
-            </span>
-            <span className="cursor-help" title="Recipients need this PIN to accept the invite">
-              <Info className="h-3 w-3 text-zinc-600" />
+            <span className="text-zinc-550 text-xs italic">
+              Shown at creation time only
             </span>
           </div>
         )}

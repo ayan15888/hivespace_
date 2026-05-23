@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Dialog, 
   DialogContent, 
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { createTeam } from "@/lib/api/teams";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
+import { getWorkspaceMembers, WorkspaceMemberResponse } from "@/lib/api/workspaces";
 import { motion, AnimatePresence } from "framer-motion";
 import { useProjectStore } from "@/store/projectStore";
 import { useTeamStore } from "@/store/teamStore";
@@ -35,6 +36,16 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "var(--hs-ac
   const [description, setDescription] = useState("");
   const [projectId, setProjectId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [leadUserId, setLeadUserId] = useState("");
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberResponse[]>([]);
+
+  useEffect(() => {
+    if (isOpen && workspaceId) {
+      getWorkspaceMembers(workspaceId)
+        .then(setWorkspaceMembers)
+        .catch((err) => console.error("Failed to load workspace members", err));
+    }
+  }, [isOpen, workspaceId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +57,8 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "var(--hs-ac
         name: name.trim(),
         description: description.trim(),
         workspaceId,
-        projectId: projectId ? projectId : undefined
+        projectId: projectId ? projectId : undefined,
+        leadUserId: leadUserId || undefined
       });
       
       // Sync to Zustand store immediately
@@ -56,6 +68,7 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "var(--hs-ac
       setName("");
       setDescription("");
       setProjectId("");
+      setLeadUserId("");
       if (onSuccess) onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -114,6 +127,23 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "var(--hs-ac
                       {projects.map((p) => (
                         <option key={p.id} value={p.id} className="bg-hs-card">
                           {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="t-lead" className="text-xs font-bold text-zinc-600 uppercase tracking-widest">Team Lead (optional)</Label>
+                    <select
+                      id="t-lead"
+                      value={leadUserId}
+                      onChange={(e) => setLeadUserId(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-hs-main border border-border/50 focus:border-hs-accent/50 focus:ring-0 rounded-xl text-foreground outline-none text-xs cursor-pointer"
+                    >
+                      <option value="" className="bg-hs-card">Defaults to you</option>
+                      {workspaceMembers.map((m) => (
+                        <option key={m.userId} value={m.userId} className="bg-hs-card">
+                          {m.fullName || m.username}
                         </option>
                       ))}
                     </select>

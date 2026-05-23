@@ -6,10 +6,12 @@ import com.project.hiveSpace.models.Team;
 import com.project.hiveSpace.models.TeamMember;
 import com.project.hiveSpace.models.TeamMemberRole;
 import com.project.hiveSpace.models.User;
+import com.project.hiveSpace.models.ResourceType;
 import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.repository.TeamRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
+import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,11 +29,17 @@ public class TeamMemberService {
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final RbacService rbacService;
 
     @Transactional(readOnly = true)
     public List<TeamMemberResponse> getMembersByTeam(UUID teamId) {
-        if (!teamRepository.existsById(teamId)) {
-            throw new IllegalArgumentException("Team not found");
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+
+        UUID workspaceId = team.getWorkspace().getId();
+        if (!rbacService.hasTeamRole(teamId, TeamMemberRole.MEMBER) && !rbacService.canAdminWorkspace(workspaceId)) {
+            throw new SecurityException("Access denied: Must be a team member or workspace admin");
         }
 
         return teamMemberRepository.findAllByTeamId(teamId)
@@ -42,13 +50,19 @@ public class TeamMemberService {
 
     @Transactional
     public TeamMemberResponse addMemberToTeam(UUID teamId, TeamMemberRequest request) {
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+
+        UUID workspaceId = team.getWorkspace().getId();
+        if (!rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
+            throw new SecurityException("Access denied: Only team leads and workspace admins can add members");
+        }
 
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        boolean isInWorkspace = workspaceMemberRepository.existsByWorkspaceIdAndUserId(team.getWorkspace().getId(), request.getUserId());
+        boolean isInWorkspace = workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, request.getUserId());
         if (!isInWorkspace) {
             throw new SecurityException("User must be a workspace member before joining a team");
         }
@@ -77,8 +91,21 @@ public class TeamMemberService {
 
     @Transactional
     public TeamMemberResponse updateMemberRole(UUID teamId, UUID userId, TeamMemberRole role) {
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         TeamMember teamMember = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+
+        Team team = teamMember.getTeam();
+        UUID workspaceId = team.getWorkspace().getId();
+        if (!rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
+            throw new SecurityException("Access denied: Only team leads and workspace admins can update roles");
+        }
+
+        if (teamMember.getRole() == TeamMemberRole.LEAD && role != TeamMemberRole.LEAD) {
+            if (isLastLead(teamId, userId)) {
+                throw new SecurityException("Cannot demote the last team lead");
+            }
+        }
 
         teamMember.setRole(role);
         TeamMember updated = teamMemberRepository.save(teamMember);
@@ -87,8 +114,29 @@ public class TeamMemberService {
 
     @Transactional
     public void removeMemberFromTeam(UUID teamId, UUID userId) {
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+
+        UUID workspaceId = team.getWorkspace().getId();
+
+        User currentUser = rbacService.getCurrentUser();
+        if (currentUser == null) {
+            throw new SecurityException("User not authenticated");
+        }
+        UUID currentUserId = currentUser.getId();
+
+        boolean isSelf = currentUserId.equals(userId);
+        boolean isTeamLead = rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD);
+        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
+
+        if (!isSelf && !isTeamLead && !isWorkspaceAdmin) {
+            throw new SecurityException("Access denied: Only team leads, workspace admins, or the members themselves can remove members");
+        }
+
+        if (isLastLead(teamId, userId)) {
+            throw new SecurityException("Cannot remove the last team lead");
+        }
 
         TeamMember teamMember = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
@@ -100,6 +148,16 @@ public class TeamMemberService {
             team.setMembersCount(team.getMembersCount() - 1);
             teamRepository.save(team);
         }
+    }
+
+    private boolean isLastLead(UUID teamId, UUID userId) {
+        TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+
+        if (member.getRole() != TeamMemberRole.LEAD) return false;
+
+        long leadCount = teamMemberRepository.countByTeamIdAndRole(teamId, TeamMemberRole.LEAD);
+        return leadCount <= 1;
     }
 
     private TeamMemberResponse mapToResponse(TeamMember member) {

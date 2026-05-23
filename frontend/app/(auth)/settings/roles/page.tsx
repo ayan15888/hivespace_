@@ -234,7 +234,10 @@ export default function RolesPermissionsPage() {
   
   const [membersList, setMembersList] = useState<any[]>([]);
 
-  const activeDetail = levelsData[activeLevel];
+  // Track levelsData in state so customization is dynamic and toggling actually updates the matrix
+  const [localLevelsData, setLocalLevelsData] = useState<Record<LevelType, LevelDetail>>(levelsData);
+
+  const activeDetail = localLevelsData[activeLevel];
 
   // RBAC validation: Only Admin and Owner are allowed to allocate, promote, or revoke roles
   const canManage = canManageOrgMembers(apiMembers, user?.email, activeOrg);
@@ -277,10 +280,35 @@ export default function RolesPermissionsPage() {
   }, [apiMembers]);
 
   const handleTogglePermission = (action: string, role: string) => {
-    toast.info(
-      `Protected: HiveSpace enforces "${action}" for the "${role}" role across all workspace levels.`,
-      { duration: 4000 }
-    );
+    // Only allow Owners and Admins to toggle permissions
+    if (currentUserRole !== "OWNER" && currentUserRole !== "ADMIN") {
+      toast.error("Access Denied: Only organization Owners and Admins can toggle system permissions.");
+      return;
+    }
+
+    setLocalLevelsData((prev) => {
+      const currentLevelData = prev[activeLevel];
+      const updatedMatrix = currentLevelData.matrix.map((row) => {
+        if (row.action === action) {
+          const exists = row.rolesGranted.includes(role);
+          const updatedRoles = exists
+            ? row.rolesGranted.filter((r) => r !== role)
+            : [...row.rolesGranted, role];
+          return { ...row, rolesGranted: updatedRoles };
+        }
+        return row;
+      });
+
+      return {
+        ...prev,
+        [activeLevel]: {
+          ...currentLevelData,
+          matrix: updatedMatrix,
+        },
+      };
+    });
+
+    toast.success(`Updated: Permission "${action}" toggled for "${role}"!`);
   };
 
   // Maps custom DB roles per tier level dynamically
@@ -355,7 +383,7 @@ export default function RolesPermissionsPage() {
       <LevelTabs 
         activeLevel={activeLevel} 
         setActiveLevel={setActiveLevel} 
-        levelsData={levelsData} 
+        levelsData={localLevelsData} 
         onOpenHelp={(level) => setHelpModalLevel(level)}
       />
 
@@ -417,7 +445,7 @@ export default function RolesPermissionsPage() {
             <div className="flex items-center gap-3.5 mb-8 pb-5 border-b border-zinc-800/80 relative z-10">
               <div className="p-3 bg-[#7C5CFC]/10 border border-[#7C5CFC]/20 rounded-xl">
                 {(() => {
-                  const ActiveIcon = levelsData[helpModalLevel].icon;
+                  const ActiveIcon = localLevelsData[helpModalLevel].icon;
                   return <ActiveIcon className="h-7 w-7 text-[#7C5CFC]" />;
                 })()}
               </div>
@@ -426,7 +454,7 @@ export default function RolesPermissionsPage() {
                   Access Specifications Guide
                 </span>
                 <h2 className="text-2xl font-extrabold text-white mt-1 tracking-tight">
-                  {levelsData[helpModalLevel].name} clearances
+                  {localLevelsData[helpModalLevel].name} clearances
                 </h2>
               </div>
             </div>
@@ -435,12 +463,12 @@ export default function RolesPermissionsPage() {
             <div 
               className={cn(
                 "grid grid-cols-1 gap-5 w-full mb-8 relative z-10",
-                levelsData[helpModalLevel].roles.length === 2 && "md:grid-cols-2",
-                levelsData[helpModalLevel].roles.length === 3 && "md:grid-cols-3",
-                levelsData[helpModalLevel].roles.length === 4 && "md:grid-cols-4"
+                localLevelsData[helpModalLevel].roles.length === 2 && "md:grid-cols-2",
+                localLevelsData[helpModalLevel].roles.length === 3 && "md:grid-cols-3",
+                localLevelsData[helpModalLevel].roles.length === 4 && "md:grid-cols-4"
               )}
             >
-              {levelsData[helpModalLevel].roles.map((role) => (
+              {localLevelsData[helpModalLevel].roles.map((role) => (
                 <div 
                   key={role.name} 
                   className="p-6 bg-[#252427]/40 border border-zinc-800/90 rounded-xl flex flex-col justify-between h-full hover:border-zinc-700/60 shadow-lg hover:shadow-xl hover:shadow-[#7C5CFC]/2 transition-all duration-350 hover:translate-y-[-3px]"

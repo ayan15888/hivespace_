@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Dialog, 
   DialogContent, 
@@ -16,6 +16,7 @@ import { Loader2 } from "lucide-react";
 import { createProject } from "@/lib/api/projects";
 // import { useWorkspace } from "@/store/workspaceStore";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
+import { getWorkspaceMembers, WorkspaceMemberResponse } from "@/lib/api/workspaces";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useWorkspaceStore } from "@/store/workspaceStore";
@@ -38,6 +39,16 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
   const [endDate, setEndDate] = useState("");
   const [selectedColor, setSelectedColor] = useState(PROJECT_COLORS[1]);
   const [loading, setLoading] = useState(false);
+  const [leadUserId, setLeadUserId] = useState("");
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberResponse[]>([]);
+
+  useEffect(() => {
+    if (isOpen && activeWorkspace?.id) {
+      getWorkspaceMembers(activeWorkspace.id)
+        .then(setWorkspaceMembers)
+        .catch((err) => console.error("Failed to load workspace members", err));
+    }
+  }, [isOpen, activeWorkspace?.id]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -58,6 +69,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
         color: selectedColor.value,
         startDate: startDate ? new Date(startDate).toISOString() : undefined,
         endDate: endDate ? new Date(endDate).toISOString() : undefined,
+        leadUserId: leadUserId || undefined,
       });
       
       toast.success("Project created successfully");
@@ -70,6 +82,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
       setDescription("");
       setStartDate("");
       setEndDate("");
+      setLeadUserId("");
       
       if (onSuccess) onSuccess();
       onClose();
@@ -171,6 +184,23 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                             className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground text-xs block w-full cursor-pointer"
                           />
                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="p-lead" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Project Lead (optional)</Label>
+                        <select
+                          id="p-lead"
+                          value={leadUserId}
+                          onChange={(e) => setLeadUserId(e.target.value)}
+                          className="w-full px-3 py-2.5 bg-muted/30 border border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground outline-none text-sm cursor-pointer"
+                        >
+                          <option value="" className="bg-hs-card text-zinc-400">Defaults to you</option>
+                          {workspaceMembers.map((m) => (
+                            <option key={m.userId} value={m.userId} className="bg-hs-card text-foreground">
+                              {m.fullName || m.username}
+                            </option>
+                          ))}
+                        </select>
                       </div>
     
                       <div className="space-y-2">

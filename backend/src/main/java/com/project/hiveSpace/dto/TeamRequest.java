@@ -14,4 +14,5 @@ public class TeamRequest {
     private String description;
     private UUID workspaceId;
     private UUID projectId;
+    private UUID leadUserId;
 }
