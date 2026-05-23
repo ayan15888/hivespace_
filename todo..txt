@@ -19,6 +19,7 @@ role and permission notworking
 teneant is not  uniqye 
 assign memebers to task not working 
 wokspace page should be there to asign or to kickoutmemebr
+auto join team even if lead is selected
 
 
 //need refactoring 
