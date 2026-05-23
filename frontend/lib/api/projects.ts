@@ -9,6 +9,7 @@ export interface ProjectRequest {
   color?: string; // Optional for frontend internal use
   startDate?: string;
   endDate?: string;
+  leadUserId?: string; // Designated lead user ID
 }
 
 export interface ProjectResponse {

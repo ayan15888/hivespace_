@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { WorkspaceRole } from "@/types/roles";
 
 export interface WorkspaceRequest {
   name: string;
@@ -32,10 +33,10 @@ export interface WorkspaceMemberResponse {
   workspaceId: string;
   userId: string;
   username: string;
-  email: string;
+  email: string | null; // Nullable if viewer is not admin/owner
   fullName: string;
   avatarUrl: string;
-  role: string; // ADMIN, MEMBER, VIEWER
+  role: WorkspaceRole; // ADMIN, MEMBER, VIEWER
   joinedAt: string;
 }
 

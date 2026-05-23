@@ -238,11 +238,11 @@ export function useInviteModal(params: { setOpen: (open: boolean) => void }): Us
     },
     retry: 1,
     onSuccess: (response) => {
-      setShareableInvite({ token: response.token, pin: response.pin })
+      setShareableInvite({ token: response.token, pin: response.pin || "" })
 
       if (!activeOrg) return
       const link = `${window.location.origin}/invite/${activeOrg.slug}/${response.token}`
-      navigator.clipboard.writeText(`Invite Link: ${link}\nSecurity PIN: ${response.pin}`)
+      navigator.clipboard.writeText(`Invite Link: ${link}\nSecurity PIN: ${response.pin || ""}`)
       toast.success("Link and PIN copied!")
     },
     onError: () => {
