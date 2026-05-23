@@ -241,8 +241,7 @@ public class ProjectService {
             throw new SecurityException("Access denied: Only project leads and workspace admins can unassign teams");
         }
 
-        Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+        //Team team = teamRepository.findById(teamId).orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
         // Validate team belongs to project
         if (projectTeamRepository.existsByProjectIdAndTeamId(projectId, teamId)) {

@@ -10,7 +10,7 @@ import com.project.hiveSpace.models.TaskActivity;
 import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.repository.TaskRepository;
 import com.project.hiveSpace.repository.TaskAssigneeRepository;
-import com.project.hiveSpace.repository.ProjectMemberRepository;
+//import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.TaskActivityRepository;
 import com.project.hiveSpace.security.RbacService;
@@ -31,7 +31,7 @@ public class TaskAssigneeService {
 
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
-    private final ProjectMemberRepository projectMemberRepository;
+    //private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
     private final TaskActivityRepository taskActivityRepository;
     private final RbacService rbacService;

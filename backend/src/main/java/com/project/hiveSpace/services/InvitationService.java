@@ -5,6 +5,7 @@ import com.project.hiveSpace.dto.InviteResponse;
 import com.project.hiveSpace.dto.JoinRequest;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
+import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,6 +35,7 @@ public class InvitationService {
     
     private final PasswordEncoder passwordEncoder;
     private final ResendEmailService resendEmailService;
+    private final RbacService rbacService;
 
     @org.springframework.beans.factory.annotation.Value("${APP_DOMAIN:hive-space.indevs.in}")
     private String appDomain;
@@ -53,8 +55,7 @@ public class InvitationService {
         boolean isOwner = tenant.getOwnerEmail().equalsIgnoreCase(currentUser.getEmail());
         boolean isAuthorized = isOwner || (inviterMember != null &&
                 (inviterMember.getRole() == TenantMemberRole.OWNER
-                        || inviterMember.getRole() == TenantMemberRole.ADMIN
-                        || inviterMember.getRole() == TenantMemberRole.BILLING_ADMIN));
+                        || inviterMember.getRole() == TenantMemberRole.ADMIN));
 
         if (!isAuthorized) {
             throw new SecurityException("Only organization owners or administrators can create invitations");
@@ -81,7 +82,7 @@ public class InvitationService {
             throw new SecurityException("The Owner role cannot be assigned via invitation");
         }
 
-        if (inviterRole == TenantMemberRole.ADMIN || inviterRole == TenantMemberRole.BILLING_ADMIN) {
+        if (inviterRole == TenantMemberRole.ADMIN) {
             if (targetRole == TenantMemberRole.ADMIN || targetRole == TenantMemberRole.OWNER) {
                 throw new SecurityException("Only organization owners can invite Administrators or Owners");
             }
@@ -91,18 +92,53 @@ public class InvitationService {
         if (request.getWorkspaceId() != null) {
             workspace = workspaceRepository.findById(request.getWorkspaceId())
                     .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+            if (!workspace.getTenant().getId().equals(tenant.getId())) {
+                throw new IllegalArgumentException("Workspace does not belong to the specified tenant");
+            }
         }
 
         Team team = null;
         if (request.getTeamId() != null) {
             team = teamRepository.findById(request.getTeamId())
                     .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+            if (team.getWorkspace() == null || !team.getWorkspace().getTenant().getId().equals(tenant.getId())) {
+                throw new IllegalArgumentException("Team's workspace does not belong to the specified tenant");
+            }
         }
 
         Project project = null;
         if (request.getProjectId() != null) {
             project = projectRepository.findById(request.getProjectId())
                     .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+            if (project.getWorkspace() == null || !project.getWorkspace().getTenant().getId().equals(tenant.getId())) {
+                throw new IllegalArgumentException("Project's workspace does not belong to the specified tenant");
+            }
+        }
+
+        // Cross-scope consistency validation
+        if (workspace != null && team != null && !team.getWorkspace().getId().equals(workspace.getId())) {
+            throw new IllegalArgumentException("Team does not belong to the specified workspace");
+        }
+        if (workspace != null && project != null && !project.getWorkspace().getId().equals(workspace.getId())) {
+            throw new IllegalArgumentException("Project does not belong to the specified workspace");
+        }
+
+        // Validate caller's workspace role for all workspaces the invitee will join
+        java.util.Set<Workspace> targetWorkspaces = new java.util.HashSet<>();
+        if (workspace != null) {
+            targetWorkspaces.add(workspace);
+        }
+        if (team != null && team.getWorkspace() != null) {
+            targetWorkspaces.add(team.getWorkspace());
+        }
+        if (project != null && project.getWorkspace() != null) {
+            targetWorkspaces.add(project.getWorkspace());
+        }
+
+        for (Workspace w : targetWorkspaces) {
+            if (!rbacService.hasWorkspaceRole(w.getId(), WorkspaceMemberRole.MEMBER)) {
+                throw new SecurityException("Cannot invite users to a workspace with a role that exceeds your own workspace role");
+            }
         }
 
         // Generate or verify the PIN
@@ -217,7 +253,41 @@ public class InvitationService {
         Tenant tenant = invitation.getTenant();
         Workspace workspace = invitation.getWorkspace();
         Team team = invitation.getTeam();
-        
+        Project project = invitation.getProject();
+
+        // Structural Consistency Validation (Restructuring check)
+        if (workspace != null) {
+            if (workspace.getTenant() == null || !workspace.getTenant().getId().equals(tenant.getId())) {
+                throw new IllegalArgumentException("Workspace no longer belongs to the invitation's tenant");
+            }
+        }
+
+        if (team != null) {
+            Workspace teamWorkspace = team.getWorkspace();
+            if (teamWorkspace == null) {
+                throw new IllegalArgumentException("Team is not associated with a workspace");
+            }
+            if (teamWorkspace.getTenant() == null || !teamWorkspace.getTenant().getId().equals(tenant.getId())) {
+                throw new IllegalArgumentException("Team's workspace no longer belongs to the invitation's tenant");
+            }
+            if (workspace != null && !teamWorkspace.getId().equals(workspace.getId())) {
+                throw new IllegalArgumentException("Team does not belong to the invitation's workspace");
+            }
+        }
+
+        if (project != null) {
+            Workspace projectWorkspace = project.getWorkspace();
+            if (projectWorkspace == null) {
+                throw new IllegalArgumentException("Project is not associated with a workspace");
+            }
+            if (projectWorkspace.getTenant() == null || !projectWorkspace.getTenant().getId().equals(tenant.getId())) {
+                throw new IllegalArgumentException("Project's workspace no longer belongs to the invitation's tenant");
+            }
+            if (workspace != null && !projectWorkspace.getId().equals(workspace.getId())) {
+                throw new IllegalArgumentException("Project does not belong to the invitation's workspace");
+            }
+        }
+
         // --- 1. Join Tenant ---
         if (!tenantMemberRepository.existsByTenantAndUser(tenant, currentUser)) {
             TenantMemberRole assignedTenantRole = parseTenantMemberRole(invitation.getRole());
@@ -287,7 +357,6 @@ public class InvitationService {
         }
 
         // --- 4. Join Project (if specified) ---
-        Project project = invitation.getProject();
         if (project != null) {
             Workspace projectWorkspace = project.getWorkspace();
             
