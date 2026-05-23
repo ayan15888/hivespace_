@@ -135,49 +135,20 @@ export function useInviteModal(params: { setOpen: (open: boolean) => void }): Us
     }) => {
       if (!activeOrg) throw new Error("No active organization found")
 
-      const payloads: any[] = []
+      const payloads = args.targetEmails.map((email) => {
+        const workspaceIdsSet = new Set<string>();
+        if (activeWorkspace) workspaceIdsSet.add(activeWorkspace.id);
+        args.selectedWorkspaces.forEach((id) => workspaceIdsSet.add(id));
 
-      args.targetEmails.forEach((email) => {
-        if (args.selectedTeams.length > 0) {
-          args.selectedTeams.forEach((teamId) => {
-            payloads.push({
-              tenantId: activeOrg.id,
-              workspaceId: activeWorkspace?.id,
-              teamId,
-              role: args.role,
-              maxUses: 1,
-              email,
-            })
-          })
-        } else if (args.selectedWorkspaces.length > 0) {
-          args.selectedWorkspaces.forEach((workspaceId) => {
-            payloads.push({
-              tenantId: activeOrg.id,
-              workspaceId,
-              role: args.role,
-              maxUses: 1,
-              email,
-            })
-          })
-          if (activeWorkspace && !args.selectedWorkspaces.includes(activeWorkspace.id)) {
-            payloads.push({
-              tenantId: activeOrg.id,
-              workspaceId: activeWorkspace.id,
-              role: args.role,
-              maxUses: 1,
-              email,
-            })
-          }
-        } else {
-          payloads.push({
-            tenantId: activeOrg.id,
-            workspaceId: activeWorkspace?.id,
-            role: args.role,
-            maxUses: 1,
-            email,
-          })
-        }
-      })
+        return {
+          tenantId: activeOrg.id,
+          tenantRole: args.role,
+          workspaceIds: Array.from(workspaceIdsSet),
+          teamIds: args.selectedTeams,
+          maxUses: 1,
+          email,
+        };
+      });
 
       const invitePromises = payloads.map((payload) => generateInvite(payload))
       return Promise.all(invitePromises)
@@ -225,14 +196,15 @@ export function useInviteModal(params: { setOpen: (open: boolean) => void }): Us
     mutationFn: async (args: { selectedTeams: string[]; selectedWorkspaces: string[] }) => {
       if (!activeOrg) throw new Error("No active organization found")
       
-      const teamId = args.selectedTeams.length > 0 ? args.selectedTeams[0] : undefined
-      const workspaceId = args.selectedWorkspaces.length > 0 ? args.selectedWorkspaces[0] : activeWorkspace?.id
+      const workspaceIdsSet = new Set<string>();
+      if (activeWorkspace) workspaceIdsSet.add(activeWorkspace.id);
+      args.selectedWorkspaces.forEach((id) => workspaceIdsSet.add(id));
 
       return generateInvite({
         tenantId: activeOrg.id,
-        workspaceId: teamId ? activeWorkspace?.id : workspaceId,
-        teamId,
-        role,
+        tenantRole: role,
+        workspaceIds: Array.from(workspaceIdsSet),
+        teamIds: args.selectedTeams,
         maxUses: 100,
       })
     },
