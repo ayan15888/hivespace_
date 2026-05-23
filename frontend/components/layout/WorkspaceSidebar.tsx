@@ -31,6 +31,7 @@ import { useWorkspaces } from "@/hooks/useWorkspaces";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { useProjects } from "@/hooks/useProjects";
 import { useTeams } from "@/hooks/useTeams";
+import { usePermission } from "@/hooks/usePermission";
 
 
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
@@ -72,7 +73,7 @@ export function WorkspaceSidebar() {
     setManualExpandedId(expandedProjectId === projectId ? "" : projectId);
   };
 
-  const isProjectLead = true; // Use mock role for now
+  const { canCreateProject, canCreateTeam, canAdminWorkspace } = usePermission();
 
   return (
     <aside className="fixed top-0 left-[56px] z-40 flex h-full w-[220px] flex-col bg-hs-nav border-r border-border/50">
@@ -161,19 +162,21 @@ export function WorkspaceSidebar() {
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 flex flex-col gap-6 scrollbar-none pb-8">
         
         {/* 2. + New Project Button */}
-        <div className="relative w-full group/btn-wrap">
-          <div className="glowing-border-btn-glow" />
-          <div className="glowing-border-btn-wrap">
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start text-xs text-muted-foreground hover:text-foreground h-8 px-2 bg-transparent hover:bg-transparent border-none rounded-[inherit]"
-              onClick={() => setIsCreateProjectModalOpen(true)}
-            >
-              <Plus strokeWidth={1.5} className="mr-2 h-3.5 w-3.5" />
-              New Project
-            </Button>
+        {canCreateProject && (
+          <div className="relative w-full group/btn-wrap">
+            <div className="glowing-border-btn-glow" />
+            <div className="glowing-border-btn-wrap">
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start text-xs text-muted-foreground hover:text-foreground h-8 px-2 bg-transparent hover:bg-transparent border-none rounded-[inherit]"
+                onClick={() => setIsCreateProjectModalOpen(true)}
+              >
+                <Plus strokeWidth={1.5} className="mr-2 h-3.5 w-3.5" />
+                New Project
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex flex-col">
           <span className="px-2 mb-2 text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Projects</span>
@@ -265,7 +268,7 @@ export function WorkspaceSidebar() {
                             isActive={pathname.startsWith("/dashboard/chat")} 
                             activeColor={dotColor}
                           />
-                          {isProjectLead && (
+                          {canAdminWorkspace && (
                             <SubItem 
                               icon={Settings} 
                               label="Settings" 
@@ -291,7 +294,7 @@ export function WorkspaceSidebar() {
         <div className="flex flex-col">
           <div className="flex items-center justify-between px-2 mb-2">
             <span className="text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Teams</span>
-            {activeWorkspace?.id && (
+            {activeWorkspace?.id && canCreateTeam && (
               <Button 
                 variant="ghost" 
                 size="icon" 

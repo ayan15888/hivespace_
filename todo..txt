@@ -19,3 +19,26 @@ role and permission notworking
 teneant is not  uniqye 
 assign memebers to task not working 
 wokspace page should be there to asign or to kickoutmemebr
+
+
+//need refactoring 
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\projects\[projectSlug]\board\page.tsx (960)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\ai\page.tsx (857)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\docs\page.tsx (731)
+D:\project\hiveSpace_final\frontend\app\(public)\invite\[orgSlug]\[token]\page.tsx (725)
+D:\project\hiveSpace_final\frontend\app\(public)\page.tsx (648)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\projects\[projectSlug]\page.tsx (612)
+D:\project\hiveSpace_final\frontend\components\common\WebGPUVisualizer.tsx (575)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\chat\[channel]\page.tsx (519)
+D:\project\hiveSpace_final\frontend\app\(auth)\settings\roles\page.tsx (501)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\page.tsx (499)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\tasks\page.tsx (490)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\inbox\page.tsx (441)
+D:\project\hiveSpace_final\frontend\components\features\docs\HivespaceEditor.tsx (431)
+D:\project\hiveSpace_final\frontend\components\layout\WorkspaceSidebar.tsx (431)
+D:\project\hiveSpace_final\frontend\app\(auth)\settings\members\page.tsx (420)
+D:\project\hiveSpace_final\frontend\components\features\teams\ManageTeamSheet.tsx (393)
+D:\project\hiveSpace_final\frontend\app\(auth)\onboarding\page.tsx (371)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\github\page.tsx (339)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\mail\page.tsx (324)
+D:\project\hiveSpace_final\frontend\app\(auth)\settings\subscription\page.tsx (305)
