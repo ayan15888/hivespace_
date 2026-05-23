@@ -47,6 +47,12 @@ public class InvitationService {
         Tenant tenant = tenantRepository.findById(request.getTenantId())
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
+        // Verify that there is at least one workspace created in the tenant/organization before inviting
+        java.util.List<Workspace> workspaces = workspaceRepository.findAllByTenant(tenant);
+        if (workspaces.isEmpty()) {
+            throw new IllegalStateException("At least one workspace must be created in the organization before inviting members.");
+        }
+
         if (!rbacService.canManageInvite(tenant.getId())) {
             throw new SecurityException("Only organization owners or administrators can create invitations");
         }
