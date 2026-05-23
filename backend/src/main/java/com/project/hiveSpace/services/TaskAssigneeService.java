@@ -15,6 +15,7 @@ import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.TaskActivityRepository;
 import com.project.hiveSpace.security.RbacService;
 import com.project.hiveSpace.models.ProjectMemberRole;
+import com.project.hiveSpace.models.ResourceType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,7 @@ public class TaskAssigneeService {
 
     @Transactional(readOnly = true)
     public List<TaskAssigneeResponse> getAssigneesForTask(UUID taskId) {
+        rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         if (!rbacService.canViewTask(taskId)) {
             throw new SecurityException("Access denied: You do not have permission to view assignees for this task");
         }
@@ -52,6 +54,7 @@ public class TaskAssigneeService {
 
     @Transactional
     public TaskAssigneeResponse addAssignee(UUID taskId, AddAssigneeRequest request, User actor) {
+        rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         User currentUser = actor != null ? actor : rbacService.getCurrentUser();
         if (currentUser == null) {
             throw new SecurityException("User not authenticated");
@@ -111,6 +114,7 @@ public class TaskAssigneeService {
 
     @Transactional
     public TaskAssigneeResponse changeOwner(UUID taskId, ChangeOwnerRequest request, User actor) {
+        rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         User currentUser = actor != null ? actor : rbacService.getCurrentUser();
         if (currentUser == null) {
             throw new SecurityException("User not authenticated");
@@ -182,6 +186,7 @@ public class TaskAssigneeService {
 
     @Transactional
     public void removeAssignee(UUID taskId, UUID targetUserId, User actor) {
+        rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         User currentUser = actor != null ? actor : rbacService.getCurrentUser();
         if (currentUser == null) {
             throw new SecurityException("User not authenticated");

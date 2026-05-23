@@ -13,6 +13,7 @@ import com.project.hiveSpace.repository.ProjectTeamRepository;
 import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.models.ProjectTeam;
 import com.project.hiveSpace.models.TeamMember;
+import com.project.hiveSpace.models.ResourceType;
 import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class ProjectMemberService {
 
     @Transactional(readOnly = true)
     public List<ProjectMemberResponse> getMembersByProject(UUID projectId) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
@@ -55,6 +57,7 @@ public class ProjectMemberService {
 
     @Transactional
     public ProjectMemberResponse addMemberToProject(UUID projectId, UUID userId, ProjectMemberRole role) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
@@ -95,6 +98,7 @@ public class ProjectMemberService {
 
     @Transactional
     public ProjectMemberResponse updateMemberRole(UUID projectId, UUID userId, ProjectMemberRole role) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         ProjectMember projectMember = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
 
@@ -117,6 +121,7 @@ public class ProjectMemberService {
 
     @Transactional
     public void removeMemberFromProject(UUID projectId, UUID userId) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 

@@ -10,6 +10,7 @@ import com.project.hiveSpace.models.Project;
 import com.project.hiveSpace.models.Workspace;
 import com.project.hiveSpace.models.Team;
 import com.project.hiveSpace.models.ProjectTeam;
+import com.project.hiveSpace.models.ResourceType;
 import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.TeamRepository;
@@ -44,6 +45,7 @@ public class ProjectService {
 
     @Transactional
     public ProjectResponse createProject(UUID workspaceId, ProjectRequest request, User creator) {
+        rbacService.verifyResourceBelongsToTenant(workspaceId, ResourceType.WORKSPACE);
         if (!rbacService.canCreateProject(workspaceId)) {
             throw new SecurityException("Access denied: You do not have permission to create a project in this workspace");
         }
@@ -122,6 +124,7 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> getProjectsByWorkspace(UUID workspaceId) {
+        rbacService.verifyResourceBelongsToTenant(workspaceId, ResourceType.WORKSPACE);
         if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.VIEWER)) {
             throw new SecurityException("Access denied: You do not have permission to view projects in this workspace");
         }
@@ -157,6 +160,8 @@ public class ProjectService {
 
     @Transactional
     public ProjectResponse assignTeam(UUID projectId, UUID teamId, User actor) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
@@ -213,6 +218,7 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<TeamResponse> getAssignedTeams(UUID projectId) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
@@ -229,6 +235,8 @@ public class ProjectService {
 
     @Transactional
     public ProjectResponse unassignTeam(UUID projectId, UUID teamId, User actor) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 

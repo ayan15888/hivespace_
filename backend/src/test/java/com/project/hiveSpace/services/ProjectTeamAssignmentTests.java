@@ -177,7 +177,6 @@ class ProjectTeamAssignmentTests {
         project.setTeamsCount(1);
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
         when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(true);
-        when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
         when(projectTeamRepository.existsByProjectIdAndTeamId(projectId, teamId)).thenReturn(true);
         when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
 

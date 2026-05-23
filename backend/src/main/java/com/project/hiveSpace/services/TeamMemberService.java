@@ -6,6 +6,7 @@ import com.project.hiveSpace.models.Team;
 import com.project.hiveSpace.models.TeamMember;
 import com.project.hiveSpace.models.TeamMemberRole;
 import com.project.hiveSpace.models.User;
+import com.project.hiveSpace.models.ResourceType;
 import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.repository.TeamRepository;
 import com.project.hiveSpace.repository.UserRepository;
@@ -32,6 +33,7 @@ public class TeamMemberService {
 
     @Transactional(readOnly = true)
     public List<TeamMemberResponse> getMembersByTeam(UUID teamId) {
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
@@ -48,6 +50,7 @@ public class TeamMemberService {
 
     @Transactional
     public TeamMemberResponse addMemberToTeam(UUID teamId, TeamMemberRequest request) {
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
@@ -88,6 +91,7 @@ public class TeamMemberService {
 
     @Transactional
     public TeamMemberResponse updateMemberRole(UUID teamId, UUID userId, TeamMemberRole role) {
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         TeamMember teamMember = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
 
@@ -110,6 +114,7 @@ public class TeamMemberService {
 
     @Transactional
     public void removeMemberFromTeam(UUID teamId, UUID userId) {
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 

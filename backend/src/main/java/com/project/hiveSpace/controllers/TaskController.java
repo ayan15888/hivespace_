@@ -41,6 +41,7 @@ public class TaskController {
 
     @GetMapping("/tasks")
     public ResponseEntity<List<TaskResponse>> getAllTasks() {
+        System.out.println("=== TaskController.getAllTasks CALLED ===");
         return ResponseEntity.ok(taskService.getAllTasks());
     }
 

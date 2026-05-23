@@ -276,4 +276,47 @@ public class RbacService {
             case MEMBER -> 1;
         };
     }
+
+    // --- SCOPE GUARD RESOURCE VERIFICATION ---
+    public void verifyResourceBelongsToTenant(UUID resourceId, ResourceType type, UUID tenantId) {
+        if (resourceId == null || type == null || tenantId == null) {
+            throw new IllegalArgumentException("Resource ID, type, and tenant ID must not be null");
+        }
+
+        boolean belongs = false;
+        switch (type) {
+            case WORKSPACE -> {
+                belongs = workspaceRepository.findById(resourceId)
+                        .map(workspace -> workspace.getTenant() != null && workspace.getTenant().getId().equals(tenantId))
+                        .orElse(false);
+            }
+            case TEAM -> {
+                belongs = teamRepository.findById(resourceId)
+                        .map(team -> team.getWorkspace() != null && team.getWorkspace().getTenant() != null && team.getWorkspace().getTenant().getId().equals(tenantId))
+                        .orElse(false);
+            }
+            case PROJECT -> {
+                belongs = projectRepository.findById(resourceId)
+                        .map(project -> project.getWorkspace() != null && project.getWorkspace().getTenant() != null && project.getWorkspace().getTenant().getId().equals(tenantId))
+                        .orElse(false);
+            }
+            case TASK -> {
+                belongs = taskRepository.findById(resourceId)
+                        .map(task -> task.getProject() != null && task.getProject().getWorkspace() != null && task.getProject().getWorkspace().getTenant() != null && task.getProject().getWorkspace().getTenant().getId().equals(tenantId))
+                        .orElse(false);
+            }
+        }
+
+        if (!belongs) {
+            throw new SecurityException("Resource does not belong to the caller's organization");
+        }
+    }
+
+    public void verifyResourceBelongsToTenant(UUID resourceId, ResourceType type) {
+        User user = getCurrentUser();
+        if (user == null || user.getTenant() == null) {
+            throw new SecurityException("User is not authenticated or not associated with a tenant");
+        }
+        verifyResourceBelongsToTenant(resourceId, type, user.getTenant().getId());
+    }
 }

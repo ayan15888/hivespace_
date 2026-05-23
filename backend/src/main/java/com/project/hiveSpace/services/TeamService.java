@@ -11,6 +11,7 @@ import com.project.hiveSpace.models.Project;
 import com.project.hiveSpace.models.ProjectTeam;
 import com.project.hiveSpace.models.Workspace;
 import com.project.hiveSpace.models.Team;
+import com.project.hiveSpace.models.ResourceType;
 import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.ProjectTeamRepository;
 import com.project.hiveSpace.repository.TeamMemberRepository;
@@ -47,6 +48,8 @@ public class TeamService {
         if (workspaceId == null) {
             throw new IllegalArgumentException("Workspace ID is required");
         }
+
+        rbacService.verifyResourceBelongsToTenant(workspaceId, ResourceType.WORKSPACE);
 
         if (!rbacService.canCreateTeam(workspaceId)) {
             throw new SecurityException("Access denied: You do not have permission to create a team in this workspace");
@@ -146,6 +149,7 @@ public class TeamService {
 
     @Transactional
     public TeamResponse updateTeam(UUID teamId, TeamRequest request) {
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
@@ -164,6 +168,7 @@ public class TeamService {
 
     @Transactional
     public void deleteTeam(UUID teamId) {
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
@@ -187,6 +192,7 @@ public class TeamService {
     }
 
     public List<TeamResponse> getTeamsByWorkspace(UUID workspaceId) {
+        rbacService.verifyResourceBelongsToTenant(workspaceId, ResourceType.WORKSPACE);
         if (!workspaceRepository.existsById(workspaceId)) {
             throw new IllegalArgumentException("Workspace not found");
         }

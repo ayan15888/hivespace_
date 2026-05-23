@@ -32,6 +32,7 @@ public class TaskService {
 
     @Transactional
     public TaskResponse createTask(UUID projectId, TaskRequest request, User creator) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
@@ -113,6 +114,7 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public TaskResponse getTaskById(UUID taskId) {
+        rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         if (!rbacService.canViewTask(taskId)) {
             throw new SecurityException("Access denied: You do not have permission to view this task");
         }
@@ -134,6 +136,7 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByProject(UUID projectId) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         if (!rbacService.canViewProject(projectId)) {
             throw new SecurityException("Access denied: You do not have permission to view tasks in this project");
         }
@@ -154,6 +157,11 @@ public class TaskService {
             throw new SecurityException("User not authenticated");
         }
 
+        UUID tenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (tenantId == null || !rbacService.hasTenantRole(tenantId, TenantMemberRole.MEMBER)) {
+            throw new SecurityException("Access denied: Must be a member of the organization to view tasks");
+        }
+
         List<ProjectMember> memberships = projectMemberRepository.findAllByUserId(currentUser.getId());
         if (memberships.isEmpty()) {
             return java.util.Collections.emptyList();
@@ -171,6 +179,7 @@ public class TaskService {
 
     @Transactional
     public TaskResponse updateTaskStatus(UUID taskId, String statusStr) {
+        rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         if (!rbacService.canEditTask(taskId)) {
             throw new SecurityException("Access denied: You do not have permission to update this task");
         }
@@ -199,6 +208,7 @@ public class TaskService {
 
     @Transactional
     public TaskResponse updateTask(UUID taskId, UpdateTaskRequest request, User actor) {
+        rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
@@ -288,6 +298,7 @@ public class TaskService {
 
     @Transactional
     public void deleteTask(UUID taskId, User actor) {
+        rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 

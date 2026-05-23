@@ -13,6 +13,7 @@ import com.project.hiveSpace.repository.WorkspaceMemberRepository;
 import com.project.hiveSpace.repository.WorkspaceRepository;
 import com.project.hiveSpace.security.RbacService;
 import com.project.hiveSpace.models.TenantMemberRole;
+import com.project.hiveSpace.models.ResourceType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,11 @@ public class WorkspaceService {
     @Transactional
     public WorkspaceResponse createWorkspace(WorkspaceRequest request) {
         User currentUser = getCurrentUser();
+
+        UUID currentTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (currentTenantId == null || !currentTenantId.equals(request.getTenantId())) {
+            throw new SecurityException("Access denied: Cannot create workspace in a different organization");
+        }
 
         if (!rbacService.hasTenantRole(request.getTenantId(), TenantMemberRole.ADMIN)) {
             throw new SecurityException("Access denied: Only organization admins and owners can create workspaces");
@@ -114,6 +120,7 @@ public class WorkspaceService {
 
     @Transactional(readOnly = true)
     public List<WorkspaceMemberResponse> getWorkspaceMembers(UUID workspaceId) {
+        rbacService.verifyResourceBelongsToTenant(workspaceId, ResourceType.WORKSPACE);
         if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.VIEWER)) {
             throw new SecurityException("Access denied: Must be a workspace member to view its member directory");
         }
