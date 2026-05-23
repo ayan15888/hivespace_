@@ -93,8 +93,8 @@ public class ProjectService {
         UUID workspaceId = project.getWorkspace().getId();
 
         // RBAC validation: caller must be Project Lead or Workspace Admin
-        boolean isLead = rbacService.hasProjectRole(projectId, "LEAD");
-        boolean isWorkspaceAdmin = rbacService.isWorkspaceAdmin(workspaceId);
+        boolean isLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
+        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
         if (!isLead && !isWorkspaceAdmin) {
             throw new SecurityException("Access denied: Only project leads and workspace admins can assign teams");
         }
@@ -147,7 +147,7 @@ public class ProjectService {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
         UUID workspaceId = project.getWorkspace().getId();
-        if (!rbacService.hasProjectRole(projectId, "VIEWER") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER) && !rbacService.canAdminWorkspace(workspaceId)) {
             throw new SecurityException("Access denied: Must be a project viewer or workspace admin to see assigned teams");
         }
 
@@ -165,8 +165,8 @@ public class ProjectService {
         UUID workspaceId = project.getWorkspace().getId();
 
         // RBAC validation: caller must be Project Lead or Workspace Admin
-        boolean isLead = rbacService.hasProjectRole(projectId, "LEAD");
-        boolean isWorkspaceAdmin = rbacService.isWorkspaceAdmin(workspaceId);
+        boolean isLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
+        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
         if (!isLead && !isWorkspaceAdmin) {
             throw new SecurityException("Access denied: Only project leads and workspace admins can unassign teams");
         }

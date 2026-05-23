@@ -125,7 +125,7 @@ class WorkspaceMembershipGatekeepingTests {
 
     @Test
     void testAddMemberToProject_ShouldThrowException_WhenUserNotInWorkspace() {
-        when(rbacService.hasProjectRole(projectId, "LEAD")).thenReturn(true);
+        when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(true);
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(false);
@@ -140,7 +140,7 @@ class WorkspaceMembershipGatekeepingTests {
 
     @Test
     void testAddMemberToProject_Success_WhenUserInWorkspace() {
-        when(rbacService.hasProjectRole(projectId, "LEAD")).thenReturn(true);
+        when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(true);
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(true);
@@ -164,7 +164,7 @@ class WorkspaceMembershipGatekeepingTests {
     void testAddMemberToTeam_ShouldThrowException_WhenUserNotInWorkspace() {
         TeamMemberRequest request = new TeamMemberRequest(userId, TeamMemberRole.MEMBER);
 
-        when(rbacService.hasTeamRole(teamId, "LEAD")).thenReturn(true);
+        when(rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(false);
@@ -181,7 +181,7 @@ class WorkspaceMembershipGatekeepingTests {
     void testAddMemberToTeam_Success_WhenUserInWorkspace() {
         TeamMemberRequest request = new TeamMemberRequest(userId, TeamMemberRole.MEMBER);
 
-        when(rbacService.hasTeamRole(teamId, "LEAD")).thenReturn(true);
+        when(rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(true);
@@ -225,7 +225,7 @@ class WorkspaceMembershipGatekeepingTests {
                 .role(ProjectMemberRole.MEMBER)
                 .build();
 
-        when(rbacService.hasProjectRole(projectId, "VIEWER")).thenReturn(true);
+        when(rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER)).thenReturn(true);
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
         when(projectMemberRepository.findAllByProjectId(projectId)).thenReturn(Arrays.asList(pm2, pm1));
 

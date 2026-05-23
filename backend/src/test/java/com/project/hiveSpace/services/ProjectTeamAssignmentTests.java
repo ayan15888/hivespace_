@@ -80,7 +80,7 @@ class ProjectTeamAssignmentTests {
     @Test
     void testAssignTeam_Success_AsProjectLead() {
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-        when(rbacService.hasProjectRole(projectId, "LEAD")).thenReturn(true);
+        when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
         when(projectTeamRepository.existsByProjectIdAndTeamId(projectId, teamId)).thenReturn(false);
         when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -96,8 +96,8 @@ class ProjectTeamAssignmentTests {
     @Test
     void testAssignTeam_Failure_AccessDenied() {
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-        when(rbacService.hasProjectRole(projectId, "LEAD")).thenReturn(false);
-        when(rbacService.isWorkspaceAdmin(workspaceId)).thenReturn(false);
+        when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(false);
+        when(rbacService.canAdminWorkspace(workspaceId)).thenReturn(false);
 
         SecurityException exception = assertThrows(SecurityException.class, () ->
                 projectService.assignTeam(projectId, teamId, actor)
@@ -115,7 +115,7 @@ class ProjectTeamAssignmentTests {
         team.setWorkspace(otherWorkspace);
 
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-        when(rbacService.hasProjectRole(projectId, "LEAD")).thenReturn(true);
+        when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
@@ -129,7 +129,7 @@ class ProjectTeamAssignmentTests {
     @Test
     void testAssignTeam_Idempotent_IfAlreadyAssigned() {
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-        when(rbacService.hasProjectRole(projectId, "LEAD")).thenReturn(true);
+        when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
         when(projectTeamRepository.existsByProjectIdAndTeamId(projectId, teamId)).thenReturn(true);
 
@@ -143,7 +143,7 @@ class ProjectTeamAssignmentTests {
     @Test
     void testGetAssignedTeams_Success() {
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-        when(rbacService.hasProjectRole(projectId, "VIEWER")).thenReturn(true);
+        when(rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER)).thenReturn(true);
 
         ProjectTeam projectTeam = ProjectTeam.builder()
                 .project(project)
@@ -162,8 +162,8 @@ class ProjectTeamAssignmentTests {
     @Test
     void testGetAssignedTeams_Failure_AccessDenied() {
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-        when(rbacService.hasProjectRole(projectId, "VIEWER")).thenReturn(false);
-        when(rbacService.isWorkspaceAdmin(workspaceId)).thenReturn(false);
+        when(rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER)).thenReturn(false);
+        when(rbacService.canAdminWorkspace(workspaceId)).thenReturn(false);
 
         SecurityException exception = assertThrows(SecurityException.class, () ->
                 projectService.getAssignedTeams(projectId)
@@ -176,7 +176,7 @@ class ProjectTeamAssignmentTests {
     void testUnassignTeam_Success() {
         project.setTeamsCount(1);
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-        when(rbacService.hasProjectRole(projectId, "LEAD")).thenReturn(true);
+        when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
         when(projectTeamRepository.existsByProjectIdAndTeamId(projectId, teamId)).thenReturn(true);
         when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -191,8 +191,8 @@ class ProjectTeamAssignmentTests {
     @Test
     void testUnassignTeam_Failure_AccessDenied() {
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
-        when(rbacService.hasProjectRole(projectId, "LEAD")).thenReturn(false);
-        when(rbacService.isWorkspaceAdmin(workspaceId)).thenReturn(false);
+        when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(false);
+        when(rbacService.canAdminWorkspace(workspaceId)).thenReturn(false);
 
         SecurityException exception = assertThrows(SecurityException.class, () ->
                 projectService.unassignTeam(projectId, teamId, actor)

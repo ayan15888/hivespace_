@@ -36,7 +36,7 @@ public class TeamMemberService {
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
         UUID workspaceId = team.getWorkspace().getId();
-        if (!rbacService.hasTeamRole(teamId, "MEMBER") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+        if (!rbacService.hasTeamRole(teamId, TeamMemberRole.MEMBER) && !rbacService.canAdminWorkspace(workspaceId)) {
             throw new SecurityException("Access denied: Must be a team member or workspace admin");
         }
 
@@ -52,7 +52,7 @@ public class TeamMemberService {
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
         UUID workspaceId = team.getWorkspace().getId();
-        if (!rbacService.hasTeamRole(teamId, "LEAD") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+        if (!rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
             throw new SecurityException("Access denied: Only team leads and workspace admins can add members");
         }
 
@@ -93,7 +93,7 @@ public class TeamMemberService {
 
         Team team = teamMember.getTeam();
         UUID workspaceId = team.getWorkspace().getId();
-        if (!rbacService.hasTeamRole(teamId, "LEAD") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+        if (!rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
             throw new SecurityException("Access denied: Only team leads and workspace admins can update roles");
         }
 
@@ -122,8 +122,8 @@ public class TeamMemberService {
         UUID currentUserId = currentUser.getId();
 
         boolean isSelf = currentUserId.equals(userId);
-        boolean isTeamLead = rbacService.hasTeamRole(teamId, "LEAD");
-        boolean isWorkspaceAdmin = rbacService.hasWorkspaceRole(workspaceId, "ADMIN");
+        boolean isTeamLead = rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD);
+        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
 
         if (!isSelf && !isTeamLead && !isWorkspaceAdmin) {
             throw new SecurityException("Access denied: Only team leads, workspace admins, or the members themselves can remove members");

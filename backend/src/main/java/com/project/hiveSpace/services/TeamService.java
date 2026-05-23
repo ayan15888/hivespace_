@@ -5,6 +5,8 @@ import com.project.hiveSpace.dto.TeamResponse;
 import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.models.TeamMember;
 import com.project.hiveSpace.models.TeamMemberRole;
+import com.project.hiveSpace.models.WorkspaceMemberRole;
+import com.project.hiveSpace.models.ProjectMemberRole;
 import com.project.hiveSpace.models.Project;
 import com.project.hiveSpace.models.ProjectTeam;
 import com.project.hiveSpace.models.Workspace;
@@ -42,7 +44,7 @@ public class TeamService {
             throw new IllegalArgumentException("Workspace ID is required");
         }
 
-        if (!rbacService.hasWorkspaceRole(workspaceId, "MEMBER")) {
+        if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.MEMBER)) {
             throw new SecurityException("Access denied: Must be a member of the workspace to create a team");
         }
 
@@ -56,7 +58,7 @@ public class TeamService {
 
         Project associatedProject = null;
         if (request.getProjectId() != null) {
-            if (!rbacService.hasProjectRole(request.getProjectId(), "MEMBER")) {
+            if (!rbacService.hasProjectRole(request.getProjectId(), ProjectMemberRole.MEMBER)) {
                 throw new SecurityException("Access denied: Must be a member of the project to associate it with the team");
             }
             associatedProject = projectRepository.findById(request.getProjectId())
@@ -108,7 +110,7 @@ public class TeamService {
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
         UUID workspaceId = team.getWorkspace().getId();
-        if (!rbacService.hasTeamRole(teamId, "LEAD") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+        if (!rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
             throw new SecurityException("Access denied: Only team leads and workspace admins can update the team");
         }
 
@@ -126,7 +128,7 @@ public class TeamService {
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
         UUID workspaceId = team.getWorkspace().getId();
-        if (!rbacService.hasTeamRole(teamId, "LEAD") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+        if (!rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
             throw new SecurityException("Access denied: Only team leads and workspace admins can delete the team");
         }
 
@@ -149,7 +151,7 @@ public class TeamService {
             throw new IllegalArgumentException("Workspace not found");
         }
 
-        if (!rbacService.hasWorkspaceRole(workspaceId, "VIEWER")) {
+        if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.VIEWER)) {
             throw new SecurityException("Access denied: Must be a member of the workspace to view its teams");
         }
 

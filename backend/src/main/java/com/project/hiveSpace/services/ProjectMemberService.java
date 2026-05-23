@@ -42,7 +42,7 @@ public class ProjectMemberService {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
         UUID workspaceId = project.getWorkspace().getId();
-        if (!rbacService.hasProjectRole(projectId, "VIEWER") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER) && !rbacService.canAdminWorkspace(workspaceId)) {
             throw new SecurityException("Access denied: Must be a project member or workspace admin");
         }
 
@@ -59,7 +59,7 @@ public class ProjectMemberService {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
         UUID workspaceId = project.getWorkspace().getId();
-        if (!rbacService.hasProjectRole(projectId, "LEAD") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
             throw new SecurityException("Access denied: Only project leads and workspace admins can add members");
         }
 
@@ -100,7 +100,7 @@ public class ProjectMemberService {
 
         Project project = projectMember.getProject();
         UUID workspaceId = project.getWorkspace().getId();
-        if (!rbacService.hasProjectRole(projectId, "LEAD") && !rbacService.isWorkspaceAdmin(workspaceId)) {
+        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
             throw new SecurityException("Access denied: Only project leads and workspace admins can update roles");
         }
 
@@ -129,8 +129,8 @@ public class ProjectMemberService {
         UUID currentUserId = currentUser.getId();
 
         boolean isSelf = currentUserId.equals(userId);
-        boolean isProjectLead = rbacService.hasProjectRole(projectId, "LEAD");
-        boolean isWorkspaceAdmin = rbacService.hasWorkspaceRole(workspaceId, "ADMIN");
+        boolean isProjectLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
+        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
 
         if (!isSelf && !isProjectLead && !isWorkspaceAdmin) {
             throw new SecurityException("Access denied: Only project leads, workspace admins, or the members themselves can remove members");
