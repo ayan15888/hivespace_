@@ -24,8 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import com.project.hiveSpace.models.WorkspaceMemberRole;
 
 @Service
 @RequiredArgsConstructor
@@ -120,11 +122,35 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> getProjectsByWorkspace(UUID workspaceId) {
+        if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.VIEWER)) {
+            throw new SecurityException("Access denied: You do not have permission to view projects in this workspace");
+        }
+
         Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
 
-        return projectRepository.findAllByWorkspace(workspace)
-                .stream()
+        User currentUser = rbacService.getCurrentUser();
+        if (currentUser == null) {
+            throw new SecurityException("User not authenticated");
+        }
+
+        List<Project> allProjects = projectRepository.findAllByWorkspace(workspace);
+
+        // Workspace ADMIN sees all projects
+        if (rbacService.canAdminWorkspace(workspaceId)) {
+            return allProjects.stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+        }
+
+        // Regular members see only projects they are members of
+        List<ProjectMember> memberships = projectMemberRepository.findAllByUserId(currentUser.getId());
+        Set<UUID> memberProjectIds = memberships.stream()
+                .map(pm -> pm.getProject().getId())
+                .collect(Collectors.toSet());
+
+        return allProjects.stream()
+                .filter(project -> memberProjectIds.contains(project.getId()))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }

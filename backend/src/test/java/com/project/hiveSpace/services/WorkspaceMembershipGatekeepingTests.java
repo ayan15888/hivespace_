@@ -111,6 +111,8 @@ class WorkspaceMembershipGatekeepingTests {
                 .joinedAt(new Date())
                 .build();
 
+        when(rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.VIEWER)).thenReturn(true);
+        when(rbacService.canAdminWorkspace(workspaceId)).thenReturn(false);
         when(workspaceRepository.existsById(workspaceId)).thenReturn(true);
         when(workspaceMemberRepository.findAllByWorkspaceId(workspaceId)).thenReturn(Collections.singletonList(member));
 

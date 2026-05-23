@@ -86,6 +86,10 @@ public class WorkspaceService {
     }
 
     public List<WorkspaceResponse> getWorkspacesByTenant(UUID tenantId) {
+        if (!rbacService.hasTenantRole(tenantId, TenantMemberRole.MEMBER)) {
+            throw new SecurityException("Access denied: Must be a member of the organization to list its workspaces");
+        }
+
         if (!tenantRepository.existsById(tenantId)) {
             throw new IllegalArgumentException("Tenant not found");
         }
@@ -110,23 +114,29 @@ public class WorkspaceService {
 
     @Transactional(readOnly = true)
     public List<WorkspaceMemberResponse> getWorkspaceMembers(UUID workspaceId) {
+        if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.VIEWER)) {
+            throw new SecurityException("Access denied: Must be a workspace member to view its member directory");
+        }
+
         if (!workspaceRepository.existsById(workspaceId)) {
             throw new IllegalArgumentException("Workspace not found");
         }
 
+        boolean includeEmail = rbacService.canAdminWorkspace(workspaceId);
+
         return workspaceMemberRepository.findAllByWorkspaceId(workspaceId)
                 .stream()
-                .map(this::mapToWorkspaceMemberResponse)
+                .map(member -> mapToWorkspaceMemberResponse(member, includeEmail))
                 .collect(Collectors.toList());
     }
 
-    private WorkspaceMemberResponse mapToWorkspaceMemberResponse(WorkspaceMember member) {
+    private WorkspaceMemberResponse mapToWorkspaceMemberResponse(WorkspaceMember member, boolean includeEmail) {
         return WorkspaceMemberResponse.builder()
                 .id(member.getId())
                 .workspaceId(member.getWorkspace().getId())
                 .userId(member.getUser().getId())
                 .username(member.getUser().getUsername())
-                .email(member.getUser().getEmail())
+                .email(includeEmail ? member.getUser().getEmail() : null)
                 .fullName(member.getUser().getFullName())
                 .avatarUrl(member.getUser().getAvatarUrl())
                 .role(member.getRole())
