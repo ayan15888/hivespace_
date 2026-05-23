@@ -9,12 +9,19 @@ import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
+import com.project.hiveSpace.repository.ProjectTeamRepository;
+import com.project.hiveSpace.repository.TeamMemberRepository;
+import com.project.hiveSpace.models.ProjectTeam;
+import com.project.hiveSpace.models.TeamMember;
+import com.project.hiveSpace.models.ResourceType;
+import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -26,28 +33,43 @@ public class ProjectMemberService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final RbacService rbacService;
+    private final ProjectTeamRepository projectTeamRepository;
+    private final TeamMemberRepository teamMemberRepository;
 
     @Transactional(readOnly = true)
     public List<ProjectMemberResponse> getMembersByProject(UUID projectId) {
-        if (!projectRepository.existsById(projectId)) {
-            throw new IllegalArgumentException("Project not found");
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+        UUID workspaceId = project.getWorkspace().getId();
+        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER) && !rbacService.canAdminWorkspace(workspaceId)) {
+            throw new SecurityException("Access denied: Must be a project member or workspace admin");
         }
 
         return projectMemberRepository.findAllByProjectId(projectId)
                 .stream()
                 .map(this::mapToResponse)
+                .sorted((m1, m2) -> Boolean.compare(m2.isBelongsToAssignedTeam(), m1.isBelongsToAssignedTeam()))
                 .collect(Collectors.toList());
     }
 
     @Transactional
     public ProjectMemberResponse addMemberToProject(UUID projectId, UUID userId, ProjectMemberRole role) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+        UUID workspaceId = project.getWorkspace().getId();
+        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
+            throw new SecurityException("Access denied: Only project leads and workspace admins can add members");
+        }
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        boolean isInWorkspace = workspaceMemberRepository.existsByWorkspaceIdAndUserId(project.getWorkspace().getId(), userId);
+        boolean isInWorkspace = workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId);
         if (!isInWorkspace) {
             throw new SecurityException("User must be a workspace member before joining a project");
         }
@@ -76,8 +98,21 @@ public class ProjectMemberService {
 
     @Transactional
     public ProjectMemberResponse updateMemberRole(UUID projectId, UUID userId, ProjectMemberRole role) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         ProjectMember projectMember = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+
+        Project project = projectMember.getProject();
+        UUID workspaceId = project.getWorkspace().getId();
+        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
+            throw new SecurityException("Access denied: Only project leads and workspace admins can update roles");
+        }
+
+        if (projectMember.getRole() == ProjectMemberRole.LEAD && role != ProjectMemberRole.LEAD) {
+            if (isLastLead(projectId, userId)) {
+                throw new SecurityException("Cannot demote the last project lead");
+            }
+        }
 
         projectMember.setRole(role);
         ProjectMember updated = projectMemberRepository.save(projectMember);
@@ -86,8 +121,29 @@ public class ProjectMemberService {
 
     @Transactional
     public void removeMemberFromProject(UUID projectId, UUID userId) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+        UUID workspaceId = project.getWorkspace().getId();
+
+        User currentUser = rbacService.getCurrentUser();
+        if (currentUser == null) {
+            throw new SecurityException("User not authenticated");
+        }
+        UUID currentUserId = currentUser.getId();
+
+        boolean isSelf = currentUserId.equals(userId);
+        boolean isProjectLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
+        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
+
+        if (!isSelf && !isProjectLead && !isWorkspaceAdmin) {
+            throw new SecurityException("Access denied: Only project leads, workspace admins, or the members themselves can remove members");
+        }
+
+        if (isLastLead(projectId, userId)) {
+            throw new SecurityException("Cannot remove the last project lead");
+        }
 
         ProjectMember projectMember = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
@@ -101,10 +157,33 @@ public class ProjectMemberService {
         }
     }
 
+    private boolean isLastLead(UUID projectId, UUID userId) {
+        ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+
+        if (member.getRole() != ProjectMemberRole.LEAD) return false;
+
+        long leadCount = projectMemberRepository.countByProjectIdAndRole(projectId, ProjectMemberRole.LEAD);
+        return leadCount <= 1;
+    }
+
     private ProjectMemberResponse mapToResponse(ProjectMember member) {
+        UUID projectId = member.getProject().getId();
+        List<ProjectTeam> projectTeams = projectTeamRepository.findByProjectId(projectId);
+        Set<UUID> assignedTeamIds = projectTeams.stream()
+                .map(pt -> pt.getTeam().getId())
+                .collect(Collectors.toSet());
+
+        boolean belongsToAssignedTeam = false;
+        if (!assignedTeamIds.isEmpty()) {
+            List<TeamMember> userTeams = teamMemberRepository.findAllByUserId(member.getUser().getId());
+            belongsToAssignedTeam = userTeams.stream()
+                    .anyMatch(ut -> assignedTeamIds.contains(ut.getTeam().getId()));
+        }
+
         return ProjectMemberResponse.builder()
                 .id(member.getId())
-                .projectId(member.getProject().getId())
+                .projectId(projectId)
                 .userId(member.getUser().getId())
                 .username(member.getUser().getUsername())
                 .email(member.getUser().getEmail())
@@ -112,6 +191,7 @@ public class ProjectMemberService {
                 .avatarUrl(member.getUser().getAvatarUrl())
                 .role(member.getRole())
                 .joinedAt(member.getJoinedAt())
+                .belongsToAssignedTeam(belongsToAssignedTeam)
                 .build();
     }
 }

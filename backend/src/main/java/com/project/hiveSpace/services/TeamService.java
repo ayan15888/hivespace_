@@ -5,13 +5,21 @@ import com.project.hiveSpace.dto.TeamResponse;
 import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.models.TeamMember;
 import com.project.hiveSpace.models.TeamMemberRole;
+import com.project.hiveSpace.models.WorkspaceMemberRole;
+import com.project.hiveSpace.models.ProjectMemberRole;
 import com.project.hiveSpace.models.Project;
+import com.project.hiveSpace.models.ProjectTeam;
 import com.project.hiveSpace.models.Workspace;
 import com.project.hiveSpace.models.Team;
+import com.project.hiveSpace.models.ResourceType;
 import com.project.hiveSpace.repository.ProjectRepository;
+import com.project.hiveSpace.repository.ProjectTeamRepository;
 import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.repository.WorkspaceRepository;
 import com.project.hiveSpace.repository.TeamRepository;
+import com.project.hiveSpace.repository.WorkspaceMemberRepository;
+import com.project.hiveSpace.repository.UserRepository;
+import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,10 +37,25 @@ public class TeamService {
     private final WorkspaceRepository workspaceRepository;
     private final ProjectRepository projectRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final RbacService rbacService;
+    private final ProjectTeamRepository projectTeamRepository;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public TeamResponse createTeam(TeamRequest request, User creator) {
-        Workspace workspace = workspaceRepository.findById(request.getWorkspaceId())
+        UUID workspaceId = request.getWorkspaceId();
+        if (workspaceId == null) {
+            throw new IllegalArgumentException("Workspace ID is required");
+        }
+
+        rbacService.verifyResourceBelongsToTenant(workspaceId, ResourceType.WORKSPACE);
+
+        if (!rbacService.canCreateTeam(workspaceId)) {
+            throw new SecurityException("Access denied: You do not have permission to create a team in this workspace");
+        }
+
+        Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
 
         if (teamRepository.existsByNameAndWorkspace(request.getName(), workspace)) {
@@ -42,6 +65,9 @@ public class TeamService {
 
         Project associatedProject = null;
         if (request.getProjectId() != null) {
+            if (!rbacService.hasProjectRole(request.getProjectId(), ProjectMemberRole.MEMBER)) {
+                throw new SecurityException("Access denied: Must be a member of the project to associate it with the team");
+            }
             associatedProject = projectRepository.findById(request.getProjectId())
                     .orElseThrow(() -> new IllegalArgumentException("Project not found"));
             if (!associatedProject.getWorkspace().getId().equals(workspace.getId())) {
@@ -49,28 +75,71 @@ public class TeamService {
             }
         }
 
+        UUID leadUserId = request.getLeadUserId();
+
+        // Validate lead user is a workspace member first (if provided)
+        if (leadUserId != null) {
+            boolean isWorkspaceMember = workspaceMemberRepository
+                    .existsByWorkspaceIdAndUserId(workspaceId, leadUserId);
+            if (!isWorkspaceMember) {
+                throw new SecurityException("Assigned lead must be a workspace member first");
+            }
+        }
+
+        int initialMembersCount = (leadUserId != null && !leadUserId.equals(creator.getId())) ? 2 : 1;
+
         Team team = Team.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .workspace(workspace)
-                .project(associatedProject)
                 .createdBy(creator)
-                .membersCount(1) // Creator is included
+                .membersCount(initialMembersCount)
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
 
         Team savedTeam = teamRepository.save(team);
 
-        TeamMember lead = TeamMember.builder()
-                .team(savedTeam)
-                .user(creator)
-                .role(TeamMemberRole.LEAD)
-                .joinedAt(new Date())
-                .build();
-        teamMemberRepository.save(lead);
+        if (leadUserId != null) {
+            User leadUser = userRepository.findById(leadUserId)
+                    .orElseThrow(() -> new IllegalArgumentException("Lead user not found"));
+
+            TeamMember leadMember = TeamMember.builder()
+                    .team(savedTeam)
+                    .user(leadUser)
+                    .role(TeamMemberRole.LEAD)
+                    .joinedAt(new Date())
+                    .build();
+            teamMemberRepository.save(leadMember);
+
+            if (!leadUserId.equals(creator.getId())) {
+                TeamMember creatorMember = TeamMember.builder()
+                        .team(savedTeam)
+                        .user(creator)
+                        .role(TeamMemberRole.MEMBER)
+                        .joinedAt(new Date())
+                        .build();
+                teamMemberRepository.save(creatorMember);
+            }
+        } else {
+            TeamMember lead = TeamMember.builder()
+                    .team(savedTeam)
+                    .user(creator)
+                    .role(TeamMemberRole.LEAD)
+                    .joinedAt(new Date())
+                    .build();
+            teamMemberRepository.save(lead);
+        }
 
         if (associatedProject != null) {
+            ProjectTeam projectTeam = ProjectTeam.builder()
+                    .project(associatedProject)
+                    .team(savedTeam)
+                    .assignedBy(creator)
+                    .assignedAt(new Date())
+                    .build();
+            projectTeamRepository.save(projectTeam);
+
             associatedProject.setTeamsCount(associatedProject.getTeamsCount() + 1);
             projectRepository.save(associatedProject);
         }
@@ -80,8 +149,14 @@ public class TeamService {
 
     @Transactional
     public TeamResponse updateTeam(UUID teamId, TeamRequest request) {
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+
+        UUID workspaceId = team.getWorkspace().getId();
+        if (!rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
+            throw new SecurityException("Access denied: Only team leads and workspace admins can update the team");
+        }
 
         team.setName(request.getName());
         team.setDescription(request.getDescription());
@@ -93,24 +168,37 @@ public class TeamService {
 
     @Transactional
     public void deleteTeam(UUID teamId) {
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
 
-        // If associated with a project, decrement project's team count
-        if (team.getProject() != null) {
-            Project project = team.getProject();
+        UUID workspaceId = team.getWorkspace().getId();
+        if (!rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
+            throw new SecurityException("Access denied: Only team leads and workspace admins can delete the team");
+        }
+
+        // Decrement teamsCount for all associated projects, and delete the project_teams records
+        List<ProjectTeam> associations = projectTeamRepository.findByTeamId(teamId);
+        for (ProjectTeam assoc : associations) {
+            Project project = assoc.getProject();
             if (project.getTeamsCount() > 0) {
                 project.setTeamsCount(project.getTeamsCount() - 1);
                 projectRepository.save(project);
             }
         }
+        projectTeamRepository.deleteAll(associations);
 
         teamRepository.delete(team);
     }
 
     public List<TeamResponse> getTeamsByWorkspace(UUID workspaceId) {
+        rbacService.verifyResourceBelongsToTenant(workspaceId, ResourceType.WORKSPACE);
         if (!workspaceRepository.existsById(workspaceId)) {
             throw new IllegalArgumentException("Workspace not found");
+        }
+
+        if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.VIEWER)) {
+            throw new SecurityException("Access denied: Must be a member of the workspace to view its teams");
         }
 
         return teamRepository.findByWorkspaceId(workspaceId)
@@ -120,13 +208,16 @@ public class TeamService {
     }
 
     private TeamResponse mapToResponse(Team team) {
+        List<ProjectTeam> associations = projectTeamRepository.findByTeamId(team.getId());
+        UUID firstProjectId = associations.isEmpty() ? null : associations.get(0).getProject().getId();
+
         return TeamResponse.builder()
                 .id(team.getId())
                 .name(team.getName())
                 .description(team.getDescription())
                 .membersCount(team.getMembersCount())
                 .workspaceId(team.getWorkspace().getId())
-                .projectId(team.getProject() != null ? team.getProject().getId() : null)
+                .projectId(firstProjectId)
                 .createdAt(team.getCreatedAt())
                 .updatedAt(team.getUpdatedAt())
                 .build();

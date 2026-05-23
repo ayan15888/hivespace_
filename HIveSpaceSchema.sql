@@ -29,6 +29,7 @@ CREATE TABLE users (
   job_title VARCHAR,
   github_id BIGINT,
   github_username VARCHAR,
+  avatar_color VARCHAR,
   active BOOLEAN NOT NULL DEFAULT true,
   tenant_id UUID REFERENCES tenants(id) ON DELETE SET NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
@@ -95,13 +96,21 @@ CREATE TABLE project_members (
   UNIQUE (project_id, user_id)
 );
 
+-- PROJECTS TEAMS 
+CREATE TABLE project_teams (
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMP NOT NULL DEFAULT now(),
+  assigned_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  PRIMARY KEY (project_id, team_id)
+);
+
 -- TEAMS
 CREATE TABLE teams (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR NOT NULL,
   description VARCHAR,
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
@@ -186,6 +195,20 @@ CREATE TABLE invitation_attempts (
   ip_address VARCHAR NOT NULL,
   attempted_at TIMESTAMP NOT NULL DEFAULT now(),
   success BOOLEAN NOT NULL DEFAULT false
+);
+
+-- INVITATION WORKSPACES
+CREATE TABLE invitation_workspaces (
+  invitation_id UUID NOT NULL REFERENCES invitations(id) ON DELETE CASCADE,
+  workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  PRIMARY KEY (invitation_id, workspace_id)
+);
+
+-- INVITATION TEAMS
+CREATE TABLE invitation_teams (
+  invitation_id UUID NOT NULL REFERENCES invitations(id) ON DELETE CASCADE,
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  PRIMARY KEY (invitation_id, team_id)
 );
 
 ==========================================================================
@@ -398,6 +421,8 @@ CREATE INDEX idx_shareable_links_team ON shareable_links(team_id);
 CREATE INDEX idx_shareable_links_token ON shareable_links(token);
 CREATE INDEX idx_shareable_links_project ON shareable_links(project_id);
 CREATE INDEX idx_tenants_slug ON tenants(slug);
+CREATE INDEX idx_project_teams_project ON project_teams(project_id);
+CREATE INDEX idx_project_teams_team ON project_teams(team_id);
 -- INDEXES 
 CREATE INDEX idx_workspace_members_user ON workspace_members(user_id);
 CREATE INDEX idx_workspace_members_workspace ON workspace_members(workspace_id);

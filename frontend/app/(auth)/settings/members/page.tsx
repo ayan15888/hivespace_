@@ -122,6 +122,7 @@ export default function MembersSettings() {
     try {
       const response = await generateInvite({
         tenantId: activeOrg.id,
+        tenantRole: popoverRole,
         role: popoverRole,
         maxUses: popoverLimitUses ? popoverMaxUses : 999999,
       });
@@ -358,7 +359,7 @@ export default function MembersSettings() {
                         variant="outline"
                         className="bg-zinc-800 border-zinc-700 text-[10px] font-medium px-2 py-0.5 text-zinc-300 rounded-sm"
                       >
-                        {roleLabel(normalizeTenantRole(link.role))}
+                        {roleLabel(normalizeTenantRole((link.tenantRole || link.role) as any))}
                       </Badge>
                       <span className="text-[11px] text-zinc-500 ml-3 font-medium">
                         Used {link.currentUses} times

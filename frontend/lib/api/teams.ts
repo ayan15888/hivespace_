@@ -5,6 +5,7 @@ export interface TeamRequest {
   description?: string;
   workspaceId: string;
   projectId?: string;
+  leadUserId?: string; // Designated lead user ID
 }
 
 export interface TeamResponse {

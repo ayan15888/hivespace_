@@ -22,11 +22,14 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { createTask, TaskRequest } from "@/lib/api/tasks";
+import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
+import { columnNameToStatus, priorityToBackend } from "@/lib/taskUtils";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useProjects } from "@/hooks/useProjects";
 import { useTaskStore } from "@/store/taskStore";
+import { useAuthStore } from "@/store/authStore";
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -46,6 +49,40 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
   const [status, setStatus] = useState("Todo");
   const [priority, setPriority] = useState("normal");
   const [dueDate, setDueDate] = useState("");
+  const [labels, setLabels] = useState("");
+  const [points, setPoints] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !projectId) {
+      setProjectMembers([]);
+      setMembersLoading(false);
+      setMembersError(false);
+      return;
+    }
+    setMembersLoading(true);
+    setMembersError(false);
+    getProjectMembers(projectId)
+      .then((data) => {
+        setProjectMembers(data);
+        setMembersLoading(false);
+      })
+      .catch((err) => {
+        setProjectMembers([]);
+        setMembersLoading(false);
+        setMembersError(true);
+      });
+  }, [isOpen, projectId]);
+
+  const { user } = useAuthStore();
+  const currentUserProjectMember = projectMembers.find(m => m.userId === user?.id);
+  const projectRole = currentUserProjectMember?.role || null;
+  const canCreate = !projectId || membersLoading || 
+                    (!membersError && projectMembers.length === 0) || 
+                    (projectRole === "MEMBER" || projectRole === "LEAD");
 
   // Reset fields when modal opens or initialProjectId/defaultStatus changes
   useEffect(() => {
@@ -55,6 +92,9 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       setStatus(defaultStatus || "Todo");
       setPriority("normal");
       setDueDate("");
+      setLabels("");
+      setPoints("");
+      setAssigneeId("");
       
       if (initialProjectId) {
         setProjectId(initialProjectId);
@@ -73,25 +113,15 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
 
     setLoading(true);
     try {
-      // Map status and priority to the correct values expected by the backend enums/database check constraints.
-      const mappedStatus = status === "In Progress"
-        ? "IN_PROGRESS"
-        : status === "Review"
-        ? "IN_REVIEW"
-        : status === "Backlog"
-        ? "TODO"
-        : status.toUpperCase();
-
-      const mappedPriority = priority === "normal"
-        ? "MEDIUM"
-        : priority.toUpperCase();
-
       const taskData: TaskRequest = {
-        title,
-        description,
-        status: mappedStatus,
-        priority: mappedPriority,
+        title: title.trim(),
+        description: description.trim() || undefined,
+        status: columnNameToStatus(status),
+        priority: priorityToBackend(priority),
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+        labels: labels.trim() || undefined,
+        points: points ? Number(points) : undefined,
+        assigneeId: assigneeId || undefined,
       };
 
       const newTask = await createTask(projectId, taskData);
@@ -105,6 +135,9 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       setStatus(defaultStatus || "Todo");
       setPriority("normal");
       setDueDate("");
+      setLabels("");
+      setPoints("");
+      setAssigneeId("");
       onSuccess?.();
       onClose();
     } catch (error: any) {
@@ -134,6 +167,11 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                 </DialogHeader>
 
                 <div className="grid gap-4 p-6">
+                  {!canCreate && (
+                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl flex items-center gap-2 mb-2 animate-pulse">
+                      <span>⚠️ You do not have permission to create tasks in this project.</span>
+                    </div>
+                  )}
                   {!initialProjectId && (
                     <div className="grid gap-2">
                       <Label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Project</Label>
@@ -212,6 +250,57 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                       disabled={loading}
                     />
                   </div>
+                  {projectId && projectMembers.length > 0 && (
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Owner (optional)</Label>
+                      <Select value={assigneeId || "default"} onValueChange={(v) => setAssigneeId(v === "default" ? "" : v)} disabled={loading}>
+                        <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
+                          <SelectValue placeholder="Assign to yourself" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-hs-main border-border text-foreground">
+                          <SelectItem value="default">Me (creator)</SelectItem>
+                          {[...projectMembers]
+                            .sort((a, b) => a.belongsToAssignedTeam === b.belongsToAssignedTeam ? 0 : a.belongsToAssignedTeam ? -1 : 1)
+                            .map((m) => (
+                              <SelectItem key={m.userId} value={m.userId}>
+                                <div className="flex items-center justify-between w-full gap-2">
+                                  <span>{m.fullName}</span>
+                                  {m.belongsToAssignedTeam && (
+                                    <span className="text-[8px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider ml-2">Team</span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="labels" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Labels</Label>
+                      <Input
+                        id="labels"
+                        value={labels}
+                        onChange={(e) => setLabels(e.target.value)}
+                        placeholder="frontend, bug"
+                        className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground"
+                        disabled={loading}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="points" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Points</Label>
+                      <Input
+                        id="points"
+                        type="number"
+                        min={0}
+                        value={points}
+                        onChange={(e) => setPoints(e.target.value)}
+                        placeholder="3"
+                        className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <DialogFooter className="p-6 pt-2">
@@ -227,7 +316,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                   <Button 
                     type="submit" 
                     className="bg-primary hover:opacity-90 text-primary-foreground rounded-xl px-8"
-                    disabled={loading}
+                    disabled={loading || !canCreate}
                   >
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Task"}
                   </Button>

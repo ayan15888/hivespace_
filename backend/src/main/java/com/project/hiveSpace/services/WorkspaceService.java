@@ -6,10 +6,16 @@ import com.project.hiveSpace.dto.WorkspaceResponse;
 import com.project.hiveSpace.models.Tenant;
 import com.project.hiveSpace.models.Workspace;
 import com.project.hiveSpace.models.WorkspaceMember;
+import com.project.hiveSpace.models.WorkspaceMemberRole;
+import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.repository.TenantRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
 import com.project.hiveSpace.repository.WorkspaceRepository;
+import com.project.hiveSpace.security.RbacService;
+import com.project.hiveSpace.models.TenantMemberRole;
+import com.project.hiveSpace.models.ResourceType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,9 +31,29 @@ public class WorkspaceService {
     private final WorkspaceRepository workspaceRepository;
     private final TenantRepository tenantRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final RbacService rbacService;
+
+    private User getCurrentUser() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof User) {
+            return (User) principal;
+        }
+        throw new IllegalStateException("User not authenticated");
+    }
 
     @Transactional
     public WorkspaceResponse createWorkspace(WorkspaceRequest request) {
+        User currentUser = getCurrentUser();
+
+        UUID currentTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (currentTenantId == null || !currentTenantId.equals(request.getTenantId())) {
+            throw new SecurityException("Access denied: Cannot create workspace in a different organization");
+        }
+
+        if (!rbacService.hasTenantRole(request.getTenantId(), TenantMemberRole.ADMIN)) {
+            throw new SecurityException("Access denied: Only organization admins and owners can create workspaces");
+        }
+
         Tenant tenant = tenantRepository.findById(request.getTenantId())
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
@@ -41,11 +67,22 @@ public class WorkspaceService {
                 .name(request.getName())
                 .description(request.getDescription())
                 .tenant(tenant)
+                .createdBy(currentUser)
+                .membersCount(1) // Creator is included
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
 
         Workspace savedWorkspace = workspaceRepository.save(workspace);
+
+        // Add creator as the first workspace member with ADMIN role
+        WorkspaceMember creatorMember = WorkspaceMember.builder()
+                .workspace(savedWorkspace)
+                .user(currentUser)
+                .role(WorkspaceMemberRole.ADMIN)
+                .joinedAt(new Date())
+                .build();
+        workspaceMemberRepository.save(creatorMember);
 
         // Increment workspaces count on tenant
         tenant.setWorkspacesCount(tenant.getWorkspacesCount() + 1);
@@ -55,6 +92,10 @@ public class WorkspaceService {
     }
 
     public List<WorkspaceResponse> getWorkspacesByTenant(UUID tenantId) {
+        if (!rbacService.hasTenantRole(tenantId, TenantMemberRole.MEMBER)) {
+            throw new SecurityException("Access denied: Must be a member of the organization to list its workspaces");
+        }
+
         if (!tenantRepository.existsById(tenantId)) {
             throw new IllegalArgumentException("Tenant not found");
         }
@@ -79,23 +120,30 @@ public class WorkspaceService {
 
     @Transactional(readOnly = true)
     public List<WorkspaceMemberResponse> getWorkspaceMembers(UUID workspaceId) {
+        rbacService.verifyResourceBelongsToTenant(workspaceId, ResourceType.WORKSPACE);
+        if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.VIEWER)) {
+            throw new SecurityException("Access denied: Must be a workspace member to view its member directory");
+        }
+
         if (!workspaceRepository.existsById(workspaceId)) {
             throw new IllegalArgumentException("Workspace not found");
         }
 
+        boolean includeEmail = rbacService.canAdminWorkspace(workspaceId);
+
         return workspaceMemberRepository.findAllByWorkspaceId(workspaceId)
                 .stream()
-                .map(this::mapToWorkspaceMemberResponse)
+                .map(member -> mapToWorkspaceMemberResponse(member, includeEmail))
                 .collect(Collectors.toList());
     }
 
-    private WorkspaceMemberResponse mapToWorkspaceMemberResponse(WorkspaceMember member) {
+    private WorkspaceMemberResponse mapToWorkspaceMemberResponse(WorkspaceMember member, boolean includeEmail) {
         return WorkspaceMemberResponse.builder()
                 .id(member.getId())
                 .workspaceId(member.getWorkspace().getId())
                 .userId(member.getUser().getId())
                 .username(member.getUser().getUsername())
-                .email(member.getUser().getEmail())
+                .email(includeEmail ? member.getUser().getEmail() : null)
                 .fullName(member.getUser().getFullName())
                 .avatarUrl(member.getUser().getAvatarUrl())
                 .role(member.getRole())

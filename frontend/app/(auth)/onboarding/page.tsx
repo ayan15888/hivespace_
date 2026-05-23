@@ -321,7 +321,7 @@ export default function OnboardingPage() {
                   <CheckCircle2 className="h-4.5 w-4.5 text-emerald-400 shrink-0 mt-0.5" />
                   <div className="text-[11px] leading-relaxed">
                     <span className="text-emerald-400 font-semibold uppercase tracking-wider block text-[9px] mb-0.5">VALID LINK DETECTED</span>
-                    You are joining <strong className="text-white">{inviteDetails.tenantName}</strong> as a <span className="text-[#7C5CFC] font-semibold">{inviteDetails.role}</span>.
+                    You are joining <strong className="text-white">{inviteDetails.tenantName}</strong> as a <span className="text-[#7C5CFC] font-semibold">{inviteDetails.tenantRole || inviteDetails.role}</span>.
                   </div>
                 </div>
               )}

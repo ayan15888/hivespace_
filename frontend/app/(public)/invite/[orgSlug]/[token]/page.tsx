@@ -373,6 +373,11 @@ export default function InviteAcceptancePage() {
                   <Badge variant="outline" className="bg-[#7C5CFC]/5 border-[#7C5CFC]/20 text-[#7C5CFC] text-[9px] py-0.5 rounded-sm">
                     {inviteDetails.workspaceName || "Default Workspace"}
                   </Badge>
+                  {inviteDetails.workspaceIds && inviteDetails.workspaceIds.length > 1 && (
+                    <Badge variant="outline" className="bg-[#7C5CFC]/5 border-[#7C5CFC]/10 text-zinc-400 text-[9px] py-0.5 rounded-sm">
+                      + {inviteDetails.workspaceIds.length - 1} other workspace{inviteDetails.workspaceIds.length > 2 ? "s" : ""}
+                    </Badge>
+                  )}
                   {inviteDetails.teamName && (
                     <>
                       <ChevronRight className="h-3 w-3 text-zinc-600" />
@@ -380,6 +385,11 @@ export default function InviteAcceptancePage() {
                         {inviteDetails.teamName}
                       </Badge>
                     </>
+                  )}
+                  {inviteDetails.teamIds && inviteDetails.teamIds.length > 1 && (
+                    <Badge variant="outline" className="bg-emerald-500/5 border-emerald-500/10 text-zinc-400 text-[9px] py-0.5 rounded-sm">
+                      + {inviteDetails.teamIds.length - 1} other team{inviteDetails.teamIds.length > 2 ? "s" : ""}
+                    </Badge>
                   )}
                 </div>
               </div>
@@ -498,13 +508,31 @@ export default function InviteAcceptancePage() {
 
               {/* Progress seat summary info */}
               <div className="bg-zinc-950/50 border border-white/[0.04] rounded-xl p-3.5 space-y-2">
-                <div>
-                  <div className="flex items-center justify-between text-[9px] text-zinc-500 mb-1">
-                    <span className="flex items-center gap-1"><Users className="h-3 w-3 text-[#7C5CFC]" /> Workspace Role</span>
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between text-[9px] text-zinc-500">
+                    <span className="flex items-center gap-1"><Users className="h-3 w-3 text-[#7C5CFC]" /> Organization Role</span>
                     <Badge className="bg-[#7C5CFC]/10 border-[#7C5CFC]/20 text-[#7C5CFC] text-[8px] font-bold uppercase rounded-sm px-1.5 py-0.2">
-                      {inviteDetails.role}
+                      {inviteDetails.tenantRole || inviteDetails.role}
                     </Badge>
                   </div>
+                  {inviteDetails.workspaceName && (
+                    <div className="flex items-center justify-between text-[9px] text-zinc-500">
+                      <span className="flex items-center gap-1"><Building2 className="h-3 w-3 text-blue-400" /> Workspace to join</span>
+                      <span className="font-mono text-zinc-300 font-bold">
+                        {inviteDetails.workspaceName}
+                        {inviteDetails.workspaceIds && inviteDetails.workspaceIds.length > 1 && ` (+ ${inviteDetails.workspaceIds.length - 1} others)`}
+                      </span>
+                    </div>
+                  )}
+                  {inviteDetails.teamName && (
+                    <div className="flex items-center justify-between text-[9px] text-zinc-500">
+                      <span className="flex items-center gap-1"><Users className="h-3 w-3 text-emerald-400" /> Team to join</span>
+                      <span className="font-mono text-zinc-300 font-bold">
+                        {inviteDetails.teamName}
+                        {inviteDetails.teamIds && inviteDetails.teamIds.length > 1 && ` (+ ${inviteDetails.teamIds.length - 1} others)`}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-[9px] text-zinc-500">
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-orange-400" /> Seats Claimed</span>
                     <span className="font-mono text-zinc-300 font-bold">{inviteDetails.currentUses} / {inviteDetails.maxUses} claimed</span>
@@ -708,7 +736,7 @@ export default function InviteAcceptancePage() {
 
               <h1 className="text-xl font-bold text-white text-center tracking-tight">Joined Workspace! 🎉</h1>
               <p className="text-xs text-zinc-400 mt-1.5 text-center max-w-[280px] leading-relaxed">
-                You are now a registered member of <span className="text-white font-semibold">{inviteDetails.tenantName}</span> with the role of <span className="text-[#7C5CFC] font-semibold">{inviteDetails.role}</span>.
+                You are now a registered member of <span className="text-white font-semibold">{inviteDetails.tenantName}</span> with the role of <span className="text-[#7C5CFC] font-semibold">{inviteDetails.tenantRole || inviteDetails.role}</span>.
               </p>
 
               <div className="w-full mt-6 space-y-2.5">

@@ -57,21 +57,21 @@ export default function CapabilityMatrix({
                       <button
                         onClick={() => handleTogglePermission(row.action, role.name)}
                         className={cn(
-                          "mx-auto flex items-center justify-center h-6 w-12 rounded-full border transition-all duration-300 cursor-pointer relative",
+                          "mx-auto flex items-center h-6 w-11 rounded-full border transition-all duration-300 cursor-pointer relative p-0.5 outline-none focus:ring-1 focus:ring-[#7C5CFC]/30",
                           isGranted 
                             ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25" 
-                            : "bg-zinc-900 border-zinc-800 text-zinc-650 hover:bg-zinc-850/80"
+                            : "bg-zinc-900 border-zinc-800 text-zinc-600 hover:bg-zinc-850/80"
                         )}
                         title={`${role.label}: ${isGranted ? "Granted" : "Blocked"}`}
                       >
                         <div className={cn(
-                          "h-3.5 w-3.5 rounded-full transition-transform duration-300 flex items-center justify-center",
-                          isGranted ? "transform translate-x-2 bg-emerald-400" : "transform -translate-x-2 bg-zinc-600"
+                          "h-4 w-4 rounded-full transition-transform duration-300 flex items-center justify-center transform",
+                          isGranted ? "translate-x-5 bg-emerald-400" : "translate-x-0 bg-zinc-600"
                         )}>
                           {isGranted ? (
-                            <Check className="h-2 w-2 text-[#1C1B1E] stroke-[3]" />
+                            <Check className="h-2.5 w-2.5 text-[#1C1B1E] stroke-[3.5]" />
                           ) : (
-                            <X className="h-2 w-2 text-zinc-300 stroke-[3]" />
+                            <X className="h-2.5 w-2.5 text-zinc-300 stroke-[3.5]" />
                           )}
                         </div>
                       </button>

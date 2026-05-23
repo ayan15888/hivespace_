@@ -9,6 +9,7 @@ interface TaskState {
   fetchTasks: (projectId?: string) => Promise<void>
   addTask: (task: TaskResponse) => void
   updateTask: (task: TaskResponse) => void
+  removeTask: (taskId: string) => void
   setTasks: (tasks: TaskResponse[]) => void
 }
 
@@ -40,6 +41,12 @@ export const useTaskStore = create<TaskState>()(
           tasks: state.tasks.map((t) =>
             t.id === updatedTask.id ? updatedTask : t
           ),
+        }))
+      },
+
+      removeTask: (taskId) => {
+        set((state) => ({
+          tasks: state.tasks.filter((t) => t.id !== taskId),
         }))
       },
 

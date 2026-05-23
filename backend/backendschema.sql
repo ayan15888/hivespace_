@@ -10,6 +10,20 @@ CREATE TABLE public.invitation_attempts (
   CONSTRAINT invitation_attempts_pkey PRIMARY KEY (id),
   CONSTRAINT invitation_attempts_invitation_id_fkey FOREIGN KEY (invitation_id) REFERENCES public.invitations(id)
 );
+CREATE TABLE public.invitation_teams (
+  invitation_id uuid NOT NULL,
+  team_id uuid NOT NULL,
+  CONSTRAINT invitation_teams_pkey PRIMARY KEY (invitation_id, team_id),
+  CONSTRAINT invitation_teams_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT invitation_teams_invitation_id_fkey FOREIGN KEY (invitation_id) REFERENCES public.invitations(id)
+);
+CREATE TABLE public.invitation_workspaces (
+  invitation_id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  CONSTRAINT invitation_workspaces_pkey PRIMARY KEY (invitation_id, workspace_id),
+  CONSTRAINT invitation_workspaces_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
+  CONSTRAINT invitation_workspaces_invitation_id_fkey FOREIGN KEY (invitation_id) REFERENCES public.invitations(id)
+);
 CREATE TABLE public.invitations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   token character varying NOT NULL UNIQUE,
@@ -18,7 +32,7 @@ CREATE TABLE public.invitations (
   workspace_id uuid,
   team_id uuid,
   inviter_id uuid NOT NULL,
-  role character varying NOT NULL DEFAULT 'MEMBER'::character varying,
+  tenant_role character varying NOT NULL DEFAULT 'MEMBER'::character varying,
   max_uses integer NOT NULL DEFAULT 1,
   current_uses integer NOT NULL DEFAULT 0,
   status character varying NOT NULL DEFAULT 'ACTIVE'::character varying CHECK (status::text = ANY (ARRAY['ACTIVE'::character varying, 'EXPIRED'::character varying, 'EXHAUSTED'::character varying, 'REVOKED'::character varying]::text[])),
@@ -41,6 +55,16 @@ CREATE TABLE public.project_members (
   CONSTRAINT project_members_pkey PRIMARY KEY (id),
   CONSTRAINT project_members_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
   CONSTRAINT project_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.project_teams (
+  project_id uuid NOT NULL,
+  team_id uuid NOT NULL,
+  assigned_at timestamp without time zone NOT NULL DEFAULT now(),
+  assigned_by uuid,
+  CONSTRAINT project_teams_pkey PRIMARY KEY (project_id, team_id),
+  CONSTRAINT project_teams_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT project_teams_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT project_teams_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.users(id)
 );
 CREATE TABLE public.projects (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -120,14 +144,12 @@ CREATE TABLE public.teams (
   name character varying NOT NULL,
   description character varying,
   workspace_id uuid NOT NULL,
-  project_id uuid,
   created_by uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
   members_count integer NOT NULL,
   CONSTRAINT teams_pkey PRIMARY KEY (id),
   CONSTRAINT teams_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
-  CONSTRAINT teams_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
   CONSTRAINT teams_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );
 CREATE TABLE public.tenant_members (

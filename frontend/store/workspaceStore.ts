@@ -1,14 +1,17 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { WorkspaceResponse, getWorkspacesByTenant } from "@/lib/api/workspaces";
+import { WorkspaceRole } from "@/types/roles";
 
 interface WorkspaceState {
   workspaces: WorkspaceResponse[];
   activeWorkspace: WorkspaceResponse | null;
+  workspaceRole: WorkspaceRole | null;
   loading: boolean;
   error: string | null;
   fetchWorkspaces: (orgId: string) => Promise<void>;
   setActiveWorkspace: (workspace: WorkspaceResponse | null) => void;
+  setWorkspaceRole: (role: WorkspaceRole | null) => void;
   addWorkspace: (workspace: WorkspaceResponse) => void;
 }
 
@@ -17,6 +20,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
     (set, get) => ({
       workspaces: [],
       activeWorkspace: null,
+      workspaceRole: null,
       loading: false,
       error: null,
 
@@ -34,8 +38,10 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         }
       },
 
-      setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),
+       setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),
       
+      setWorkspaceRole: (role) => set({ workspaceRole: role }),
+
       addWorkspace: (workspace) => {
         set((state) => ({ workspaces: [...state.workspaces, workspace] }));
       },
