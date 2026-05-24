@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 // import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
-import java.util.List;
+// import java.util.List;
 
 @Service("rbac")
 @RequiredArgsConstructor
@@ -27,7 +27,7 @@ public class RbacService {
     private final TeamRepository teamRepository;
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
-    private final ProjectTeamRepository projectTeamRepository;
+    // private final ProjectTeamRepository projectTeamRepository;
     // private final TenantRepository tenantRepository;
 
     public User getCurrentUser() {
@@ -87,43 +87,17 @@ public class RbacService {
         User user = getCurrentUser();
         if (user == null || projectId == null || requiredRole == null) return false;
 
-        boolean hasExplicit = projectMemberRepository.findByProjectIdAndUserId(projectId, user.getId())
+        return projectMemberRepository.findByProjectIdAndUserId(projectId, user.getId())
                 .map(member -> projectRank(member.getRole()) >= projectRank(requiredRole))
                 .orElse(false);
-
-        if (hasExplicit) return true;
-
-        if (projectRank(ProjectMemberRole.MEMBER) >= projectRank(requiredRole)) {
-            List<ProjectTeam> projectTeams = projectTeamRepository.findByProjectId(projectId);
-            for (ProjectTeam pt : projectTeams) {
-                if (teamMemberRepository.findByTeamIdAndUserId(pt.getTeam().getId(), user.getId()).isPresent()) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
     
     public boolean hasProjectRoleForUser(UUID userId, UUID projectId, ProjectMemberRole requiredRole) {
         if (userId == null || projectId == null || requiredRole == null) return false;
 
-        boolean hasExplicit = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+        return projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .map(member -> projectRank(member.getRole()) >= projectRank(requiredRole))
                 .orElse(false);
-
-        if (hasExplicit) return true;
-
-        if (projectRank(ProjectMemberRole.MEMBER) >= projectRank(requiredRole)) {
-            List<ProjectTeam> projectTeams = projectTeamRepository.findByProjectId(projectId);
-            for (ProjectTeam pt : projectTeams) {
-                if (teamMemberRepository.findByTeamIdAndUserId(pt.getTeam().getId(), userId).isPresent()) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
     
     public boolean isProjectLead(UUID projectId) {
