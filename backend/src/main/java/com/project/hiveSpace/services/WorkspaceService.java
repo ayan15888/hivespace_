@@ -14,6 +14,7 @@ import com.project.hiveSpace.repository.WorkspaceRepository;
 import com.project.hiveSpace.security.RbacService;
 import com.project.hiveSpace.models.TenantMemberRole;
 import com.project.hiveSpace.models.ResourceType;
+import com.project.hiveSpace.exceptions.ForbiddenException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -47,11 +48,11 @@ public class WorkspaceService {
 
         UUID currentTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
         if (currentTenantId == null || !currentTenantId.equals(request.getTenantId())) {
-            throw new SecurityException("Access denied: Cannot create workspace in a different organization");
+            throw new ForbiddenException("Access denied: Cannot create workspace in a different organization");
         }
 
         if (!rbacService.hasTenantRole(request.getTenantId(), TenantMemberRole.ADMIN)) {
-            throw new SecurityException("Access denied: Only organization admins and owners can create workspaces");
+            throw new ForbiddenException("Access denied: Only organization admins and owners can create workspaces");
         }
 
         Tenant tenant = tenantRepository.findById(request.getTenantId())
@@ -94,7 +95,7 @@ public class WorkspaceService {
         }
 
         if (!rbacService.hasTenantRole(tenantId, TenantMemberRole.MEMBER)) {
-            throw new SecurityException("Access denied: Must be a member of the organization to list its workspaces");
+            throw new ForbiddenException("Access denied: Must be a member of the organization to list its workspaces");
         }
 
         if (!tenantRepository.existsById(tenantId)) {
@@ -123,7 +124,7 @@ public class WorkspaceService {
     public List<WorkspaceMemberResponse> getWorkspaceMembers(UUID workspaceId) {
         rbacService.verifyResourceBelongsToTenant(workspaceId, ResourceType.WORKSPACE);
         if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.VIEWER)) {
-            throw new SecurityException("Access denied: Must be a workspace member to view its member directory");
+            throw new ForbiddenException("Access denied: Must be a workspace member to view its member directory");
         }
 
         if (!workspaceRepository.existsById(workspaceId)) {

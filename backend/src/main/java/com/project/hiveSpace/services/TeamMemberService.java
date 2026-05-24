@@ -12,6 +12,9 @@ import com.project.hiveSpace.repository.TeamRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
 import com.project.hiveSpace.security.RbacService;
+import com.project.hiveSpace.exceptions.DomainValidationException;
+import com.project.hiveSpace.exceptions.ForbiddenException;
+import com.project.hiveSpace.exceptions.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,11 +38,11 @@ public class TeamMemberService {
     public List<TeamMemberResponse> getMembersByTeam(UUID teamId) {
         rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+                .orElseThrow(() -> new NotFoundException("Team not found"));
 
         UUID workspaceId = team.getWorkspace().getId();
         if (!rbacService.hasTeamRole(teamId, TeamMemberRole.MEMBER) && !rbacService.canAdminWorkspace(workspaceId)) {
-            throw new SecurityException("Access denied: Must be a team member or workspace admin");
+            throw new ForbiddenException("Access denied: Must be a team member or workspace admin");
         }
 
         return teamMemberRepository.findAllByTeamId(teamId)
@@ -52,19 +55,19 @@ public class TeamMemberService {
     public TeamMemberResponse addMemberToTeam(UUID teamId, TeamMemberRequest request) {
         rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+                .orElseThrow(() -> new NotFoundException("Team not found"));
 
         UUID workspaceId = team.getWorkspace().getId();
         if (!rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
-            throw new SecurityException("Access denied: Only team leads and workspace admins can add members");
+            throw new ForbiddenException("Access denied: Only team leads and workspace admins can add members");
         }
 
         User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
 
         boolean isInWorkspace = workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, request.getUserId());
         if (!isInWorkspace) {
-            throw new SecurityException("User must be a workspace member before joining a team");
+            throw new DomainValidationException("User must be a workspace member before joining a team");
         }
 
         if (teamMemberRepository.existsByTeamAndUser(team, user)) {
@@ -89,17 +92,17 @@ public class TeamMemberService {
     public TeamMemberResponse updateMemberRole(UUID teamId, UUID userId, TeamMemberRole role) {
         rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         TeamMember teamMember = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+                .orElseThrow(() -> new NotFoundException("Membership not found"));
 
         Team team = teamMember.getTeam();
         UUID workspaceId = team.getWorkspace().getId();
         if (!rbacService.hasTeamRole(teamId, TeamMemberRole.LEAD) && !rbacService.canAdminWorkspace(workspaceId)) {
-            throw new SecurityException("Access denied: Only team leads and workspace admins can update roles");
+            throw new ForbiddenException("Access denied: Only team leads and workspace admins can update roles");
         }
 
         if (teamMember.getRole() == TeamMemberRole.LEAD && role != TeamMemberRole.LEAD) {
             if (isLastLead(teamId, userId)) {
-                throw new SecurityException("Cannot demote the last team lead");
+                throw new DomainValidationException("Cannot demote the last team lead");
             }
         }
 
@@ -112,13 +115,13 @@ public class TeamMemberService {
     public void removeMemberFromTeam(UUID teamId, UUID userId) {
         rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+                .orElseThrow(() -> new NotFoundException("Team not found"));
 
         UUID workspaceId = team.getWorkspace().getId();
 
         User currentUser = rbacService.getCurrentUser();
         if (currentUser == null) {
-            throw new SecurityException("User not authenticated");
+            throw new ForbiddenException("User not authenticated");
         }
         UUID currentUserId = currentUser.getId();
 
@@ -127,22 +130,22 @@ public class TeamMemberService {
         boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
 
         if (!isSelf && !isTeamLead && !isWorkspaceAdmin) {
-            throw new SecurityException("Access denied: Only team leads, workspace admins, or the members themselves can remove members");
+            throw new ForbiddenException("Access denied: Only team leads, workspace admins, or the members themselves can remove members");
         }
 
         if (isLastLead(teamId, userId)) {
-            throw new SecurityException("Cannot remove the last team lead");
+            throw new DomainValidationException("Cannot remove the last team lead");
         }
 
         TeamMember teamMember = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+                .orElseThrow(() -> new NotFoundException("Membership not found"));
 
         teamMemberRepository.delete(teamMember);
     }
 
     private boolean isLastLead(UUID teamId, UUID userId) {
         TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
+                .orElseThrow(() -> new NotFoundException("Membership not found"));
 
         if (member.getRole() != TeamMemberRole.LEAD) return false;
 

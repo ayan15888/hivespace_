@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
+import com.project.hiveSpace.exceptions.ForbiddenException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -181,7 +182,7 @@ class InvitationServiceTests {
         when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(false);
 
-        SecurityException exception = assertThrows(SecurityException.class, () ->
+        ForbiddenException exception = assertThrows(ForbiddenException.class, () ->
                 invitationService.createInvite(request)
         );
 
@@ -286,7 +287,7 @@ class InvitationServiceTests {
 
         when(rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.MEMBER)).thenReturn(false);
 
-        SecurityException exception = assertThrows(SecurityException.class, () ->
+        ForbiddenException exception = assertThrows(ForbiddenException.class, () ->
                 invitationService.createInvite(request)
         );
 

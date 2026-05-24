@@ -20,6 +20,9 @@ import com.project.hiveSpace.repository.WorkspaceMemberRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.security.RbacService;
+import com.project.hiveSpace.exceptions.ForbiddenException;
+import com.project.hiveSpace.exceptions.DomainValidationException;
+import com.project.hiveSpace.exceptions.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,11 +52,11 @@ public class ProjectService {
     public ProjectResponse createProject(UUID workspaceId, ProjectRequest request, User creator) {
         rbacService.verifyResourceBelongsToTenant(workspaceId, ResourceType.WORKSPACE);
         if (!rbacService.canCreateProject(workspaceId)) {
-            throw new SecurityException("Access denied: You do not have permission to create a project in this workspace");
+            throw new ForbiddenException("Access denied: You do not have permission to create a project in this workspace");
         }
 
         Workspace workspace = workspaceRepository.findById(workspaceId)
-                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+                .orElseThrow(() -> new NotFoundException("Workspace not found"));
 
         if (projectRepository.existsByNameAndWorkspace(request.getName(), workspace)) {
             throw new IllegalArgumentException(
@@ -67,7 +70,7 @@ public class ProjectService {
             boolean isWorkspaceMember = workspaceMemberRepository
                     .existsByWorkspaceIdAndUserId(workspaceId, leadUserId);
             if (!isWorkspaceMember) {
-                throw new SecurityException("Assigned lead must be a workspace member first");
+                throw new DomainValidationException("Assigned lead must be a workspace member first");
             }
         }
 
@@ -88,7 +91,7 @@ public class ProjectService {
 
         if (leadUserId != null) {
             User leadUser = userRepository.findById(leadUserId)
-                    .orElseThrow(() -> new IllegalArgumentException("Lead user not found"));
+                    .orElseThrow(() -> new NotFoundException("Lead user not found"));
 
             ProjectMember leadMember = ProjectMember.builder()
                     .project(savedProject)
@@ -124,15 +127,15 @@ public class ProjectService {
     public List<ProjectResponse> getProjectsByWorkspace(UUID workspaceId) {
         rbacService.verifyResourceBelongsToTenant(workspaceId, ResourceType.WORKSPACE);
         if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.VIEWER)) {
-            throw new SecurityException("Access denied: You do not have permission to view projects in this workspace");
+            throw new ForbiddenException("Access denied: You do not have permission to view projects in this workspace");
         }
 
         Workspace workspace = workspaceRepository.findById(workspaceId)
-                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+                .orElseThrow(() -> new NotFoundException("Workspace not found"));
 
         User currentUser = rbacService.getCurrentUser();
         if (currentUser == null) {
-            throw new SecurityException("User not authenticated");
+            throw new ForbiddenException("User not authenticated");
         }
 
         List<Project> allProjects = projectRepository.findAllByWorkspace(workspace);
@@ -161,7 +164,7 @@ public class ProjectService {
         rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+                .orElseThrow(() -> new NotFoundException("Project not found"));
 
         UUID workspaceId = project.getWorkspace().getId();
 
@@ -169,15 +172,15 @@ public class ProjectService {
         boolean isLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
         boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
         if (!isLead && !isWorkspaceAdmin) {
-            throw new SecurityException("Access denied: Only project leads and workspace admins can assign teams");
+            throw new ForbiddenException("Access denied: Only project leads and workspace admins can assign teams");
         }
 
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+                .orElseThrow(() -> new NotFoundException("Team not found"));
 
         // Validate team and project are in the same workspace
         if (!team.getWorkspace().getId().equals(workspaceId)) {
-            throw new IllegalArgumentException("Team and project must belong to the same workspace");
+            throw new DomainValidationException("Team and project must belong to the same workspace");
         }
 
         // Check if already assigned
@@ -218,11 +221,11 @@ public class ProjectService {
     public List<TeamResponse> getAssignedTeams(UUID projectId) {
         rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+                .orElseThrow(() -> new NotFoundException("Project not found"));
 
         UUID workspaceId = project.getWorkspace().getId();
         if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER) && !rbacService.canAdminWorkspace(workspaceId)) {
-            throw new SecurityException("Access denied: Must be a project viewer or workspace admin to see assigned teams");
+            throw new ForbiddenException("Access denied: Must be a project viewer or workspace admin to see assigned teams");
         }
 
         return projectTeamRepository.findByProjectId(projectId)
@@ -236,7 +239,7 @@ public class ProjectService {
         rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+                .orElseThrow(() -> new NotFoundException("Project not found"));
 
         UUID workspaceId = project.getWorkspace().getId();
 
@@ -244,7 +247,7 @@ public class ProjectService {
         boolean isLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
         boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
         if (!isLead && !isWorkspaceAdmin) {
-            throw new SecurityException("Access denied: Only project leads and workspace admins can unassign teams");
+            throw new ForbiddenException("Access denied: Only project leads and workspace admins can unassign teams");
         }
 
         //Team team = teamRepository.findById(teamId).orElseThrow(() -> new IllegalArgumentException("Team not found"));

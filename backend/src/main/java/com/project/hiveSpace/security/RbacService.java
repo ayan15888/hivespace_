@@ -2,6 +2,7 @@ package com.project.hiveSpace.security;
 
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
+import com.project.hiveSpace.exceptions.ForbiddenException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -353,16 +354,42 @@ public class RbacService {
         }
 
         if (!belongs) {
-            throw new SecurityException("Resource does not belong to the caller's organization");
+            throw new ForbiddenException("Resource does not belong to the caller's organization");
         }
     }
 
     public void verifyResourceBelongsToTenant(UUID resourceId, ResourceType type) {
         User user = getCurrentUser();
         if (user == null) {
-            throw new SecurityException("User is not authenticated");
+            throw new ForbiddenException("User is not authenticated");
         }
 
+        UUID tenantId = null;
+        if (request != null) {
+            String tenantIdStr = request.getHeader("X-Tenant-Id");
+            if (tenantIdStr == null) {
+                tenantIdStr = request.getHeader("X-Tenant-ID");
+            }
+            if (tenantIdStr != null && !tenantIdStr.isBlank()) {
+                try {
+                    tenantId = UUID.fromString(tenantIdStr);
+                } catch (IllegalArgumentException e) {
+                    // Invalid UUID format in header
+                }
+            }
+        }
+
+        if (tenantId == null) {
+            if (user.getTenant() == null) {
+                throw new ForbiddenException("User is not associated with an organization");
+            }
+            tenantId = user.getTenant().getId();
+        } else {
+            // Secure validation: verify the authenticated user is actually a member of the requested tenant
+            boolean isMember = tenantMemberRepository.findByTenantIdAndUserId(tenantId, user.getId()).isPresent();
+            if (!isMember) {
+                throw new ForbiddenException("User is not associated with this organization");
+            }
         if (user.getTenant() == null) {
             throw new SecurityException("User is not associated with an organization");
         }
