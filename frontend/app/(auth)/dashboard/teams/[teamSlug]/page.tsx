@@ -151,7 +151,7 @@ export default function BackendTeamPage() {
                 transition={{ duration: 0.15, ease: "easeOut" }}
               >
                 {activeTab === "overview" && <OverviewTab />}
-                {activeTab === "members" && <MembersTab />}
+                {activeTab === "members" && <MembersTab teamId={teamId} />}
                 {activeTab === "tasks" && <TasksTab />}
                 {activeTab === "channels" && <ChannelsTab />}
               </motion.div>

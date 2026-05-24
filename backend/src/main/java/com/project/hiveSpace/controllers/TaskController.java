@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,6 +23,7 @@ public class TaskController {
     private final TaskService taskService;
 
     @PostMapping("/projects/{projectId}/tasks")
+    @PreAuthorize("@rbac.canCreateTask(#projectId)")
     public ResponseEntity<TaskResponse> createTask(
             @PathVariable UUID projectId,
             @Valid @RequestBody TaskRequest request,
@@ -46,6 +48,7 @@ public class TaskController {
     }
 
     @PatchMapping("/tasks/{taskId}/status")
+    @PreAuthorize("@rbac.canEditTask(#taskId)")
     public ResponseEntity<TaskResponse> updateTaskStatus(
             @PathVariable UUID taskId,
             @RequestBody java.util.Map<String, String> body) {
@@ -57,6 +60,7 @@ public class TaskController {
     }
 
     @PutMapping("/tasks/{taskId}")
+    @PreAuthorize("@rbac.canEditTask(#taskId)")
     public ResponseEntity<TaskResponse> updateTask(
             @PathVariable UUID taskId,
             @RequestBody UpdateTaskRequest request,
@@ -65,6 +69,7 @@ public class TaskController {
     }
 
     @DeleteMapping("/tasks/{taskId}")
+    @PreAuthorize("@rbac.canDeleteTask(#taskId)")
     public ResponseEntity<Void> deleteTask(
             @PathVariable UUID taskId,
             @AuthenticationPrincipal User actor) {

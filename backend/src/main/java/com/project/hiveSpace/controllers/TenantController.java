@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.List;
 import java.util.UUID;
 
@@ -45,6 +46,7 @@ public class TenantController {
     }
 
     @PutMapping("/{tenantId}/members/{userId}/role")
+    @PreAuthorize("@rbac.canManageInvite(#tenantId)")
     public ResponseEntity<MemberResponse> updateMemberRole(
             @PathVariable UUID tenantId,
             @PathVariable UUID userId,
@@ -53,6 +55,7 @@ public class TenantController {
     }
 
     @DeleteMapping("/{tenantId}/members/{userId}")
+    @PreAuthorize("@rbac.canManageInvite(#tenantId)")
     public ResponseEntity<Void> removeMember(
             @PathVariable UUID tenantId,
             @PathVariable UUID userId) {

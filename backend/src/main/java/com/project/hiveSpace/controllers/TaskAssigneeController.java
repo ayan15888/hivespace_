@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +27,7 @@ public class TaskAssigneeController {
     }
 
     @PostMapping
+    @PreAuthorize("@rbac.canAddTaskAssignee(#taskId)")
     public ResponseEntity<TaskAssigneeResponse> addAssignee(
             @PathVariable UUID taskId,
             @RequestBody @Valid AddAssigneeRequest request,
@@ -34,6 +36,7 @@ public class TaskAssigneeController {
     }
 
     @PatchMapping("/owner")
+    @PreAuthorize("@rbac.canAddTaskAssignee(#taskId)")
     public ResponseEntity<TaskAssigneeResponse> changeOwner(
             @PathVariable UUID taskId,
             @RequestBody @Valid ChangeOwnerRequest request,
@@ -42,6 +45,7 @@ public class TaskAssigneeController {
     }
 
     @DeleteMapping("/{userId}")
+    @PreAuthorize("@rbac.canRemoveTaskAssignee(#taskId, #userId)")
     public ResponseEntity<Void> removeAssignee(
             @PathVariable UUID taskId,
             @PathVariable UUID userId,

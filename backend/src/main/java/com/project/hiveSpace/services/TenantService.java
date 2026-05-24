@@ -36,16 +36,19 @@ public class TenantService {
     public TenantResponse createTenant(TenantRequest request) {
         User currentUser = getCurrentUser();
 
-        if (tenantRepository.findByName(request.getName()).isPresent()) {
+        String normalizedName = request.getName() != null ? request.getName().trim() : "";
+        String normalizedSlug = request.getSlug() != null ? request.getSlug().toLowerCase().trim() : "";
+
+        if (tenantRepository.findByNameIgnoreCase(normalizedName).isPresent()) {
             throw new IllegalArgumentException("Organization name already exists");
         }
-        if (tenantRepository.findBySlug(request.getSlug()).isPresent()) {
+        if (tenantRepository.findBySlugIgnoreCase(normalizedSlug).isPresent()) {
             throw new IllegalArgumentException("Slug already exists");
         }
 
         Tenant tenant = Tenant.builder()
-                .name(request.getName())
-                .slug(request.getSlug())
+                .name(normalizedName)
+                .slug(normalizedSlug)
                 .ownerEmail(currentUser.getEmail())
                 .plan(request.getPlan())
                 .description(request.getDescription())

@@ -22,9 +22,16 @@ function normalizeStoredToken(raw: string | null | undefined): string | null {
   return t.replace(/^Bearer\s+/i, "").trim() || null;
 }
 
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
+  return null;
+}
+
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
-  const rawToken =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const rawToken = getCookie("token");
   const token = normalizeStoredToken(rawToken);
 
   const headers = {
@@ -61,6 +68,10 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
         "Cannot reach the server (5xx). Make sure Spring Boot is running on BACKEND_URL.";
     }
     throw new Error(message || `Request failed (${response.status})`);
+  }
+
+  if (response.status === 204) {
+    return null;
   }
 
   return response.json();

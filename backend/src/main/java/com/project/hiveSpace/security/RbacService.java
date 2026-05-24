@@ -8,13 +8,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
+import java.util.List;
 
 @Service("rbac")
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class RbacService {
 
+    private final HttpServletRequest request;
     private final TenantMemberRepository tenantMemberRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final ProjectMemberRepository projectMemberRepository;
@@ -24,6 +27,7 @@ public class RbacService {
     private final TeamRepository teamRepository;
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
+    private final ProjectTeamRepository projectTeamRepository;
     // private final TenantRepository tenantRepository;
 
     public User getCurrentUser() {
@@ -83,17 +87,43 @@ public class RbacService {
         User user = getCurrentUser();
         if (user == null || projectId == null || requiredRole == null) return false;
 
-        return projectMemberRepository.findByProjectIdAndUserId(projectId, user.getId())
+        boolean hasExplicit = projectMemberRepository.findByProjectIdAndUserId(projectId, user.getId())
                 .map(member -> projectRank(member.getRole()) >= projectRank(requiredRole))
                 .orElse(false);
+
+        if (hasExplicit) return true;
+
+        if (projectRank(ProjectMemberRole.MEMBER) >= projectRank(requiredRole)) {
+            List<ProjectTeam> projectTeams = projectTeamRepository.findByProjectId(projectId);
+            for (ProjectTeam pt : projectTeams) {
+                if (teamMemberRepository.findByTeamIdAndUserId(pt.getTeam().getId(), user.getId()).isPresent()) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
     
     public boolean hasProjectRoleForUser(UUID userId, UUID projectId, ProjectMemberRole requiredRole) {
         if (userId == null || projectId == null || requiredRole == null) return false;
 
-        return projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+        boolean hasExplicit = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .map(member -> projectRank(member.getRole()) >= projectRank(requiredRole))
                 .orElse(false);
+
+        if (hasExplicit) return true;
+
+        if (projectRank(ProjectMemberRole.MEMBER) >= projectRank(requiredRole)) {
+            List<ProjectTeam> projectTeams = projectTeamRepository.findByProjectId(projectId);
+            for (ProjectTeam pt : projectTeams) {
+                if (teamMemberRepository.findByTeamIdAndUserId(pt.getTeam().getId(), userId).isPresent()) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
     
     public boolean isProjectLead(UUID projectId) {
@@ -172,8 +202,7 @@ public class RbacService {
         return taskRepository.findById(taskId)
                 .map(task -> {
                     UUID projectId = task.getProject().getId();
-                    ProjectMemberRole role = getProjectRole(user.getId(), projectId);
-                    return role != null && projectRank(role) >= projectRank(ProjectMemberRole.MEMBER);
+                    return hasProjectRole(projectId, ProjectMemberRole.MEMBER);
                 })
                 .orElse(false);
     }
@@ -181,8 +210,7 @@ public class RbacService {
     public boolean canViewProject(UUID projectId) {
         User user = getCurrentUser();
         if (user == null || projectId == null) return false;
-        ProjectMemberRole role = getProjectRole(user.getId(), projectId);
-        if (role != null) return true;
+        if (hasProjectRole(projectId, ProjectMemberRole.VIEWER)) return true;
         return projectRepository.findById(projectId)
                 .map(project -> canAdminWorkspace(project.getWorkspace().getId()))
                 .orElse(false);
@@ -197,10 +225,7 @@ public class RbacService {
     }
 
     public boolean canCreateTask(UUID projectId) {
-        User user = getCurrentUser();
-        if (user == null || projectId == null) return false;
-        ProjectMemberRole role = getProjectRole(user.getId(), projectId);
-        return role != null && projectRank(role) >= projectRank(ProjectMemberRole.MEMBER);
+        return hasProjectRole(projectId, ProjectMemberRole.MEMBER);
     }
 
     public boolean canAssignTeamToProject(UUID projectId) {
@@ -360,9 +385,32 @@ public class RbacService {
 
     public void verifyResourceBelongsToTenant(UUID resourceId, ResourceType type) {
         User user = getCurrentUser();
-        if (user == null || user.getTenant() == null) {
-            throw new SecurityException("User is not authenticated or not associated with a tenant");
+        if (user == null) {
+            throw new SecurityException("User is not authenticated");
         }
-        verifyResourceBelongsToTenant(resourceId, type, user.getTenant().getId());
+
+        UUID tenantId = null;
+        if (request != null) {
+            String tenantIdStr = request.getHeader("X-Tenant-Id");
+            if (tenantIdStr == null) {
+                tenantIdStr = request.getHeader("X-Tenant-ID");
+            }
+            if (tenantIdStr != null && !tenantIdStr.isBlank()) {
+                try {
+                    tenantId = UUID.fromString(tenantIdStr);
+                } catch (IllegalArgumentException e) {
+                    // Invalid UUID format in header
+                }
+            }
+        }
+
+        if (tenantId == null) {
+            if (user.getTenant() == null) {
+                throw new SecurityException("User is not associated with an organization");
+            }
+            tenantId = user.getTenant().getId();
+        }
+
+        verifyResourceBelongsToTenant(resourceId, type, tenantId);
     }
 }

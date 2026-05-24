@@ -86,7 +86,13 @@ public class TeamService {
             }
         }
 
-        int initialMembersCount = (leadUserId != null && !leadUserId.equals(creator.getId())) ? 2 : 1;
+        boolean shouldAddCreator = (leadUserId == null || leadUserId.equals(creator.getId()))
+                || (request.getAddCreatorAsMember() != null && request.getAddCreatorAsMember());
+
+        int initialMembersCount = 1;
+        if (leadUserId != null && !leadUserId.equals(creator.getId()) && shouldAddCreator) {
+            initialMembersCount = 2;
+        }
 
         Team team = Team.builder()
                 .name(request.getName())
@@ -112,7 +118,7 @@ public class TeamService {
                     .build();
             teamMemberRepository.save(leadMember);
 
-            if (!leadUserId.equals(creator.getId())) {
+            if (!leadUserId.equals(creator.getId()) && shouldAddCreator) {
                 TeamMember creatorMember = TeamMember.builder()
                         .team(savedTeam)
                         .user(creator)

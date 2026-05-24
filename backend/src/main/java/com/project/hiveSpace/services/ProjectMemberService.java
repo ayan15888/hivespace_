@@ -48,9 +48,39 @@ public class ProjectMemberService {
             throw new SecurityException("Access denied: Must be a project member or workspace admin");
         }
 
-        return projectMemberRepository.findAllByProjectId(projectId)
-                .stream()
+        List<ProjectMember> explicitMembers = projectMemberRepository.findAllByProjectId(projectId);
+        List<ProjectMemberResponse> responses = explicitMembers.stream()
                 .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        Set<UUID> existingUserIds = responses.stream()
+                .map(ProjectMemberResponse::getUserId)
+                .collect(Collectors.toSet());
+
+        List<ProjectTeam> projectTeams = projectTeamRepository.findByProjectId(projectId);
+        for (ProjectTeam pt : projectTeams) {
+            List<TeamMember> teamMembers = teamMemberRepository.findAllByTeamId(pt.getTeam().getId());
+            for (TeamMember tm : teamMembers) {
+                if (!existingUserIds.contains(tm.getUser().getId())) {
+                    ProjectMemberResponse virtualMember = ProjectMemberResponse.builder()
+                            .id(UUID.randomUUID())
+                            .projectId(projectId)
+                            .userId(tm.getUser().getId())
+                            .username(tm.getUser().getUsername())
+                            .email(tm.getUser().getEmail())
+                            .fullName(tm.getUser().getFullName())
+                            .avatarUrl(tm.getUser().getAvatarUrl())
+                            .role(ProjectMemberRole.MEMBER)
+                            .joinedAt(tm.getJoinedAt())
+                            .belongsToAssignedTeam(true)
+                            .build();
+                    responses.add(virtualMember);
+                    existingUserIds.add(tm.getUser().getId());
+                }
+            }
+        }
+
+        return responses.stream()
                 .sorted((m1, m2) -> Boolean.compare(m2.isBelongsToAssignedTeam(), m1.isBelongsToAssignedTeam()))
                 .collect(Collectors.toList());
     }

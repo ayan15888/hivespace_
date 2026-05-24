@@ -4,6 +4,14 @@ import { User } from '@/types/auth';
 import { getCurrentUser, updateProfile as apiUpdateProfile } from '@/lib/api/auth';
 import { gooeyToast } from '@/components/ui/goey-toaster';
 
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+}
+
 interface AuthState {
   user: User | null;
   loading: boolean;
@@ -36,7 +44,6 @@ export const useAuthStore = create<AuthState>()(
       setError: (error) => set({ error }),
 
       login: (token, user) => {
-        localStorage.setItem("token", token);
         document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
         set({ user, isAuthenticated: true, error: null, loading: false });
       },
@@ -44,11 +51,10 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         // Clear all hivespace-related localStorage keys
         if (typeof window !== "undefined") {
-          localStorage.removeItem("token");
           const keysToRemove: string[] = [];
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key && (key.startsWith("hivespace") || key === "token")) {
+            if (key && key.startsWith("hivespace")) {
               keysToRemove.push(key);
             }
           }
@@ -82,7 +88,7 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
 
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        const token = getCookie("token");
         if (!token) {
           set({ user: null, isAuthenticated: false, loading: false });
           return;
@@ -98,7 +104,6 @@ export const useAuthStore = create<AuthState>()(
           // In other cases (e.g. network timeout/Spring Boot offline), we keep the cached user state but set error.
           const isNetworkError = err.message && err.message.includes("Cannot reach the Java API");
           if (!isNetworkError) {
-            localStorage.removeItem("token");
             document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
             set({ user: null, isAuthenticated: false });
           }

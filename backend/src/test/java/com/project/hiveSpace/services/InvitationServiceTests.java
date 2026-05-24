@@ -127,6 +127,7 @@ class InvitationServiceTests {
         request.setProjectId(projectId);
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(true);
         when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
         when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
@@ -181,6 +182,7 @@ class InvitationServiceTests {
         request.setPin("123456");
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(false);
 
         SecurityException exception = assertThrows(SecurityException.class, () ->
@@ -203,6 +205,7 @@ class InvitationServiceTests {
         request.setPin("123456");
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(true);
         when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
         when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
@@ -229,6 +232,7 @@ class InvitationServiceTests {
         request.setPin("123456");
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(true);
         when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
         when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
@@ -255,6 +259,7 @@ class InvitationServiceTests {
         request.setPin("123456");
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(true);
         when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
         when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
@@ -277,6 +282,7 @@ class InvitationServiceTests {
         request.setPin("123456");
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(true);
         when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
         when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
