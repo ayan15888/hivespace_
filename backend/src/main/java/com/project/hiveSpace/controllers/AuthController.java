@@ -71,4 +71,15 @@ public class AuthController {
                 req.getAvatarUrl()
         ));
     }
+
+    @PostMapping("/switch-tenant")
+    public ResponseEntity<UserResponse> switchTenant(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody SwitchTenantRequest req
+    ) {
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(authService.switchTenant(user, req.getTenantId()));
+    }
 }

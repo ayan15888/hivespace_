@@ -10,7 +10,7 @@ import com.project.hiveSpace.security.RbacService;
 import com.project.hiveSpace.exceptions.ForbiddenException;
 import com.project.hiveSpace.exceptions.DomainValidationException;
 import com.project.hiveSpace.exceptions.NotFoundException;
-import com.project.hiveSpace.exceptions.ConflictException;
+// import com.project.hiveSpace.exceptions.ConflictException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -353,7 +353,6 @@ public class TaskService {
             Optional<TaskAssignee> currentOwnerOpt = taskAssigneeRepository.findByTaskAndRole(task, TaskAssigneeRole.OWNER);
             User currentOwner = currentOwnerOpt.isPresent() ? currentOwnerOpt.get().getUser() : null;
 
-<<<<<<< HEAD
             TaskAssignee newAssigneeRecord = TaskAssignee.builder()
                     .task(task)
                     .user(newAssignee)
@@ -371,7 +370,6 @@ public class TaskService {
                     .createdAt(new Date())
                     .build());
             changed = true;
-=======
             if (currentOwner == null || !request.getAssigneeId().equals(currentOwner.getId())) {
                 User newAssignee = userRepository.findById(request.getAssigneeId())
                         .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
@@ -394,7 +392,6 @@ public class TaskService {
                 taskAssigneeRepository.save(newAssigneeRecord);
                 changed = true;
             }
->>>>>>> 5dd753f5e0a3ba669500d2c80679c3ae3fd0ae3f
         }
 
         if (changed) {
@@ -510,12 +507,11 @@ public class TaskService {
             return;
         }
         boolean valid = switch (currentStatus) {
-            case BACKLOG -> newStatus == TaskStatus.TODO || newStatus == TaskStatus.IN_PROGRESS;
             case TODO -> newStatus == TaskStatus.IN_PROGRESS;
             case IN_PROGRESS -> newStatus == TaskStatus.IN_REVIEW || newStatus == TaskStatus.TODO;
             case IN_REVIEW -> newStatus == TaskStatus.DONE || newStatus == TaskStatus.IN_PROGRESS;
             case DONE -> newStatus == TaskStatus.IN_PROGRESS;
-            case CANCELLED -> newStatus == TaskStatus.TODO || newStatus == TaskStatus.BACKLOG;
+            case CANCELLED -> newStatus == TaskStatus.TODO;
         };
         if (!valid) {
             throw new DomainValidationException("Cannot transition task from " + currentStatus + " to " + newStatus);

@@ -17,6 +17,8 @@ import com.project.hiveSpace.models.ResourceType;
 import com.project.hiveSpace.security.RbacService;
 import com.project.hiveSpace.exceptions.DomainValidationException;
 import com.project.hiveSpace.exceptions.ForbiddenException;
+// import com.project.hiveSpace.exceptions.DomainValidationException;
+// import com.project.hiveSpace.exceptions.ForbiddenException;
 import com.project.hiveSpace.exceptions.NotFoundException;
 import com.project.hiveSpace.exceptions.ConflictException;
 import lombok.RequiredArgsConstructor;
@@ -68,6 +70,7 @@ public class ProjectMemberService {
         UUID workspaceId = project.getWorkspace().getId();
         if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER) && !rbacService.canAdminWorkspace(workspaceId)) {
             throw new SecurityException("Access denied: Must be a project member or workspace admin");
+            throw new ForbiddenException("Access denied: Must be a project member or workspace admin");
         }
 
         List<ProjectMemberResponse> responses = new java.util.ArrayList<>();

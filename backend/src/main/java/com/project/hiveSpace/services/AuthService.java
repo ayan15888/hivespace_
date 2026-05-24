@@ -13,6 +13,7 @@ import com.project.hiveSpace.repository.TenantMemberRepository;
 import com.project.hiveSpace.repository.TenantRepository;
 import com.project.hiveSpace.models.Tenant;
 import org.springframework.transaction.annotation.Transactional;
+import com.project.hiveSpace.exceptions.ForbiddenException;
 import java.util.UUID;
 
 @Service
@@ -113,16 +114,15 @@ public class AuthService {
         return userMapper.toResponse(user, null);
     }
 
-<<<<<<< HEAD
     public String refreshToken(User user) {
         return jwtService.generateToken(user);
     }
-=======
     @Transactional
     public UserResponse switchTenant(User currentUser, UUID tenantId) {
         boolean isMember = tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId()).isPresent();
         if (!isMember) {
             throw new SecurityException("Access denied: You are not a member of this organization");
+            throw new ForbiddenException("Access denied: You are not a member of this organization");
         }
 
         Tenant tenant = tenantRepository.findById(tenantId)
@@ -137,6 +137,4 @@ public class AuthService {
         String newJwt = jwtService.generateToken(user);
         return userMapper.toResponse(user, newJwt);
     }
-
->>>>>>> 5dd753f5e0a3ba669500d2c80679c3ae3fd0ae3f
 }

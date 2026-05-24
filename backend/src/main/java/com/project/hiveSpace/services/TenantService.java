@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.project.hiveSpace.exceptions.ForbiddenException;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -150,6 +151,7 @@ public class TenantService {
         UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
         if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
             throw new SecurityException("Access denied: Cannot access members of a different organization");
+            throw new ForbiddenException("Access denied: Cannot access members of a different organization");
         }
 
         Tenant tenant = tenantRepository.findById(tenantId)
@@ -217,6 +219,7 @@ public class TenantService {
         UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
         if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
             throw new SecurityException("Access denied: Cannot update roles in a different organization");
+            throw new ForbiddenException("Access denied: Cannot update roles in a different organization");
         }
 
         Tenant tenant = tenantRepository.findById(tenantId)
@@ -271,6 +274,7 @@ public class TenantService {
         UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
         if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
             throw new SecurityException("Access denied: Cannot remove members from a different organization");
+            throw new ForbiddenException("Access denied: Cannot remove members from a different organization");
         }
 
         Tenant tenant = tenantRepository.findById(tenantId)

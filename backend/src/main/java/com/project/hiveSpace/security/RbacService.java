@@ -392,6 +392,8 @@ public class RbacService {
             }
         if (user.getTenant() == null) {
             throw new SecurityException("User is not associated with an organization");
+        if (user.getTenant() == null) {
+            throw new ForbiddenException("User is not associated with an organization");
         }
         UUID tenantId = user.getTenant().getId();
 

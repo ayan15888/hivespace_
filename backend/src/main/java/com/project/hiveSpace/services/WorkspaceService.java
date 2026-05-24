@@ -100,6 +100,7 @@ public class WorkspaceService {
         UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
         if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
             throw new SecurityException("Access denied: Cannot access workspaces of a different organization");
+            throw new ForbiddenException("Access denied: Cannot access workspaces of a different organization");
         }
 
         if (!rbacService.hasTenantRole(tenantId, TenantMemberRole.MEMBER)) {
