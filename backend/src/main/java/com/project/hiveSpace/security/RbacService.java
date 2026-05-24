@@ -8,7 +8,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.servlet.http.HttpServletRequest;
+// import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import java.util.List;
 
@@ -17,7 +17,7 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class RbacService {
 
-    private final HttpServletRequest request;
+    // private final HttpServletRequest request;
     private final TenantMemberRepository tenantMemberRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final ProjectMemberRepository projectMemberRepository;
@@ -389,33 +389,10 @@ public class RbacService {
             throw new SecurityException("User is not authenticated");
         }
 
-        UUID tenantId = null;
-        if (request != null) {
-            String tenantIdStr = request.getHeader("X-Tenant-Id");
-            if (tenantIdStr == null) {
-                tenantIdStr = request.getHeader("X-Tenant-ID");
-            }
-            if (tenantIdStr != null && !tenantIdStr.isBlank()) {
-                try {
-                    tenantId = UUID.fromString(tenantIdStr);
-                } catch (IllegalArgumentException e) {
-                    // Invalid UUID format in header
-                }
-            }
+        if (user.getTenant() == null) {
+            throw new SecurityException("User is not associated with an organization");
         }
-
-        if (tenantId == null) {
-            if (user.getTenant() == null) {
-                throw new SecurityException("User is not associated with an organization");
-            }
-            tenantId = user.getTenant().getId();
-        } else {
-            // Secure validation: verify the authenticated user is actually a member of the requested tenant
-            boolean isMember = tenantMemberRepository.findByTenantIdAndUserId(tenantId, user.getId()).isPresent();
-            if (!isMember) {
-                throw new SecurityException("User is not associated with this organization");
-            }
-        }
+        UUID tenantId = user.getTenant().getId();
 
         verifyResourceBelongsToTenant(resourceId, type, tenantId);
     }

@@ -147,6 +147,10 @@ public class TenantService {
     @Transactional(readOnly = true)
     public List<MemberResponse> getMembersByTenantId(UUID tenantId) {
         User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot access members of a different organization");
+        }
 
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
@@ -210,6 +214,11 @@ public class TenantService {
     @Transactional
     public MemberResponse updateMemberRole(UUID tenantId, UUID userId, String roleStr) {
         User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot update roles in a different organization");
+        }
+
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
@@ -259,6 +268,11 @@ public class TenantService {
     @Transactional
     public void removeMember(UUID tenantId, UUID userId) {
         User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot remove members from a different organization");
+        }
+
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 

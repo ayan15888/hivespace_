@@ -389,6 +389,11 @@ public class InvitationService {
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public java.util.List<InviteResponse> getInvitationsByTenant(UUID tenantId) {
         User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot view invitations of a different organization");
+        }
+
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 

@@ -87,6 +87,12 @@ public class WorkspaceService {
     }
 
     public List<WorkspaceResponse> getWorkspacesByTenant(UUID tenantId) {
+        User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot access workspaces of a different organization");
+        }
+
         if (!rbacService.hasTenantRole(tenantId, TenantMemberRole.MEMBER)) {
             throw new SecurityException("Access denied: Must be a member of the organization to list its workspaces");
         }
