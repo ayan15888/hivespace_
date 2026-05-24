@@ -1,6 +1,7 @@
 High Priority — Fix After Blockers
 Once the four blockers are resolved, tackle these in order:
-Task identifier generation — replace count-based computation with atomic sequence:
+
+1:Task identifier generation — replace count-based computation with atomic sequence:
 In TaskService.createTask():
   Replace: int count = taskRepository.countByProjectId(projectId) + 1
   With:    int seq = projectRepository.incrementAndGetTaskSequence(projectId)
@@ -12,7 +13,8 @@ In TaskService.createTask():
   int incrementAndGetTaskSequence(@Param("projectId") UUID projectId);
   
   Store this as the task's sequence number and format as "HS-{seq}" in response.
-Status transition validation — add a validator:
+
+2:Status transition validation — add a validator:
 In TaskService.updateTaskStatus():
   Before setting the new status, call:
   validateStatusTransition(currentStatus, newStatus)
@@ -30,7 +32,8 @@ In TaskService.updateTaskStatus():
   
   After setting status, write task_activities row:
   type = STATUS_CHANGED, old_value = currentStatus, new_value = newStatus
-Task activity log types — align with reference:
+
+3: Task activity log types — align with reference:
 Replace these activity type strings in TaskAssigneeService and TaskService:
   "ASSIGNED_COLLABORATOR"  → "COLLABORATOR_ADDED"
   "ASSIGNED_REVIEWER"      → "REVIEWER_ADDED"
@@ -38,7 +41,8 @@ Replace these activity type strings in TaskAssigneeService and TaskService:
   "UPDATED"                → specific type per field changed
                              (PRIORITY_CHANGED, DUE_DATE_CHANGED, etc.)
   Keep: "CREATED", "OWNER_CHANGED"
-Restrict AddAssigneeRequest to exclude OWNER — one line fix:
+
+4:Restrict AddAssigneeRequest to exclude OWNER — one line fix:
 In AddAssigneeRequest.java validation:
   role must be in {COLLABORATOR, REVIEWER}
   If OWNER is passed: throw DomainValidationException 400
@@ -46,7 +50,8 @@ In AddAssigneeRequest.java validation:
   
   OWNER assignment only happens via:
   PATCH /api/tasks/{id}/assignees/owner
-Subtask depth validation — one check in createTask:
+
+5:Subtask depth validation — one check in createTask:
 In TaskService.createTask(), if parentId is provided:
   Task parent = taskRepository.findById(parentId)
   if (parent.getParentId() != null) {
@@ -54,7 +59,8 @@ In TaskService.createTask(), if parentId is provided:
       "Cannot create subtasks of subtasks. Maximum depth is 1 level."
     )
   }
-Real IP extraction for invite rate limiting:
+
+6:Real IP extraction for invite rate limiting:
 In InvitationService or wherever IP is captured:
   Replace: String ip = "127.0.0.1"
   With:    String ip = request.getHeader("X-Forwarded-For")
