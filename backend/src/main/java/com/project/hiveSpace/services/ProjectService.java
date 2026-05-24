@@ -282,4 +282,62 @@ public class ProjectService {
                 .updatedAt(team.getUpdatedAt())
                 .build();
     }
+
+    @Transactional
+    public ProjectResponse updateProject(UUID projectId, ProjectRequest request, User actor) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new NotFoundException("Project not found"));
+
+        UUID workspaceId = project.getWorkspace().getId();
+
+        // RBAC validation: caller must be Project Lead or Workspace Admin
+        boolean isLead = rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD);
+        boolean isWorkspaceAdmin = rbacService.canAdminWorkspace(workspaceId);
+        if (!isLead && !isWorkspaceAdmin) {
+            throw new ForbiddenException("Access denied: Only project leads and workspace admins can update project settings");
+        }
+
+        project.setName(request.getName());
+        project.setDescription(request.getDescription());
+        project.setStatus(request.getStatus());
+        project.setColor(request.getColor());
+        project.setStartDate(request.getStartDate());
+        project.setEndDate(request.getEndDate());
+        project.setUpdatedAt(new Date());
+
+        // Update Lead User if changed
+        if (request.getLeadUserId() != null) {
+            User newLead = userRepository.findById(request.getLeadUserId())
+                    .orElseThrow(() -> new NotFoundException("Lead user not found"));
+
+            // Must be workspace member first
+            boolean isWorkspaceMember = workspaceMemberRepository
+                    .existsByWorkspaceIdAndUserId(workspaceId, newLead.getId());
+            if (!isWorkspaceMember) {
+                throw new DomainValidationException("Assigned lead must be a workspace member first");
+            }
+
+            // Remove existing lead project member if present, or update role
+            projectMemberRepository.findByProjectIdAndUserId(projectId, newLead.getId()).ifPresentOrElse(
+                pm -> {
+                    pm.setRole(ProjectMemberRole.LEAD);
+                    projectMemberRepository.save(pm);
+                },
+                () -> {
+                    ProjectMember member = ProjectMember.builder()
+                            .project(project)
+                            .user(newLead)
+                            .role(ProjectMemberRole.LEAD)
+                            .joinedAt(new Date())
+                            .build();
+                    projectMemberRepository.save(member);
+                    project.setMembersCount(project.getMembersCount() + 1);
+                }
+            );
+        }
+
+        Project saved = projectRepository.save(project);
+        return mapToResponse(saved);
+    }
 }

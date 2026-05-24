@@ -45,8 +45,16 @@ public class InvitationController {
     }
 
     @PostMapping("/join")
-    public ResponseEntity<Map<String, String>> acceptInvite(@Valid @RequestBody JoinRequest request) {
-        invitationService.acceptInvite(request);
+    public ResponseEntity<Map<String, String>> acceptInvite(
+            @Valid @RequestBody JoinRequest request,
+            jakarta.servlet.http.HttpServletRequest servletRequest) {
+        invitationService.acceptInvite(request, servletRequest);
         return ResponseEntity.ok(Map.of("message", "Successfully joined the team"));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> revokeInvite(@PathVariable java.util.UUID id) {
+        invitationService.revokeInvite(id);
+        return ResponseEntity.noContent().build();
     }
 }

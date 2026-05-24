@@ -231,4 +231,18 @@ public class TeamService {
                 .updatedAt(team.getUpdatedAt())
                 .build();
     }
+
+    @Transactional(readOnly = true)
+    public TeamResponse getTeamById(UUID teamId) {
+        rbacService.verifyResourceBelongsToTenant(teamId, ResourceType.TEAM);
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new NotFoundException("Team not found"));
+
+        UUID workspaceId = team.getWorkspace().getId();
+        if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.VIEWER)) {
+            throw new ForbiddenException("Access denied: Must be a member of the workspace to view this team");
+        }
+
+        return mapToResponse(team);
+    }
 }

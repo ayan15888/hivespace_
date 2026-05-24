@@ -70,4 +70,13 @@ public class AuthController {
                 req.getAvatarUrl()
         ));
     }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<UserResponse> refresh(@AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
+        String token = authService.refreshToken(user);
+        return ResponseEntity.ok(userMapper.toResponse(user, token));
+    }
 }

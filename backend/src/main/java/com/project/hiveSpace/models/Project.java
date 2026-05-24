@@ -65,6 +65,10 @@ public class Project {
     @Column(name = "end_date")
     private Date endDate;
 
+    @Builder.Default
+    @Column(name = "task_sequence", nullable = false)
+    private int taskSequence = 0;
+
     @PrePersist
     void prePersist() {
         Date now = new Date();

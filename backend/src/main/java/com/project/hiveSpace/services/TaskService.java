@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -69,7 +70,8 @@ public class TaskService {
             }
         }
 
-        // 5. Create the task
+        // 5. Increment project task sequence and create the task
+        projectRepository.incrementAndGetTaskSequence(projectId);
         Task task = Task.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -209,12 +211,26 @@ public class TaskService {
             }
         }
 
-        validateStatusTransition(task.getStatus(), status);
+        TaskStatus oldStatus = task.getStatus();
+        validateStatusTransition(oldStatus, status);
 
         task.setStatus(status);
         task.setUpdatedAt(new Date());
 
         Task saved = taskRepository.save(task);
+
+        // Fetch current user and log activity
+        User currentUser = getCurrentUser();
+        TaskActivity activity = TaskActivity.builder()
+                .task(saved)
+                .user(currentUser)
+                .type("STATUS_CHANGED")
+                .oldValue(oldStatus.name())
+                .newValue(status.name())
+                .createdAt(new Date())
+                .build();
+        taskActivityRepository.save(activity);
+
         return mapToResponse(saved);
     }
 
@@ -229,41 +245,103 @@ public class TaskService {
         }
 
         boolean changed = false;
-        StringBuilder changes = new StringBuilder();
 
         if (request.getTitle() != null && !request.getTitle().trim().isEmpty() && !request.getTitle().equals(task.getTitle())) {
-            changes.append("Title: '").append(task.getTitle()).append("' -> '").append(request.getTitle()).append("'; ");
+            String oldValue = task.getTitle();
             task.setTitle(request.getTitle());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("TITLE_CHANGED")
+                    .oldValue(oldValue)
+                    .newValue(request.getTitle())
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
         if (request.getDescription() != null && !request.getDescription().equals(task.getDescription())) {
+            String oldValue = task.getDescription();
             task.setDescription(request.getDescription());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("DESCRIPTION_CHANGED")
+                    .oldValue(oldValue)
+                    .newValue(request.getDescription())
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
         if (request.getStatus() != null && request.getStatus() != task.getStatus()) {
             validateStatusTransition(task.getStatus(), request.getStatus());
+            TaskStatus oldValue = task.getStatus();
             task.setStatus(request.getStatus());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("STATUS_CHANGED")
+                    .oldValue(oldValue.name())
+                    .newValue(request.getStatus().name())
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
         if (request.getPriority() != null && request.getPriority() != task.getPriority()) {
+            TaskPriority oldValue = task.getPriority();
             task.setPriority(request.getPriority());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("PRIORITY_CHANGED")
+                    .oldValue(oldValue.name())
+                    .newValue(request.getPriority().name())
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
         if (request.getLabels() != null && !request.getLabels().equals(task.getLabels())) {
+            String oldValue = task.getLabels();
             task.setLabels(request.getLabels());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("LABELS_CHANGED")
+                    .oldValue(oldValue)
+                    .newValue(request.getLabels())
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
         if (request.getPoints() != null && !request.getPoints().equals(task.getPoints())) {
+            Integer oldValue = task.getPoints();
             task.setPoints(request.getPoints());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("POINTS_CHANGED")
+                    .oldValue(oldValue != null ? oldValue.toString() : null)
+                    .newValue(request.getPoints() != null ? request.getPoints().toString() : null)
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
         if (request.getDueDate() != null && !request.getDueDate().equals(task.getDueDate())) {
+            Date oldValue = task.getDueDate();
             task.setDueDate(request.getDueDate());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("DUE_DATE_CHANGED")
+                    .oldValue(oldValue != null ? oldValue.toString() : null)
+                    .newValue(request.getDueDate() != null ? request.getDueDate().toString() : null)
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
 
         // Assignee update
         if (request.getAssigneeId() != null && (task.getAssignee() == null || !request.getAssigneeId().equals(task.getAssignee().getId()))) {
+            User oldAssignee = task.getAssignee();
             User newAssignee = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new NotFoundException("Assignee user not found"));
             // Verify if the assignee is a member of this project
@@ -286,6 +364,15 @@ public class TaskService {
                     .assignedAt(new Date())
                     .build();
             taskAssigneeRepository.save(newAssigneeRecord);
+
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("OWNER_CHANGED")
+                    .oldValue(oldAssignee != null ? oldAssignee.getUsername() : null)
+                    .newValue(newAssignee.getUsername())
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
 
@@ -294,17 +381,6 @@ public class TaskService {
         }
 
         Task saved = taskRepository.save(task);
-
-        if (changed) {
-            TaskActivity activity = TaskActivity.builder()
-                    .task(saved)
-                    .user(actor)
-                    .type("UPDATED")
-                    .newValue(changes.length() > 0 ? changes.toString() : "Task details updated")
-                    .createdAt(new Date())
-                    .build();
-            taskActivityRepository.save(activity);
-        }
 
         return mapToResponse(saved);
     }
@@ -428,5 +504,13 @@ public class TaskService {
         if (!valid) {
             throw new DomainValidationException("Cannot transition task from " + currentStatus + " to " + newStatus);
         }
+    }
+
+    private User getCurrentUser() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof User) {
+            return (User) principal;
+        }
+        throw new IllegalStateException("User not authenticated");
     }
 }

@@ -7,6 +7,7 @@ import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
 import com.project.hiveSpace.security.RbacService;
 import com.project.hiveSpace.exceptions.ForbiddenException;
+import com.project.hiveSpace.exceptions.NotFoundException;
 import com.project.hiveSpace.exceptions.DomainValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -205,6 +206,11 @@ public class InvitationService {
 
     @Transactional
     public void acceptInvite(JoinRequest request) {
+        acceptInvite(request, null);
+    }
+
+    @Transactional
+    public void acceptInvite(JoinRequest request, jakarta.servlet.http.HttpServletRequest servletRequest) {
         User currentUser = getCurrentUser();
         
         Invitation invitation = invitationRepository.findByToken(request.getToken())
@@ -242,10 +248,24 @@ public class InvitationService {
         // 3. Verify PIN
         boolean pinMatches = passwordEncoder.matches(request.getPin(), invitation.getPinHash());
 
+        String ip = "127.0.0.1";
+        if (servletRequest != null) {
+            ip = servletRequest.getHeader("X-Forwarded-For");
+            if (ip == null || ip.isBlank()) {
+                ip = servletRequest.getRemoteAddr();
+            }
+            if (ip != null && ip.contains(",")) {
+                ip = ip.split(",")[0].trim();
+            }
+        }
+        if (ip == null) {
+            ip = "127.0.0.1";
+        }
+
         // Track attempt in the database
         InvitationAttempt attempt = InvitationAttempt.builder()
                 .invitation(invitation)
-                .ipAddress("127.0.0.1") // Fallback / mock ip tracking
+                .ipAddress(ip)
                 .attemptedAt(new Date())
                 .success(pinMatches)
                 .build();
@@ -474,5 +494,26 @@ public class InvitationService {
         } catch (IllegalArgumentException ex) {
             return TenantMemberRole.MEMBER;
         }
+    }
+
+    @Transactional
+    public void revokeInvite(UUID invitationId) {
+        User currentUser = getCurrentUser();
+        Invitation invitation = invitationRepository.findById(invitationId)
+                .orElseThrow(() -> new NotFoundException("Invitation not found"));
+
+        // Only inviter or tenant owner/admin can revoke invitation
+        boolean isInviter = invitation.getInviter().getId().equals(currentUser.getId());
+        boolean isOwner = invitation.getTenant().getOwnerEmail().equalsIgnoreCase(currentUser.getEmail());
+        boolean isAdmin = tenantMemberRepository.findByTenantIdAndUserId(invitation.getTenant().getId(), currentUser.getId())
+                .map(member -> member.getRole() == TenantMemberRole.OWNER || member.getRole() == TenantMemberRole.ADMIN)
+                .orElse(false);
+
+        if (!isInviter && !isOwner && !isAdmin) {
+            throw new ForbiddenException("Access denied: You do not have permission to revoke this invitation");
+        }
+
+        invitation.setStatus(InvitationStatus.REVOKED);
+        invitationRepository.save(invitation);
     }
 }

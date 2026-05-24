@@ -107,4 +107,7 @@ public class AuthService {
         return userMapper.toResponse(user, null);
     }
 
+    public String refreshToken(User user) {
+        return jwtService.generateToken(user);
+    }
 }

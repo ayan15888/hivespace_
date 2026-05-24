@@ -13,6 +13,8 @@ import java.util.UUID;
 @Repository
 public interface TaskRepository extends JpaRepository<Task, UUID> {
     List<Task> findAllByProject(Project project);
+    List<Task> findAllByProjectId(UUID projectId);
+    List<Task> findAllByProjectIdOrderByCreatedAtAsc(UUID projectId);
     List<Task> findAllByProjectAndParentTaskIsNullOrderByCreatedAtDesc(Project project);
     List<Task> findAllByOrderByUpdatedAtDesc();
     List<Task> findAllByProjectInOrderByUpdatedAtDesc(List<Project> projects);
