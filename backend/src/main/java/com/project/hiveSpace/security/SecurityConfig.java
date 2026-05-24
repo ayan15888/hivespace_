@@ -75,7 +75,9 @@ public class SecurityConfig {
             "X-Requested-With", 
             "Origin",
             "Access-Control-Request-Method",
-            "Access-Control-Request-Headers"
+            "Access-Control-Request-Headers",
+            "X-Tenant-Id",
+            "x-tenant-id"
         ));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
         configuration.setAllowCredentials(true);

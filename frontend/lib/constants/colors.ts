@@ -5,6 +5,16 @@ export const PROJECT_COLOR_MAP: Record<string, string> = {
   "bg-amber-500":   "#F59E0B",
   "bg-rose-500":    "#F43F5E",
   "bg-indigo-500":  "#6366F1",
+  "bg-sky-500":     "#0EA5E9",
+  "bg-orange-500":  "#F97316",
+  "bg-teal-500":    "#14B8A6",
+  "bg-pink-500":    "#EC4899",
+  "bg-fuchsia-500": "#D946EF",
+  "bg-lime-500":    "#84CC16",
+  "bg-cyan-500":    "#06B6D4",
+  "bg-red-500":     "#EF4444",
+  "bg-yellow-500":  "#EAB308",
+  "bg-slate-500":   "#64748B",
 };
 
 export const PROJECT_COLORS = [
@@ -14,6 +24,16 @@ export const PROJECT_COLORS = [
   { name: "Amber", value: "bg-amber-500", hex: "#F59E0B" },
   { name: "Rose", value: "bg-rose-500", hex: "#F43F5E" },
   { name: "Indigo", value: "bg-indigo-500", hex: "#6366F1" },
+  { name: "Sky", value: "bg-sky-500", hex: "#0EA5E9" },
+  { name: "Orange", value: "bg-orange-500", hex: "#F97316" },
+  { name: "Teal", value: "bg-teal-500", hex: "#14B8A6" },
+  { name: "Pink", value: "bg-pink-500", hex: "#EC4899" },
+  { name: "Fuchsia", value: "bg-fuchsia-500", hex: "#D946EF" },
+  { name: "Lime", value: "bg-lime-500", hex: "#84CC16" },
+  { name: "Cyan", value: "bg-cyan-500", hex: "#06B6D4" },
+  { name: "Red", value: "bg-red-500", hex: "#EF4444" },
+  { name: "Yellow", value: "bg-yellow-500", hex: "#EAB308" },
+  { name: "Slate", value: "bg-slate-500", hex: "#64748B" },
 ];
 
 export const THEME_COLORS = {
