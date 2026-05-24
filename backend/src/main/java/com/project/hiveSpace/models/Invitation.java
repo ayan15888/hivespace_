@@ -31,13 +31,7 @@ public class Invitation {
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant; // Direct organization invitation
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "workspace_id")
-    private Workspace workspace; // Optional workspace scope
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "team_id")
-    private Team team; // Optional team scope
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id")
