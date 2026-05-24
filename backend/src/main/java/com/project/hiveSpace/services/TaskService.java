@@ -86,8 +86,6 @@ public class TaskService {
             }
             ownerUser = explicitlyAssigned;
         }
-        task.setAssignee(ownerUser);
-
         Task savedTask = taskRepository.save(task);
 
         // 7. Save owner assignee record
@@ -250,30 +248,32 @@ public class TaskService {
         }
 
         // Assignee update
-        if (request.getAssigneeId() != null && (task.getAssignee() == null || !request.getAssigneeId().equals(task.getAssignee().getId()))) {
-            User newAssignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
-            // Verify if the assignee is a member of this project
-            if (!rbacService.hasProjectRoleForUser(newAssignee.getId(), task.getProject().getId(), ProjectMemberRole.VIEWER)) {
-                throw new IllegalArgumentException("Assignee must be a member of this project");
-            }
-            task.setAssignee(newAssignee);
-
-            // Also need to update/insert OWNER in task_assignees
+        if (request.getAssigneeId() != null) {
             Optional<TaskAssignee> currentOwnerOpt = taskAssigneeRepository.findByTaskAndRole(task, TaskAssigneeRole.OWNER);
-            if (currentOwnerOpt.isPresent()) {
-                taskAssigneeRepository.delete(currentOwnerOpt.get());
-            }
-            taskAssigneeRepository.findByTaskAndUser(task, newAssignee).ifPresent(taskAssigneeRepository::delete);
+            User currentOwner = currentOwnerOpt.isPresent() ? currentOwnerOpt.get().getUser() : null;
 
-            TaskAssignee newAssigneeRecord = TaskAssignee.builder()
-                    .task(task)
-                    .user(newAssignee)
-                    .role(TaskAssigneeRole.OWNER)
-                    .assignedAt(new Date())
-                    .build();
-            taskAssigneeRepository.save(newAssigneeRecord);
-            changed = true;
+            if (currentOwner == null || !request.getAssigneeId().equals(currentOwner.getId())) {
+                User newAssignee = userRepository.findById(request.getAssigneeId())
+                        .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
+                // Verify if the assignee is a member of this project
+                if (!rbacService.hasProjectRoleForUser(newAssignee.getId(), task.getProject().getId(), ProjectMemberRole.VIEWER)) {
+                    throw new IllegalArgumentException("Assignee must be a member of this project");
+                }
+
+                if (currentOwnerOpt.isPresent()) {
+                    taskAssigneeRepository.delete(currentOwnerOpt.get());
+                }
+                taskAssigneeRepository.findByTaskAndUser(task, newAssignee).ifPresent(taskAssigneeRepository::delete);
+
+                TaskAssignee newAssigneeRecord = TaskAssignee.builder()
+                        .task(task)
+                        .user(newAssignee)
+                        .role(TaskAssigneeRole.OWNER)
+                        .assignedAt(new Date())
+                        .build();
+                taskAssigneeRepository.save(newAssigneeRecord);
+                changed = true;
+            }
         }
 
         if (changed) {
@@ -350,15 +350,10 @@ public class TaskService {
                 .map(this::mapToAssigneeResponse)
                 .collect(Collectors.toList()));
 
-        User assigneeUser = task.getAssignee();
-        if (assigneeUser == null) {
-            Optional<TaskAssignee> assigneeOpt = assignees.stream()
-                    .filter(ta -> ta.getRole() == TaskAssigneeRole.OWNER)
-                    .findFirst();
-            if (assigneeOpt.isPresent()) {
-                assigneeUser = assigneeOpt.get().getUser();
-            }
-        }
+        TaskAssignee owner = taskAssigneeRepository
+                .findByTaskIdAndRole(task.getId(), TaskAssigneeRole.OWNER)
+                .orElse(null);
+        User assigneeUser = owner != null ? owner.getUser() : null;
 
         if (assigneeUser != null) {
             response.setAssigneeId(assigneeUser.getId());

@@ -44,13 +44,8 @@ public class Tenant {
     @Column(length = 500)
     private String description;
 
-    @Builder.Default
-    @Column(name = "members_count", nullable = false)
-    private int membersCount = 0;
-
-    @Builder.Default
-    @Column(name = "workspaces_count", nullable = false)
-    private int workspacesCount = 0;
+    @Column(name = "owner_id")
+    private java.util.UUID ownerId;
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false)

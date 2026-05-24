@@ -89,17 +89,11 @@ public class TeamService {
         boolean shouldAddCreator = (leadUserId == null || leadUserId.equals(creator.getId()))
                 || (request.getAddCreatorAsMember() != null && request.getAddCreatorAsMember());
 
-        int initialMembersCount = 1;
-        if (leadUserId != null && !leadUserId.equals(creator.getId()) && shouldAddCreator) {
-            initialMembersCount = 2;
-        }
-
         Team team = Team.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .workspace(workspace)
                 .createdBy(creator)
-                .membersCount(initialMembersCount)
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
@@ -145,9 +139,6 @@ public class TeamService {
                     .assignedAt(new Date())
                     .build();
             projectTeamRepository.save(projectTeam);
-
-            associatedProject.setTeamsCount(associatedProject.getTeamsCount() + 1);
-            projectRepository.save(associatedProject);
         }
 
         return mapToResponse(savedTeam);
@@ -183,15 +174,8 @@ public class TeamService {
             throw new SecurityException("Access denied: Only team leads and workspace admins can delete the team");
         }
 
-        // Decrement teamsCount for all associated projects, and delete the project_teams records
+        // delete the project_teams records
         List<ProjectTeam> associations = projectTeamRepository.findByTeamId(teamId);
-        for (ProjectTeam assoc : associations) {
-            Project project = assoc.getProject();
-            if (project.getTeamsCount() > 0) {
-                project.setTeamsCount(project.getTeamsCount() - 1);
-                projectRepository.save(project);
-            }
-        }
         projectTeamRepository.deleteAll(associations);
 
         teamRepository.delete(team);
@@ -216,12 +200,13 @@ public class TeamService {
     private TeamResponse mapToResponse(Team team) {
         List<ProjectTeam> associations = projectTeamRepository.findByTeamId(team.getId());
         UUID firstProjectId = associations.isEmpty() ? null : associations.get(0).getProject().getId();
+        long membersCount = teamMemberRepository.countByTeamId(team.getId());
 
         return TeamResponse.builder()
                 .id(team.getId())
                 .name(team.getName())
                 .description(team.getDescription())
-                .membersCount(team.getMembersCount())
+                .membersCount((int) membersCount)
                 .workspaceId(team.getWorkspace().getId())
                 .projectId(firstProjectId)
                 .createdAt(team.getCreatedAt())

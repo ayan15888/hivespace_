@@ -82,10 +82,6 @@ public class TeamMemberService {
 
         TeamMember saved = teamMemberRepository.save(teamMember);
 
-        // Increment member count in team
-        team.setMembersCount(team.getMembersCount() + 1);
-        teamRepository.save(team);
-
         return mapToResponse(saved);
     }
 
@@ -142,12 +138,6 @@ public class TeamMemberService {
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
 
         teamMemberRepository.delete(teamMember);
-
-        // Decrement member count on team
-        if (team.getMembersCount() > 0) {
-            team.setMembersCount(team.getMembersCount() - 1);
-            teamRepository.save(team);
-        }
     }
 
     private boolean isLastLead(UUID teamId, UUID userId) {

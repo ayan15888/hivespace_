@@ -68,7 +68,6 @@ public class WorkspaceService {
                 .description(request.getDescription())
                 .tenant(tenant)
                 .createdBy(currentUser)
-                .membersCount(1) // Creator is included
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
@@ -83,10 +82,6 @@ public class WorkspaceService {
                 .joinedAt(new Date())
                 .build();
         workspaceMemberRepository.save(creatorMember);
-
-        // Increment workspaces count on tenant
-        tenant.setWorkspacesCount(tenant.getWorkspacesCount() + 1);
-        tenantRepository.save(tenant);
 
         return mapToResponse(savedWorkspace);
     }

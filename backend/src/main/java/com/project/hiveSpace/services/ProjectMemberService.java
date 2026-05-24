@@ -119,10 +119,6 @@ public class ProjectMemberService {
 
         ProjectMember saved = projectMemberRepository.save(projectMember);
 
-        // Increment project members count
-        project.setMembersCount(project.getMembersCount() + 1);
-        projectRepository.save(project);
-
         return mapToResponse(saved);
     }
 
@@ -179,12 +175,6 @@ public class ProjectMemberService {
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found"));
 
         projectMemberRepository.delete(projectMember);
-
-        // Decrement project members count
-        if (project.getMembersCount() > 0) {
-            project.setMembersCount(project.getMembersCount() - 1);
-            projectRepository.save(project);
-        }
     }
 
     private boolean isLastLead(UUID projectId, UUID userId) {

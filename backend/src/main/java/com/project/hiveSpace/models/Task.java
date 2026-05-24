@@ -59,10 +59,6 @@ public class Task {
     @JoinColumn(name = "parent_id")
     private Task parentTask;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "assignee_id")
-    private User assignee;
-
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false)
     private Date createdAt;

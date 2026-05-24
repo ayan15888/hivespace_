@@ -74,28 +74,24 @@ class InvitationServiceTests {
                 .id(tenantId)
                 .name("Test Tenant")
                 .ownerEmail("owner@example.com")
-                .membersCount(1)
                 .build();
 
         workspace = Workspace.builder()
                 .id(workspaceId)
                 .name("Test Workspace")
                 .tenant(tenant)
-                .membersCount(1)
                 .build();
 
         team = Team.builder()
                 .id(teamId)
                 .name("Test Team")
                 .workspace(workspace)
-                .membersCount(1)
                 .build();
 
         project = Project.builder()
                 .id(projectId)
                 .name("Test Project")
                 .workspace(workspace)
-                .membersCount(1)
                 .build();
 
         mockSecurityContext(currentUser);

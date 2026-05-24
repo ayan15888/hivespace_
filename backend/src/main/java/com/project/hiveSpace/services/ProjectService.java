@@ -18,6 +18,7 @@ import com.project.hiveSpace.repository.ProjectTeamRepository;
 import com.project.hiveSpace.repository.WorkspaceRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
 import com.project.hiveSpace.repository.UserRepository;
+import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ public class ProjectService {
     private final RbacService rbacService;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final UserRepository userRepository;
+    private final TeamMemberRepository teamMemberRepository;
 
     @Transactional
     public ProjectResponse createProject(UUID workspaceId, ProjectRequest request, User creator) {
@@ -69,16 +71,12 @@ public class ProjectService {
             }
         }
 
-        int initialMembersCount = (leadUserId != null && !leadUserId.equals(creator.getId())) ? 2 : 1;
-
         Project project = Project.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .status(request.getStatus())
                 .workspace(workspace)
                 .createdBy(creator)
-                .teamsCount(0)
-                .membersCount(initialMembersCount)
                 .color(request.getColor())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
@@ -191,22 +189,22 @@ public class ProjectService {
                     .assignedAt(new Date())
                     .build();
             projectTeamRepository.save(association);
-
-            project.setTeamsCount(project.getTeamsCount() + 1);
-            project = projectRepository.save(project);
         }
 
         return mapToResponse(project);
     }
 
     private ProjectResponse mapToResponse(Project project) {
+        long teamsCount = projectTeamRepository.countByProjectId(project.getId());
+        long membersCount = projectMemberRepository.countByProjectId(project.getId());
+
         return ProjectResponse.builder()
                 .id(project.getId())
                 .name(project.getName())
                 .description(project.getDescription())
                 .status(project.getStatus())
-                .teamsCount(project.getTeamsCount())
-                .membersCount(project.getMembersCount())
+                .teamsCount((int) teamsCount)
+                .membersCount((int) membersCount)
                 .workspaceId(project.getWorkspace().getId())
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
@@ -254,11 +252,6 @@ public class ProjectService {
         // Validate team belongs to project
         if (projectTeamRepository.existsByProjectIdAndTeamId(projectId, teamId)) {
             projectTeamRepository.deleteByProjectIdAndTeamId(projectId, teamId);
-
-            if (project.getTeamsCount() > 0) {
-                project.setTeamsCount(project.getTeamsCount() - 1);
-                project = projectRepository.save(project);
-            }
         }
 
         return mapToResponse(project);
@@ -267,12 +260,13 @@ public class ProjectService {
     private TeamResponse mapTeamToResponse(Team team) {
         List<ProjectTeam> associations = projectTeamRepository.findByTeamId(team.getId());
         UUID firstProjectId = associations.isEmpty() ? null : associations.get(0).getProject().getId();
-
+        long membersCount = teamMemberRepository.countByTeamId(team.getId());
+ 
         return TeamResponse.builder()
                 .id(team.getId())
                 .name(team.getName())
                 .description(team.getDescription())
-                .membersCount(team.getMembersCount())
+                .membersCount((int) membersCount)
                 .workspaceId(team.getWorkspace().getId())
                 .projectId(firstProjectId)
                 .createdAt(team.getCreatedAt())
