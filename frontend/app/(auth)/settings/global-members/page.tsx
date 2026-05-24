@@ -10,7 +10,10 @@ import {
   Eye, 
   EyeOff,
   Building,
-  Layers
+  Layers,
+  UserMinus,
+  Building2,
+  Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,6 +23,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, getAvatarColorClass } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -27,11 +46,14 @@ import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrgStore } from "@/store/orgStore";
 import { getTenantInvitations, generateInvite } from "@/lib/api/invites";
-import { getWorkspacesByTenant, getWorkspaceMembers } from "@/lib/api/workspaces";
+import { getWorkspacesByTenant, getWorkspaceMembers, removeWorkspaceMember, WorkspaceResponse } from "@/lib/api/workspaces";
 import { InviteResponse } from "@/types/invite";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { InviteModal } from "@/components/common/InviteModal";
 import { type TenantRole, roleLabel } from "@/types/roles";
+import { useQueryClient } from "@tanstack/react-query";
+import { AddToWorkspaceModal } from "@/components/features/settings/AddToWorkspaceModal";
+import { MemberResponse } from "@/lib/api/orgs";
 import {
   canManageOrgMembers,
   canViewOrgMemberDirectory,
@@ -100,6 +122,14 @@ export default function GlobalMembersSettings() {
 
   const canViewMembers = canViewOrgMemberDirectory(members, user?.email, activeOrg);
   const canManageMembers = canManageOrgMembers(members, user?.email, activeOrg);
+  const queryClient = useQueryClient();
+
+  // Remove from workspace state
+  const [removeTarget, setRemoveTarget] = useState<{ member: MemberResponse; workspaceId: string; workspaceName: string } | null>(null);
+  const [removing, setRemoving] = useState(false);
+
+  // Add to workspace state
+  const [addTarget, setAddTarget] = useState<MemberResponse | null>(null);
 
   useEffect(() => {
     if (!activeOrg?.id || !canManageMembers) {
@@ -316,9 +346,49 @@ export default function GlobalMembersSettings() {
 
                   <div className="ml-auto text-xs text-zinc-500 shrink-0">Just now</div>
 
-                  <button className="p-2 text-zinc-500 hover:text-zinc-200 transition-opacity opacity-0 group-hover:opacity-100 shrink-0">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
+                  {canManageMembers && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-2 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/50 transition-all shrink-0 opacity-0 group-hover:opacity-100">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52 bg-zinc-900 border-zinc-800 text-zinc-300">
+                        {/* Add to workspace */}
+                        <DropdownMenuItem
+                          className="cursor-pointer gap-2 focus:bg-zinc-800"
+                          onClick={() => setAddTarget({
+                            id: member.id,
+                            fullName: member.fullName,
+                            username: member.username,
+                            email: member.email,
+                            avatarUrl: member.avatarUrl,
+                            jobTitle: member.jobTitle,
+                            role: member.role,
+                          })}
+                        >
+                          <Building2 className="h-3.5 w-3.5 text-violet-400" />
+                          Add to workspace
+                        </DropdownMenuItem>
+                        {/* Remove from workspace sub-items */}
+                        {memberWorkspaces.length > 0 && (
+                          <>
+                            <DropdownMenuSeparator className="bg-zinc-800" />
+                            {memberWorkspaces.map((ws) => (
+                              <DropdownMenuItem
+                                key={ws.id}
+                                className="text-red-400 focus:bg-red-500/10 focus:text-red-300 cursor-pointer gap-2 text-xs"
+                                onClick={() => setRemoveTarget({ member, workspaceId: ws.id, workspaceName: ws.name })}
+                              >
+                                <UserMinus className="h-3.5 w-3.5" />
+                                Remove from {ws.name}
+                              </DropdownMenuItem>
+                            ))}
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               );
             })()
@@ -462,6 +532,85 @@ export default function GlobalMembersSettings() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Remove from workspace confirmation ── */}
+      <Dialog open={!!removeTarget} onOpenChange={(o) => !o && setRemoveTarget(null)}>
+        <DialogContent className="sm:max-w-[400px] bg-zinc-900 border-zinc-800 text-zinc-100 rounded-2xl p-0 overflow-hidden">
+          <div className="h-1.5 w-full bg-gradient-to-r from-red-600 to-rose-500" />
+          <div className="p-6">
+            <DialogHeader className="mb-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="h-9 w-9 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                  <UserMinus className="h-4 w-4 text-red-400" />
+                </div>
+                <DialogTitle className="text-base font-semibold text-zinc-100">
+                  Remove from workspace
+                </DialogTitle>
+              </div>
+              <DialogDescription className="text-sm text-zinc-400 leading-relaxed">
+                Remove{" "}
+                <span className="font-semibold text-zinc-200">
+                  {removeTarget?.member.fullName || removeTarget?.member.username}
+                </span>{" "}
+                from{" "}
+                <span className="font-semibold text-zinc-200">{removeTarget?.workspaceName}</span>?
+                <span className="text-xs mt-1 block text-zinc-500">
+                  They will lose access to all projects and teams in this workspace.
+                </span>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="border-0 bg-transparent p-0 mt-4">
+              <Button
+                variant="ghost"
+                onClick={() => setRemoveTarget(null)}
+                disabled={removing}
+                className="text-zinc-400 hover:text-zinc-200 rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={removing}
+                className="bg-red-600 hover:bg-red-500 text-white rounded-xl font-semibold px-6"
+                onClick={async () => {
+                  if (!removeTarget) return;
+                  setRemoving(true);
+                  try {
+                    await removeWorkspaceMember(removeTarget.workspaceId, removeTarget.member.id);
+                    toast.success(
+                      `${removeTarget.member.fullName || removeTarget.member.username} removed from ${removeTarget.workspaceName}`
+                    );
+                    queryClient.invalidateQueries({ queryKey: ["workspaceMembers", removeTarget.workspaceId] });
+                    // Refresh local workspace members map
+                    const updated = await getWorkspaceMembers(removeTarget.workspaceId);
+                    setWorkspaceMembersMap((prev) => ({
+                      ...prev,
+                      [removeTarget.workspaceId]: updated,
+                    }));
+                    setRemoveTarget(null);
+                  } catch (err: unknown) {
+                    toast.error((err as Error).message || "Failed to remove member");
+                  } finally {
+                    setRemoving(false);
+                  }
+                }}
+              >
+                {removing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remove"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Add to workspace modal ── */}
+      {activeOrg && (
+        <AddToWorkspaceModal
+          open={!!addTarget}
+          onClose={() => setAddTarget(null)}
+          member={addTarget}
+          workspaces={workspaces}
+          orgId={activeOrg.id}
+        />
       )}
     </div>
   );
