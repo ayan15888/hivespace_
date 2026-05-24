@@ -23,6 +23,8 @@ public class ShareableLinkService {
     private final ShareableLinkRepository shareableLinkRepository;
     private final ProjectRepository projectRepository;
     private final TaskRepository taskRepository;
+    private final ProjectTeamRepository projectTeamRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final RbacService rbacService;
 
     @Value("${APP_DOMAIN:hive-space.indevs.in}")
@@ -81,13 +83,15 @@ public class ShareableLinkService {
         shareableLinkRepository.save(link);
 
         Project project = link.getProject();
+        long teamsCount = projectTeamRepository.countByProjectId(project.getId());
+        long membersCount = projectMemberRepository.countByProjectId(project.getId());
         ProjectResponse projectResponse = ProjectResponse.builder()
                 .id(project.getId())
                 .name(project.getName())
                 .description(project.getDescription())
                 .status(project.getStatus())
-                .teamsCount(project.getTeamsCount())
-                .membersCount(project.getMembersCount())
+                .teamsCount((int) teamsCount)
+                .membersCount((int) membersCount)
                 .workspaceId(project.getWorkspace().getId())
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
@@ -165,16 +169,9 @@ public class ShareableLinkService {
             response.setParentId(task.getParentTask().getId());
         }
 
-        // Dynamically compute the sequential task identifier
-        int seq = taskRepository.countByProjectAndCreatedAtLessThanEqual(task.getProject(), task.getCreatedAt());
+        // Use stored task_sequence for task identifier (public view)
+        int seq = task.getProject().getTaskSequence();
         response.setTaskIdentifier("HS-" + String.format("%03d", seq));
-
-        if (task.getAssignee() != null) {
-            User user = task.getAssignee();
-            response.setAssigneeId(user.getId());
-            response.setAssigneeName(user.getFullName());
-            response.setAssigneeInitials(toInitials(user.getFullName()));
-        }
 
         return response;
     }

@@ -99,7 +99,6 @@ public class WorkspaceService {
         User currentUser = getCurrentUser();
         UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
         if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
-            throw new SecurityException("Access denied: Cannot access workspaces of a different organization");
             throw new ForbiddenException("Access denied: Cannot access workspaces of a different organization");
         }
 
@@ -195,10 +194,6 @@ public class WorkspaceService {
 
         WorkspaceMember saved = workspaceMemberRepository.save(member);
 
-        // Increment membersCount
-        workspace.setMembersCount(workspace.getMembersCount() + 1);
-        workspaceRepository.save(workspace);
-
         return mapToWorkspaceMemberResponse(saved, true);
     }
 
@@ -242,9 +237,5 @@ public class WorkspaceService {
         }
 
         workspaceMemberRepository.delete(member);
-
-        // Decrement membersCount
-        workspace.setMembersCount(Math.max(0, workspace.getMembersCount() - 1));
-        workspaceRepository.save(workspace);
     }
 }

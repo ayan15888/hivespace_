@@ -281,7 +281,6 @@ class WorkspaceMembershipGatekeepingTests {
         assertEquals(workspaceId, response.getWorkspaceId());
         assertEquals(userId, response.getUserId());
         assertEquals(WorkspaceMemberRole.MEMBER, response.getRole());
-        assertEquals(1, workspace.getMembersCount());
     }
 
     @Test
@@ -311,7 +310,6 @@ class WorkspaceMembershipGatekeepingTests {
                 .user(user)
                 .role(WorkspaceMemberRole.MEMBER)
                 .build();
-        workspace.setMembersCount(1);
 
         when(rbacService.canAdminWorkspace(workspaceId)).thenReturn(true);
         when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
@@ -320,6 +318,5 @@ class WorkspaceMembershipGatekeepingTests {
         workspaceService.removeWorkspaceMember(workspaceId, userId);
 
         verify(workspaceMemberRepository, times(1)).delete(member);
-        assertEquals(0, workspace.getMembersCount());
     }
 }

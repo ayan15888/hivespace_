@@ -69,7 +69,6 @@ public class ProjectMemberService {
 
         UUID workspaceId = project.getWorkspace().getId();
         if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER) && !rbacService.canAdminWorkspace(workspaceId)) {
-            throw new SecurityException("Access denied: Must be a project member or workspace admin");
             throw new ForbiddenException("Access denied: Must be a project member or workspace admin");
         }
 

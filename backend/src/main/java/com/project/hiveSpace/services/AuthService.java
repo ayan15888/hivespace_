@@ -121,7 +121,6 @@ public class AuthService {
     public UserResponse switchTenant(User currentUser, UUID tenantId) {
         boolean isMember = tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId()).isPresent();
         if (!isMember) {
-            throw new SecurityException("Access denied: You are not a member of this organization");
             throw new ForbiddenException("Access denied: You are not a member of this organization");
         }
 

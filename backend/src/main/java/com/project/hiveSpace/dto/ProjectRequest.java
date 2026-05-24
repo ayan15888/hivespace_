@@ -2,7 +2,7 @@ package com.project.hiveSpace.dto;
 
 import com.project.hiveSpace.models.ProjectStatus;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+// import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,12 +21,8 @@ public class ProjectRequest {
 
     private String description;
 
-    @NotNull(message = "Project status is required")
     @Builder.Default
     private ProjectStatus status = ProjectStatus.ACTIVE;
-
-    @NotNull(message = "Workspace ID is required")
-    private UUID workspaceId;
 
     private String color;
 
@@ -35,3 +31,4 @@ public class ProjectRequest {
 
     private UUID leadUserId;
 }
+

@@ -8,7 +8,6 @@ import com.project.hiveSpace.repository.*;
 import com.project.hiveSpace.security.RbacService;
 import com.project.hiveSpace.exceptions.ForbiddenException;
 import com.project.hiveSpace.exceptions.NotFoundException;
-import com.project.hiveSpace.exceptions.DomainValidationException;
 // import com.project.hiveSpace.exceptions.DomainValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -415,7 +414,6 @@ public class InvitationService {
         User currentUser = getCurrentUser();
         UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
         if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
-            throw new SecurityException("Access denied: Cannot view invitations of a different organization");
             throw new ForbiddenException("Access denied: Cannot view invitations of a different organization");
         }
 

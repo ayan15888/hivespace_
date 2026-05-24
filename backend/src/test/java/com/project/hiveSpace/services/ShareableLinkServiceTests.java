@@ -32,6 +32,12 @@ class ShareableLinkServiceTests {
     private TaskRepository taskRepository;
 
     @Mock
+    private ProjectTeamRepository projectTeamRepository;
+
+    @Mock
+    private ProjectMemberRepository projectMemberRepository;
+
+    @Mock
     private RbacService rbacService;
 
     @InjectMocks
@@ -60,8 +66,6 @@ class ShareableLinkServiceTests {
                 .id(projectId)
                 .name("Shared Project")
                 .workspace(workspace)
-                .teamsCount(0)
-                .membersCount(1)
                 .createdAt(new Date())
                 .build();
     }
@@ -130,7 +134,8 @@ class ShareableLinkServiceTests {
 
         when(shareableLinkRepository.findByToken("publictoken")).thenReturn(Optional.of(link));
         when(taskRepository.findAllByProjectId(projectId)).thenReturn(Collections.singletonList(task));
-        when(taskRepository.countByProjectAndCreatedAtLessThanEqual(any(), any())).thenReturn(1);
+        when(projectTeamRepository.countByProjectId(projectId)).thenReturn(0L);
+        when(projectMemberRepository.countByProjectId(projectId)).thenReturn(1L);
 
         SharedProjectResponse response = shareableLinkService.getPublicProjectData("publictoken");
 

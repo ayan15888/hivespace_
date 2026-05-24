@@ -337,59 +337,43 @@ public class TaskService {
             changed = true;
         }
 
-        // Assignee update
-        if (request.getAssigneeId() != null && (task.getAssignee() == null || !request.getAssigneeId().equals(task.getAssignee().getId()))) {
-            User oldAssignee = task.getAssignee();
-            User newAssignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new NotFoundException("Assignee user not found"));
-            // Verify if the assignee is a member of this project
-            if (!rbacService.hasProjectRoleForUser(newAssignee.getId(), task.getProject().getId(), ProjectMemberRole.VIEWER)) {
-                throw new DomainValidationException("Assignee must be a member of this project");
-            }
-            task.setAssignee(newAssignee);
-
-            // Also need to update/insert OWNER in task_assignees
+        // Assignee update — transfer ownership if assigneeId changed
         if (request.getAssigneeId() != null) {
             Optional<TaskAssignee> currentOwnerOpt = taskAssigneeRepository.findByTaskAndRole(task, TaskAssigneeRole.OWNER);
-            User currentOwner = currentOwnerOpt.isPresent() ? currentOwnerOpt.get().getUser() : null;
+            User currentOwner = currentOwnerOpt.map(TaskAssignee::getUser).orElse(null);
 
-            TaskAssignee newAssigneeRecord = TaskAssignee.builder()
-                    .task(task)
-                    .user(newAssignee)
-                    .role(TaskAssigneeRole.OWNER)
-                    .assignedAt(new Date())
-                    .build();
-            taskAssigneeRepository.save(newAssigneeRecord);
+            boolean ownerChanged = currentOwner == null || !request.getAssigneeId().equals(currentOwner.getId());
+            if (ownerChanged) {
+                User newOwner = userRepository.findById(request.getAssigneeId())
+                        .orElseThrow(() -> new NotFoundException("Assignee user not found"));
 
-            taskActivityRepository.save(TaskActivity.builder()
-                    .task(task)
-                    .user(actor)
-                    .type("OWNER_CHANGED")
-                    .oldValue(oldAssignee != null ? oldAssignee.getUsername() : null)
-                    .newValue(newAssignee.getUsername())
-                    .createdAt(new Date())
-                    .build());
-            changed = true;
-            if (currentOwner == null || !request.getAssigneeId().equals(currentOwner.getId())) {
-                User newAssignee = userRepository.findById(request.getAssigneeId())
-                        .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
-                // Verify if the assignee is a member of this project
-                if (!rbacService.hasProjectRoleForUser(newAssignee.getId(), task.getProject().getId(), ProjectMemberRole.VIEWER)) {
-                    throw new IllegalArgumentException("Assignee must be a member of this project");
+                if (!rbacService.hasProjectRoleForUser(newOwner.getId(), task.getProject().getId(), ProjectMemberRole.VIEWER)) {
+                    throw new DomainValidationException("Assignee must be a member of this project");
                 }
 
-                if (currentOwnerOpt.isPresent()) {
-                    taskAssigneeRepository.delete(currentOwnerOpt.get());
-                }
-                taskAssigneeRepository.findByTaskAndUser(task, newAssignee).ifPresent(taskAssigneeRepository::delete);
+                // Remove existing OWNER record
+                currentOwnerOpt.ifPresent(taskAssigneeRepository::delete);
 
-                TaskAssignee newAssigneeRecord = TaskAssignee.builder()
+                // Remove any other role the new owner may have had on this task
+                taskAssigneeRepository.findByTaskAndUser(task, newOwner).ifPresent(taskAssigneeRepository::delete);
+
+                // Insert new OWNER record
+                TaskAssignee newOwnerRecord = TaskAssignee.builder()
                         .task(task)
-                        .user(newAssignee)
+                        .user(newOwner)
                         .role(TaskAssigneeRole.OWNER)
                         .assignedAt(new Date())
                         .build();
-                taskAssigneeRepository.save(newAssigneeRecord);
+                taskAssigneeRepository.save(newOwnerRecord);
+
+                taskActivityRepository.save(TaskActivity.builder()
+                        .task(task)
+                        .user(actor)
+                        .type("OWNER_CHANGED")
+                        .oldValue(currentOwner != null ? currentOwner.getUsername() : null)
+                        .newValue(newOwner.getUsername())
+                        .createdAt(new Date())
+                        .build());
                 changed = true;
             }
         }
@@ -441,9 +425,10 @@ public class TaskService {
             response.setParentId(task.getParentTask().getId());
         }
 
-        // Dynamically compute the sequential task identifier (e.g. HS-001)
-        int seq = taskRepository.countByProjectAndCreatedAtLessThanEqual(task.getProject(), task.getCreatedAt());
+        // Use stored atomic task sequence for task identifier (e.g. HS-001)
+        int seq = task.getProject().getTaskSequence();
         response.setTaskIdentifier("HS-" + String.format("%03d", seq));
+
 
         // Subtask counts
         int subtaskCount = taskRepository.countByParentTask(task);

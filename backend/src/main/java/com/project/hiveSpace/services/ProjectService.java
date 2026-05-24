@@ -326,7 +326,6 @@ public class ProjectService {
                             .joinedAt(new Date())
                             .build();
                     projectMemberRepository.save(member);
-                    project.setMembersCount(project.getMembersCount() + 1);
                 }
             );
         }
