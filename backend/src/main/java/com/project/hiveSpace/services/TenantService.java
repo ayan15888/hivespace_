@@ -150,6 +150,7 @@ public class TenantService {
         User currentUser = getCurrentUser();
         UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
         if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot access members of a different organization");
             throw new ForbiddenException("Access denied: Cannot access members of a different organization");
         }
 
@@ -217,6 +218,7 @@ public class TenantService {
         User currentUser = getCurrentUser();
         UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
         if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot update roles in a different organization");
             throw new ForbiddenException("Access denied: Cannot update roles in a different organization");
         }
 
@@ -271,6 +273,7 @@ public class TenantService {
         User currentUser = getCurrentUser();
         UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
         if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot remove members from a different organization");
             throw new ForbiddenException("Access denied: Cannot remove members from a different organization");
         }
 
