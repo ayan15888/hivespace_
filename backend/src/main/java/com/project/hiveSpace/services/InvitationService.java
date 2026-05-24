@@ -6,6 +6,8 @@ import com.project.hiveSpace.dto.JoinRequest;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
 import com.project.hiveSpace.security.RbacService;
+import com.project.hiveSpace.exceptions.ForbiddenException;
+import com.project.hiveSpace.exceptions.DomainValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -54,7 +56,7 @@ public class InvitationService {
         }
 
         if (!rbacService.canManageInvite(tenant.getId())) {
-            throw new SecurityException("Only organization owners or administrators can create invitations");
+            throw new ForbiddenException("Only organization owners or administrators can create invitations");
         }
 
         // Determine inviter's actual role
@@ -75,12 +77,12 @@ public class InvitationService {
         }
 
         if (targetRole == TenantMemberRole.OWNER) {
-            throw new SecurityException("The Owner role cannot be assigned via invitation");
+            throw new ForbiddenException("The Owner role cannot be assigned via invitation");
         }
 
         if (inviterRole == TenantMemberRole.ADMIN) {
             if (targetRole == TenantMemberRole.ADMIN || targetRole == TenantMemberRole.OWNER) {
-                throw new SecurityException("Only organization owners can invite Administrators or Owners");
+                throw new ForbiddenException("Only organization owners can invite Administrators or Owners");
             }
         }
 
@@ -111,6 +113,7 @@ public class InvitationService {
             if (t.getWorkspace() == null || !t.getWorkspace().getTenant().getId().equals(tenant.getId())) {
                 throw new IllegalArgumentException("Team " + tId + " does not belong to the specified tenant");
             }
+            targetWorkspaceSet.add(t.getWorkspace()); // Make sure we auto-include team workspaces
             targetTeamSet.add(t);
         }
 
@@ -138,7 +141,7 @@ public class InvitationService {
 
         for (Workspace w : allInviteWorkspaces) {
             if (!rbacService.hasWorkspaceRole(w.getId(), WorkspaceMemberRole.MEMBER)) {
-                throw new SecurityException("You must have at least Member access to '" + w.getName() + "' to invite others into it");
+                throw new ForbiddenException("You must have at least Member access to '" + w.getName() + "' to invite others into it");
             }
         }
 

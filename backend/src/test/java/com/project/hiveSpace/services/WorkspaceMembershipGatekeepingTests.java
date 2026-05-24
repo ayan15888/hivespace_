@@ -4,6 +4,7 @@ import com.project.hiveSpace.dto.*;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
 import com.project.hiveSpace.security.RbacService;
+import com.project.hiveSpace.exceptions.DomainValidationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -132,7 +133,7 @@ class WorkspaceMembershipGatekeepingTests {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(false);
 
-        SecurityException exception = assertThrows(SecurityException.class, () ->
+        DomainValidationException exception = assertThrows(DomainValidationException.class, () ->
                 projectMemberService.addMemberToProject(projectId, userId, ProjectMemberRole.MEMBER)
         );
 
@@ -171,7 +172,7 @@ class WorkspaceMembershipGatekeepingTests {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(false);
 
-        SecurityException exception = assertThrows(SecurityException.class, () ->
+        DomainValidationException exception = assertThrows(DomainValidationException.class, () ->
                 teamMemberService.addMemberToTeam(teamId, request)
         );
 
