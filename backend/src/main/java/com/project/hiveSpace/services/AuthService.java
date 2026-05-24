@@ -9,6 +9,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.project.hiveSpace.repository.TenantMemberRepository;
+import com.project.hiveSpace.repository.TenantRepository;
+import com.project.hiveSpace.models.Tenant;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 @Service
@@ -28,6 +32,8 @@ public class AuthService {
     private final UserMapper userMapper;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
+    private final TenantMemberRepository tenantMemberRepository;
+    private final TenantRepository tenantRepository;
 
     public UserResponse register(String email, String username, String password) {
         if (userRepository.existsByEmail(email)) {
@@ -105,6 +111,26 @@ public class AuthService {
         }
         userRepository.save(user);
         return userMapper.toResponse(user, null);
+    }
+
+    @Transactional
+    public UserResponse switchTenant(User currentUser, UUID tenantId) {
+        boolean isMember = tenantMemberRepository.findByTenantIdAndUserId(tenantId, currentUser.getId()).isPresent();
+        if (!isMember) {
+            throw new SecurityException("Access denied: You are not a member of this organization");
+        }
+
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
+
+        User user = userRepository.findById(currentUser.getId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        user.setTenant(tenant);
+        userRepository.save(user);
+
+        String newJwt = jwtService.generateToken(user);
+        return userMapper.toResponse(user, newJwt);
     }
 
 }

@@ -30,14 +30,6 @@ public class Project {
     @Builder.Default
     private ProjectStatus status = ProjectStatus.ACTIVE;
 
-    @Builder.Default
-    @Column(name = "teams_count", nullable = false)
-    private int teamsCount = 0;
-
-    @Builder.Default
-    @Column(name = "members_count", nullable = false)
-    private int membersCount = 0;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workspace_id", nullable = false)
     private Workspace workspace;

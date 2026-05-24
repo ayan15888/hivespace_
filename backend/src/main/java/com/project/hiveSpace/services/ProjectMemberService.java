@@ -53,13 +53,25 @@ public class ProjectMemberService {
         }
 
         List<ProjectMember> explicitMembers = projectMemberRepository.findAllByProjectId(projectId);
-        List<ProjectMemberResponse> responses = explicitMembers.stream()
+        return explicitMembers.stream()
                 .map(this::mapToResponse)
+                .sorted((m1, m2) -> Boolean.compare(m2.isBelongsToAssignedTeam(), m1.isBelongsToAssignedTeam()))
                 .collect(Collectors.toList());
+    }
 
-        Set<UUID> existingUserIds = responses.stream()
-                .map(ProjectMemberResponse::getUserId)
-                .collect(Collectors.toSet());
+    @Transactional(readOnly = true)
+    public List<ProjectMemberResponse> getTeamMembersOfProjectTeams(UUID projectId) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+        UUID workspaceId = project.getWorkspace().getId();
+        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER) && !rbacService.canAdminWorkspace(workspaceId)) {
+            throw new SecurityException("Access denied: Must be a project member or workspace admin");
+        }
+
+        List<ProjectMemberResponse> responses = new java.util.ArrayList<>();
+        Set<UUID> existingUserIds = new java.util.HashSet<>();
 
         List<ProjectTeam> projectTeams = projectTeamRepository.findByProjectId(projectId);
         for (ProjectTeam pt : projectTeams) {
@@ -84,9 +96,7 @@ public class ProjectMemberService {
             }
         }
 
-        return responses.stream()
-                .sorted((m1, m2) -> Boolean.compare(m2.isBelongsToAssignedTeam(), m1.isBelongsToAssignedTeam()))
-                .collect(Collectors.toList());
+        return responses;
     }
 
     @Transactional
@@ -122,10 +132,6 @@ public class ProjectMemberService {
                 .build();
 
         ProjectMember saved = projectMemberRepository.save(projectMember);
-
-        // Increment project members count
-        project.setMembersCount(project.getMembersCount() + 1);
-        projectRepository.save(project);
 
         return mapToResponse(saved);
     }
@@ -183,12 +189,6 @@ public class ProjectMemberService {
                 .orElseThrow(() -> new NotFoundException("Membership not found"));
 
         projectMemberRepository.delete(projectMember);
-
-        // Decrement project members count
-        if (project.getMembersCount() > 0) {
-            project.setMembersCount(project.getMembersCount() - 1);
-            projectRepository.save(project);
-        }
     }
 
     private boolean isLastLead(UUID projectId, UUID userId) {
