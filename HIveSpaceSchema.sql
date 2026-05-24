@@ -3,18 +3,29 @@
 ---------------------- UP AND RUNNING IN THE DB ---------------------------
 ---------------------------------------------------------------------------
 
+-- Trigger function for auto-updating updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 -- TENANTS
 CREATE TABLE tenants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR NOT NULL UNIQUE,
-  slug VARCHAR NOT NULL UNIQUE,
+  name VARCHAR NOT NULL,
+  slug VARCHAR NOT NULL,
   description VARCHAR,
   owner_email VARCHAR NOT NULL,
+  owner_id UUID,
   plan VARCHAR NOT NULL DEFAULT 'FREE'
     CHECK (plan IN ('FREE', 'PRO', 'ULTIMATE', 'ENTERPRISE')),
   active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP NOT NULL DEFAULT now()
+  updated_at TIMESTAMP NOT NULL DEFAULT now(),
+  CONSTRAINT check_slug_lowercase CHECK (slug = lower(slug))
 );
 
 -- USERS
@@ -35,6 +46,21 @@ CREATE TABLE users (
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
+
+-- ADD FK CONSTRAINT FOR TENANTS OWNER (AVOIDS CIRCULAR REFERENCE AT TABLE CREATION)
+ALTER TABLE tenants ADD CONSTRAINT fk_tenants_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
+
+-- TRIGGERS TO AUTO-UPDATE updated_at
+CREATE TRIGGER trigger_update_tenants_updated_at
+BEFORE UPDATE ON tenants
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trigger_update_users_updated_at
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
 
 -- TENANT MEMBERS
 CREATE TABLE tenant_members (
@@ -420,7 +446,8 @@ CREATE INDEX idx_shareable_links_workspace ON shareable_links(workspace_id);
 CREATE INDEX idx_shareable_links_team ON shareable_links(team_id);
 CREATE INDEX idx_shareable_links_token ON shareable_links(token);
 CREATE INDEX idx_shareable_links_project ON shareable_links(project_id);
-CREATE INDEX idx_tenants_slug ON tenants(slug);
+CREATE UNIQUE INDEX idx_tenants_slug_lower ON tenants (lower(slug));
+CREATE UNIQUE INDEX idx_tenants_name_lower ON tenants (lower(name));
 CREATE INDEX idx_project_teams_project ON project_teams(project_id);
 CREATE INDEX idx_project_teams_team ON project_teams(team_id);
 -- INDEXES 

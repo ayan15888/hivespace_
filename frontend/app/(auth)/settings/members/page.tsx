@@ -22,6 +22,13 @@ import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { InviteModal } from "@/components/common/InviteModal";
+import { usePermission } from "@/hooks/usePermission";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const workspaceRoleColors: Record<string, string> = {
   ADMIN: "text-[#7C5CFC] bg-[#7C5CFC]/10 border-[#7C5CFC]/20",
@@ -33,6 +40,7 @@ export default function WorkspaceMembersSettings() {
   const { activeWorkspace } = useWorkspaceStore();
   const { members, loading } = useWorkspaceMembers();
   const { user } = useAuth();
+  const { canAdminWorkspace, loading: permissionsLoading } = usePermission();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -96,14 +104,40 @@ export default function WorkspaceMembersSettings() {
         </Select>
 
         <div className="ml-auto">
-          <InviteModal
-            trigger={
-              <button className="flex h-9 items-center gap-2 rounded-md bg-emerald-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-emerald-500">
-                <UserPlus className="h-3.5 w-3.5" />
-                Invite to Workspace
-              </button>
-            }
-          />
+          {permissionsLoading ? (
+            <button disabled className="flex h-9 items-center gap-2 rounded-md bg-emerald-600/30 px-4 text-xs font-semibold text-white/50 cursor-not-allowed">
+              <UserPlus className="h-3.5 w-3.5 animate-pulse" />
+              Invite to Workspace
+            </button>
+          ) : canAdminWorkspace ? (
+            <InviteModal
+              trigger={
+                <button className="flex h-9 items-center gap-2 rounded-md bg-emerald-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-emerald-500">
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Invite to Workspace
+                </button>
+              }
+            />
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="block">
+                    <button 
+                      disabled 
+                      className="flex h-9 items-center gap-2 rounded-md bg-emerald-600/30 px-4 text-xs font-semibold text-white/50 cursor-not-allowed"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      Invite to Workspace
+                    </button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="bg-zinc-800 border-zinc-700 text-xs text-zinc-300 ml-2">
+                  Only workspace and organization admins can invite new members.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
 

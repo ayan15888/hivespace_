@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GitGraph as Github, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -16,6 +16,18 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const sessionExpired = searchParams.get("session_expired") || searchParams.get("expired");
+      if (sessionExpired) {
+        toast.error("Your session has expired. Please sign in again.");
+        // Clear query parameters using router to keep a clean url
+        router.replace("/signin");
+      }
+    }
+  }, [router]);
 
   const githubClientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
   const githubRedirectUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&scope=user:email`;

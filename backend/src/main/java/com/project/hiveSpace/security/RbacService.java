@@ -409,6 +409,12 @@ public class RbacService {
                 throw new SecurityException("User is not associated with an organization");
             }
             tenantId = user.getTenant().getId();
+        } else {
+            // Secure validation: verify the authenticated user is actually a member of the requested tenant
+            boolean isMember = tenantMemberRepository.findByTenantIdAndUserId(tenantId, user.getId()).isPresent();
+            if (!isMember) {
+                throw new SecurityException("User is not associated with this organization");
+            }
         }
 
         verifyResourceBelongsToTenant(resourceId, type, tenantId);

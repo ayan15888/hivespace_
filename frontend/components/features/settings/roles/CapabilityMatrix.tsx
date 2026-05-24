@@ -22,8 +22,13 @@ export default function CapabilityMatrix({
             Review exactly which actions are mapped to which system roles.
           </p>
         </div>
-        <span className="text-[9px] font-mono uppercase bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">
-          Enforced by System Engine
+        <span className={cn(
+          "text-[9px] font-mono uppercase border px-2 py-0.5 rounded select-none",
+          activeDetail.id === "tenant"
+            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+            : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+        )}>
+          {activeDetail.id === "tenant" ? "Enforced by System Engine" : "Simulated Model Playground"}
         </span>
       </div>
 

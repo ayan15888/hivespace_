@@ -35,6 +35,16 @@ export default function LevelTabs({
             {isActive && (
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#7C5CFC] to-blue-400" />
             )}
+
+            {levelKey === "tenant" ? (
+              <span className="absolute top-1.5 left-1.5 text-[7.5px] px-1 py-0.5 bg-emerald-950/70 border border-emerald-500/25 text-[#a7f3d0] rounded-sm select-none pointer-events-none uppercase tracking-widest font-mono font-bold leading-none">
+                Live
+              </span>
+            ) : (
+              <span className="absolute top-1.5 left-1.5 text-[7.5px] px-1 py-0.5 bg-amber-950/70 border border-amber-500/25 text-[#fde68a] rounded-sm select-none pointer-events-none uppercase tracking-widest font-mono font-bold leading-none">
+                Model
+              </span>
+            )}
             
             {/* COMPACT HELP BUTTON OVERLAY */}
             <button
