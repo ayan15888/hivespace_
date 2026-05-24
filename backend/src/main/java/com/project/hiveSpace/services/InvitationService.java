@@ -313,9 +313,6 @@ public class InvitationService {
                     .joinedAt(new Date())
                     .build();
             tenantMemberRepository.save(tenantMember);
-
-            tenant.setMembersCount(tenant.getMembersCount() + 1);
-            tenantRepository.save(tenant);
         }
 
         // Dynamically associate user with their active tenant context if not set
@@ -334,8 +331,6 @@ public class InvitationService {
                         .joinedAt(new Date())
                         .build();
                 workspaceMemberRepository.save(wm);
-                ws.setMembersCount(ws.getMembersCount() + 1);
-                workspaceRepository.save(ws);
             }
         }
 
@@ -350,8 +345,6 @@ public class InvitationService {
                         .joinedAt(new Date())
                         .build();
                 workspaceMemberRepository.save(wm);
-                teamWorkspace.setMembersCount(teamWorkspace.getMembersCount() + 1);
-                workspaceRepository.save(teamWorkspace);
             }
             if (!teamMemberRepository.existsByTeamAndUser(t, currentUser)) {
                 TeamMember tm = TeamMember.builder()
@@ -361,8 +354,6 @@ public class InvitationService {
                         .joinedAt(new Date())
                         .build();
                 teamMemberRepository.save(tm);
-                t.setMembersCount(t.getMembersCount() + 1);
-                teamRepository.save(t);
             }
         }
 
@@ -379,8 +370,6 @@ public class InvitationService {
                         .joinedAt(new Date())
                         .build();
                 workspaceMemberRepository.save(wm);
-                projectWorkspace.setMembersCount(projectWorkspace.getMembersCount() + 1);
-                workspaceRepository.save(projectWorkspace);
             }
 
             if (!projectMemberRepository.existsByProjectAndUser(project, currentUser)) {
@@ -391,8 +380,6 @@ public class InvitationService {
                         .joinedAt(new Date())
                         .build();
                 projectMemberRepository.save(pm);
-                project.setMembersCount(project.getMembersCount() + 1);
-                projectRepository.save(project);
             }
         }
 
@@ -425,6 +412,11 @@ public class InvitationService {
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public java.util.List<InviteResponse> getInvitationsByTenant(UUID tenantId) {
         User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot view invitations of a different organization");
+        }
+
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 

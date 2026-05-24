@@ -9,16 +9,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.servlet.http.HttpServletRequest;
+// import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
-import java.util.List;
+// import java.util.List;
 
 @Service("rbac")
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class RbacService {
 
-    private final HttpServletRequest request;
+    // private final HttpServletRequest request;
     private final TenantMemberRepository tenantMemberRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final ProjectMemberRepository projectMemberRepository;
@@ -28,7 +28,7 @@ public class RbacService {
     private final TeamRepository teamRepository;
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
-    private final ProjectTeamRepository projectTeamRepository;
+    // private final ProjectTeamRepository projectTeamRepository;
     // private final TenantRepository tenantRepository;
 
     public User getCurrentUser() {
@@ -88,43 +88,17 @@ public class RbacService {
         User user = getCurrentUser();
         if (user == null || projectId == null || requiredRole == null) return false;
 
-        boolean hasExplicit = projectMemberRepository.findByProjectIdAndUserId(projectId, user.getId())
+        return projectMemberRepository.findByProjectIdAndUserId(projectId, user.getId())
                 .map(member -> projectRank(member.getRole()) >= projectRank(requiredRole))
                 .orElse(false);
-
-        if (hasExplicit) return true;
-
-        if (projectRank(ProjectMemberRole.MEMBER) >= projectRank(requiredRole)) {
-            List<ProjectTeam> projectTeams = projectTeamRepository.findByProjectId(projectId);
-            for (ProjectTeam pt : projectTeams) {
-                if (teamMemberRepository.findByTeamIdAndUserId(pt.getTeam().getId(), user.getId()).isPresent()) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
     
     public boolean hasProjectRoleForUser(UUID userId, UUID projectId, ProjectMemberRole requiredRole) {
         if (userId == null || projectId == null || requiredRole == null) return false;
 
-        boolean hasExplicit = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+        return projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .map(member -> projectRank(member.getRole()) >= projectRank(requiredRole))
                 .orElse(false);
-
-        if (hasExplicit) return true;
-
-        if (projectRank(ProjectMemberRole.MEMBER) >= projectRank(requiredRole)) {
-            List<ProjectTeam> projectTeams = projectTeamRepository.findByProjectId(projectId);
-            for (ProjectTeam pt : projectTeams) {
-                if (teamMemberRepository.findByTeamIdAndUserId(pt.getTeam().getId(), userId).isPresent()) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
     
     public boolean isProjectLead(UUID projectId) {
@@ -416,7 +390,10 @@ public class RbacService {
             if (!isMember) {
                 throw new ForbiddenException("User is not associated with this organization");
             }
+        if (user.getTenant() == null) {
+            throw new SecurityException("User is not associated with an organization");
         }
+        UUID tenantId = user.getTenant().getId();
 
         verifyResourceBelongsToTenant(resourceId, type, tenantId);
     }

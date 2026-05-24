@@ -3,6 +3,7 @@ package com.project.hiveSpace.controllers;
 import com.project.hiveSpace.dto.GitHubAuthRequest;
 import com.project.hiveSpace.dto.LoginRequest;
 import com.project.hiveSpace.dto.RegisterRequest;
+import com.project.hiveSpace.dto.SwitchTenantRequest;
 import com.project.hiveSpace.dto.UpdateProfileRequest;
 import com.project.hiveSpace.dto.UserResponse;
 import com.project.hiveSpace.models.User;
@@ -69,14 +70,5 @@ public class AuthController {
                 req.getBio(),
                 req.getAvatarUrl()
         ));
-    }
-
-    @PostMapping("/refresh")
-    public ResponseEntity<UserResponse> refresh(@AuthenticationPrincipal User user) {
-        if (user == null) {
-            return ResponseEntity.status(401).build();
-        }
-        String token = authService.refreshToken(user);
-        return ResponseEntity.ok(userMapper.toResponse(user, token));
     }
 }

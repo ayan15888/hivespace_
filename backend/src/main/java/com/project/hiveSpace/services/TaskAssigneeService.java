@@ -158,8 +158,8 @@ public class TaskAssigneeService {
                 .build();
         TaskAssignee saved = taskAssigneeRepository.save(newAssignee);
 
-        // 3. Keep sync with task.assignee for backwards compatibility / quick queries
-        task.setAssignee(newOwner);
+        // 3. Update task modification timestamp
+        task.setUpdatedAt(new Date());
         taskRepository.save(task);
 
         // Record activity

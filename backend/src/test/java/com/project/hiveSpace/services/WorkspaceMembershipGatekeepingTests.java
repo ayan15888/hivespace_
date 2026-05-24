@@ -91,14 +91,12 @@ class WorkspaceMembershipGatekeepingTests {
                 .id(projectId)
                 .name("Test Project")
                 .workspace(workspace)
-                .membersCount(0)
                 .build();
 
         team = Team.builder()
                 .id(teamId)
                 .name("Test Team")
                 .workspace(workspace)
-                .membersCount(0)
                 .build();
     }
 

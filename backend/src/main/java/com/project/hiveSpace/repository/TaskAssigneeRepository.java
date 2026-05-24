@@ -19,4 +19,5 @@ public interface TaskAssigneeRepository extends JpaRepository<TaskAssignee, UUID
     Optional<TaskAssignee> findByTaskAndUser(Task task, User user);
     Optional<TaskAssignee> findByTaskAndRole(Task task, TaskAssigneeRole role);
     Optional<TaskAssignee> findByTaskIdAndUserId(UUID taskId, UUID userId);
+    Optional<TaskAssignee> findByTaskIdAndRole(UUID taskId, TaskAssigneeRole role);
 }

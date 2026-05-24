@@ -37,10 +37,6 @@ public class Workspace {
     @Column(name = "created_at", nullable = false)
     private Date createdAt;
 
-    @Builder.Default
-    @Column(name = "members_count", nullable = false)
-    private int membersCount = 0;
-
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at", nullable = false)
     private Date updatedAt;

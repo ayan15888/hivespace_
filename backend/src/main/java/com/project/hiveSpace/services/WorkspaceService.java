@@ -77,7 +77,6 @@ public class WorkspaceService {
                 .description(request.getDescription())
                 .tenant(tenant)
                 .createdBy(currentUser)
-                .membersCount(1) // Creator is included
                 .createdAt(new Date())
                 .updatedAt(new Date())
                 .build();
@@ -93,14 +92,16 @@ public class WorkspaceService {
                 .build();
         workspaceMemberRepository.save(creatorMember);
 
-        // Increment workspaces count on tenant
-        tenant.setWorkspacesCount(tenant.getWorkspacesCount() + 1);
-        tenantRepository.save(tenant);
-
         return mapToResponse(savedWorkspace);
     }
 
     public List<WorkspaceResponse> getWorkspacesByTenant(UUID tenantId) {
+        User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot access workspaces of a different organization");
+        }
+
         if (!rbacService.hasTenantRole(tenantId, TenantMemberRole.MEMBER)) {
             throw new ForbiddenException("Access denied: Must be a member of the organization to list its workspaces");
         }

@@ -31,6 +31,7 @@ public class TenantService {
     private final TenantRepository tenantRepository;
     private final com.project.hiveSpace.repository.UserRepository userRepository;
     private final com.project.hiveSpace.repository.TenantMemberRepository tenantMemberRepository;
+    private final com.project.hiveSpace.repository.WorkspaceRepository workspaceRepository;
 
     @Transactional
     public TenantResponse createTenant(TenantRequest request) {
@@ -53,8 +54,6 @@ public class TenantService {
                 .plan(request.getPlan())
                 .description(request.getDescription())
                 .active(true)
-                .membersCount(1)
-                .workspacesCount(0)
                 .build();
 
         Tenant savedTenant = tenantRepository.save(tenant);
@@ -84,6 +83,9 @@ public class TenantService {
     }
 
     private TenantResponse mapToResponse(Tenant tenant) {
+        long membersCount = tenantMemberRepository.countByTenantId(tenant.getId());
+        long workspacesCount = workspaceRepository.countByTenantId(tenant.getId());
+
         return new TenantResponse(
                 tenant.getId(),
                 tenant.getName(),
@@ -91,8 +93,8 @@ public class TenantService {
                 tenant.getOwnerEmail(),
                 tenant.getPlan(),
                 tenant.isActive(),
-                tenant.getMembersCount(),
-                tenant.getWorkspacesCount()
+                (int) membersCount,
+                (int) workspacesCount
         );
     }
 
@@ -145,6 +147,10 @@ public class TenantService {
     @Transactional(readOnly = true)
     public List<MemberResponse> getMembersByTenantId(UUID tenantId) {
         User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot access members of a different organization");
+        }
 
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
@@ -208,6 +214,11 @@ public class TenantService {
     @Transactional
     public MemberResponse updateMemberRole(UUID tenantId, UUID userId, String roleStr) {
         User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot update roles in a different organization");
+        }
+
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
@@ -257,6 +268,11 @@ public class TenantService {
     @Transactional
     public void removeMember(UUID tenantId, UUID userId) {
         User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new SecurityException("Access denied: Cannot remove members from a different organization");
+        }
+
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
@@ -279,8 +295,5 @@ public class TenantService {
         }
 
         tenantMemberRepository.delete(memberToRemove);
-        
-        tenant.setMembersCount(Math.max(1, tenant.getMembersCount() - 1));
-        tenantRepository.save(tenant);
     }
 }
