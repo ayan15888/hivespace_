@@ -265,8 +265,8 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent text-foreground transition-colors duration-500 selection:bg-primary/20 relative">
-      <GradientBackground />
+    <div className="min-h-screen bg-transparent text-foreground transition-colors duration-500 selection:bg-primary/20 relative dark-blue">
+      <GradientBackground theme="dark-blue" />
 
       {/* 1. HEADER / NAVIGATION */}
       <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border/10 transition-colors duration-300">
@@ -305,20 +305,17 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={cycleTheme}
-              className="flex items-center gap-1.5 rounded-md border border-border/40 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider hover:bg-muted transition-colors cursor-pointer"
-            >
-              <Sparkles className="size-3 text-primary" strokeWidth={1.75} />
-              Theme: {theme === "system" ? "light" : theme}
-            </button>
-
-            <Link
-              href="/signup"
-              className="hidden sm:inline-flex h-8 items-center justify-center rounded bg-primary px-3.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground hover:opacity-90 active:scale-98 transition-all"
-            >
-              Launch Workspace
-            </Link>
+            <div className="relative group/btn-wrap hidden sm:block">
+              <div className="glowing-border-btn-glow !inset-[-2px] !blur-[4px] opacity-25" />
+              <div className="glowing-border-btn-wrap !rounded-[4px]">
+                <Link
+                  href="/signup"
+                  className="inline-flex h-8 items-center justify-center rounded bg-transparent px-3.5 text-[10px] font-bold uppercase tracking-wider text-foreground hover:text-white transition-all border-none rounded-[inherit]"
+                >
+                  Launch Workspace
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -367,13 +364,18 @@ export default function LandingPage() {
 
           <ScrollReveal delay={350}>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                href="/signup"
-                className="w-full sm:w-auto h-11 inline-flex items-center justify-center rounded bg-primary px-6 text-xs font-bold uppercase tracking-wider text-primary-foreground hover:opacity-90 active:scale-98 transition-all"
-              >
-                Launch Your Console
-                <ArrowRight className="ml-2 size-3.5" strokeWidth={2} />
-              </Link>
+              <div className="relative group/btn-wrap w-full sm:w-auto">
+                <div className="glowing-border-btn-glow" />
+                <div className="glowing-border-btn-wrap !rounded-[6px]">
+                  <Link
+                    href="/signup"
+                    className="w-full sm:w-auto h-11 inline-flex items-center justify-center px-6 text-xs font-bold uppercase tracking-wider text-foreground hover:text-white transition-all bg-transparent border-none rounded-[inherit]"
+                  >
+                    Launch Your Console
+                    <ArrowRight className="ml-2 size-3.5" strokeWidth={2} />
+                  </Link>
+                </div>
+              </div>
               <Link
                 href="#bento"
                 className="w-full sm:w-auto h-11 inline-flex items-center justify-center rounded border border-border/80 px-6 text-xs font-mono uppercase tracking-wider text-foreground hover:bg-muted transition-colors"
@@ -387,11 +389,7 @@ export default function LandingPage() {
           </ScrollReveal>
 
           <ScrollReveal delay={450} className="mt-6 flex justify-center items-center gap-2 text-xs font-mono text-muted-foreground/80">
-            <span>Press</span>
-            <kbd className="rounded border border-border/80 bg-muted px-1.5 py-0.5 text-[10px] font-mono font-bold text-foreground">
-              D
-            </kbd>
-            <span>anywhere to toggle dark mode · cycle themes via header button</span>
+            <span>GitHub-native space · Next-gen dev workflow console</span>
           </ScrollReveal>
         </div>
       </section>

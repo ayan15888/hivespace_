@@ -263,31 +263,52 @@ function DashboardPageContent() {
             <div className="col-span-6 flex flex-col gap-6 w-full">
               
               {/* My Tasks */}
-              <Card className="bg-hs-main border-border/50 shadow-none rounded-[24px] overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between py-4 px-5">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">My Tasks</CardTitle>
-                  <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
+              <Card className="bg-hs-card border border-border/30 rounded-[28px] p-6 shadow-2xl shadow-black/10 overflow-hidden">
+                <div className="flex flex-row items-center justify-between mb-5 px-1">
+                  <h3 className="text-xs font-bold tracking-widest text-zinc-500 uppercase">My Tasks</h3>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800/40 rounded-md">
                     View all
                   </Button>
-                </CardHeader>
-                <div className="flex flex-col pb-2">
+                </div>
+                <div className="flex flex-col gap-2">
                   {tasks.length > 0 ? (
                     tasks.slice(0, 5).map((task) => (
                       <div key={task.id} className="flex flex-col">
-                        <div className="flex items-center justify-between py-3 px-5 hover:bg-muted/30 transition-colors cursor-pointer group">
-                          <div className="flex items-center gap-4">
-                            <div className={cn(
-                              "h-2 w-2 rounded-full",
-                              task.priority === "urgent" ? "bg-[#F95B4E]" : 
-                              task.priority === "high" ? "bg-amber-500" : "bg-muted-foreground/30"
-                            )} />
-                            <div className="text-xs text-muted-foreground w-12">{task.id.slice(0, 6)}</div>
-                            <div className="text-sm group-hover:text-primary transition-colors font-medium text-foreground">
+                        <div 
+                          onClick={() => {
+                            if (task.projectId) {
+                              router.push(`/dashboard/projects/${task.projectId}/board`);
+                            }
+                          }}
+                          className="flex items-center justify-between py-3 px-4 hover:bg-white/5 transition-all duration-200 cursor-pointer group rounded-xl border border-transparent hover:border-zinc-800/30"
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            {/* Priority Glow Dot */}
+                            {(() => {
+                              const p = (task.priority || "normal").toLowerCase();
+                              const isUrgent = p === "urgent";
+                              const isHigh = p === "high" || p === "medium";
+                              const dotColor = isUrgent ? "bg-[#E24B4A]" : isHigh ? "bg-[#EF9F27]" : "bg-zinc-500";
+                              const shadowColor = isUrgent ? "shadow-[0_0_8px_#E24B4A]" : isHigh ? "shadow-[0_0_8px_#EF9F27]" : "shadow-none";
+                              return (
+                                <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", dotColor, shadowColor)} />
+                              );
+                            })()}
+
+                            {/* ID */}
+                            <span className="font-mono text-xs text-zinc-500 tracking-tight shrink-0 select-none">
+                              {task.taskIdentifier || task.id.slice(0, 6)}
+                            </span>
+
+                            {/* Title */}
+                            <span className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors truncate max-w-[240px]">
                               {task.title}
-                            </div>
+                            </span>
+
+                            {/* Project Badge */}
                             <Badge 
                               variant="outline" 
-                              className="text-[10px] font-medium rounded-sm px-1.5 py-0 border-l-2 bg-transparent"
+                              className="text-[10px] font-semibold rounded-md px-2 py-0.5 border-l-2 bg-transparent select-none shrink-0"
                               style={{ 
                                 color: task.projectColor ? PROJECT_COLOR_MAP[task.projectColor] : "inherit",
                                 borderColor: task.projectColor ? PROJECT_COLOR_MAP[task.projectColor] : "var(--border)"
@@ -295,16 +316,32 @@ function DashboardPageContent() {
                             >
                               {task.projectName || "Project"}
                             </Badge>
-                            <Badge variant="outline" className="text-[10px] font-normal bg-muted/50 border-border text-muted-foreground rounded-sm">
-                              {task.status.replace('_', ' ')}
+
+                            {/* Status Badge */}
+                            <Badge 
+                              variant="outline" 
+                              className="text-[9px] font-bold bg-zinc-900/30 border-zinc-800/40 text-zinc-400 rounded-md uppercase tracking-wider px-1.5 py-0.5 select-none shrink-0"
+                            >
+                              {task.status.replace('_', ' ').toLowerCase()}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <span className="text-xs text-muted-foreground">
-                              {task.dueDate ? new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : "No date"}
-                            </span>
-                            <Avatar className="h-7 w-7 rounded-full border border-border">
-                              <AvatarFallback className={cn("text-[10px] font-semibold", getAvatarColorClass(task.assigneeInitials || task.assigneeName || task.id))}>
+
+                          {/* Right elements: Due Date & Avatar */}
+                          <div className="flex items-center gap-4 shrink-0">
+                            {task.dueDate && (
+                              <div className="flex items-center gap-1.5 text-xs text-zinc-500 select-none">
+                                <Calendar className="h-3 w-3" strokeWidth={1.5} />
+                                <span>
+                                  {new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                </span>
+                              </div>
+                            )}
+                            <Avatar 
+                              className="h-6.5 w-6.5 rounded-full border border-zinc-800"
+                              username={task.assigneeName || "Unassigned"}
+                              email={task.assigneeName ? `${task.assigneeInitials?.toLowerCase() || "user"}@hivespace.io` : undefined}
+                            >
+                              <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass(task.assigneeInitials || task.assigneeName || task.id))}>
                                 {task.assigneeInitials || "??"}
                               </AvatarFallback>
                             </Avatar>

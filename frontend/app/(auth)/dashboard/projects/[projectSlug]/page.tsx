@@ -244,15 +244,20 @@ export default function ProjectOverviewPage() {
               {projectMembers.length > 0 ? (
                 <>
                   {projectMembers.slice(0, 5).map((member, i) => (
-                    <Avatar key={member.id} className={cn(
-                      "h-8 w-8 ring-4 ring-background -ml-2.5 first:ml-0 bg-muted border border-border/50 relative group",
-                      i === 0 && "z-10",
-                      i === 1 && "z-20",
-                      i === 2 && "z-30",
-                      i === 3 && "z-40",
-                      i === 4 && "z-50",
-                      member.role === "LEAD" && "border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
-                    )}>
+                    <Avatar 
+                      key={member.id} 
+                      className={cn(
+                        "h-8 w-8 ring-4 ring-background -ml-2.5 first:ml-0 bg-muted border border-border/50 relative group",
+                        i === 0 && "z-10",
+                        i === 1 && "z-20",
+                        i === 2 && "z-30",
+                        i === 3 && "z-40",
+                        i === 4 && "z-50",
+                        member.role === "LEAD" && "border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                      )}
+                      username={member.fullName || member.username}
+                      email={member.email || `${member.username.toLowerCase()}@hivespace.io`}
+                    >
                       <AvatarFallback className={cn("bg-muted text-[10px] text-muted-foreground font-bold", member.role === "LEAD" && "text-amber-500")}>
                         {member.fullName ? member.fullName.substring(0, 2).toUpperCase() : member.username.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
@@ -366,9 +371,20 @@ export default function ProjectOverviewPage() {
                     <Badge className={cn("border-none text-[10px] font-bold h-5 uppercase tracking-wide", task.statusColor)}>
                       {task.status}
                     </Badge>
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-400 font-bold">{task.assignee}</AvatarFallback>
-                    </Avatar>
+                    {(() => {
+                      const details = {
+                        "MV": { name: "Meera Valenzuela", email: "meera@hivespace.io" },
+                        "RS": { name: "Reid Smith", email: "reid@hivespace.io" },
+                        "RK": { name: "Rajesh Kumar", email: "rajesh@hivespace.io" },
+                        "SA": { name: "Sarah Adams", email: "sarah@hivespace.io" },
+                        "DK": { name: "David K.", email: "david@hivespace.io" }
+                      }[task.assignee] || { name: task.assignee, email: `${task.assignee.toLowerCase()}@hivespace.io` };
+                      return (
+                        <Avatar className="h-6 w-6" username={details.name} email={details.email}>
+                          <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-400 font-bold">{task.assignee}</AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -401,9 +417,20 @@ export default function ProjectOverviewPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-xs text-zinc-500 font-mono italic">edited {doc.edited}</span>
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-400 font-bold">{doc.author}</AvatarFallback>
-                    </Avatar>
+                    {(() => {
+                      const details = {
+                        "MV": { name: "Meera Valenzuela", email: "meera@hivespace.io" },
+                        "RS": { name: "Reid Smith", email: "reid@hivespace.io" },
+                        "RK": { name: "Rajesh Kumar", email: "rajesh@hivespace.io" },
+                        "SA": { name: "Sarah Adams", email: "sarah@hivespace.io" },
+                        "DK": { name: "David K.", email: "david@hivespace.io" }
+                      }[doc.author] || { name: doc.author, email: `${doc.author.toLowerCase()}@hivespace.io` };
+                      return (
+                        <Avatar className="h-6 w-6" username={details.name} email={details.email}>
+                          <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-400 font-bold">{doc.author}</AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -417,7 +444,7 @@ export default function ProjectOverviewPage() {
               <div className="absolute left-3.5 top-2 bottom-4 w-px bg-zinc-800" />
               
               <div className="relative flex gap-4">
-                <Avatar className="h-7 w-7 ring-4 ring-[#000000] absolute -left-10 z-10">
+                <Avatar className="h-7 w-7 ring-4 ring-[#000000] absolute -left-10 z-10" username="Meera Valenzuela" email="meera@hivespace.io">
                   <AvatarFallback className="bg-zinc-800 text-[10px] text-zinc-400">MV</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col gap-1">
@@ -441,7 +468,7 @@ export default function ProjectOverviewPage() {
               </div>
 
               <div className="relative flex gap-4">
-                 <Avatar className="h-7 w-7 ring-4 ring-[#000000] absolute -left-10 z-10">
+                 <Avatar className="h-7 w-7 ring-4 ring-[#000000] absolute -left-10 z-10" username="David K." email="david@hivespace.io">
                   <AvatarFallback className="bg-zinc-800 text-[10px] text-zinc-400">DK</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col gap-1">
@@ -503,9 +530,20 @@ export default function ProjectOverviewPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5">
-                          <AvatarFallback className="bg-zinc-800 text-[8px] text-zinc-400 font-bold">{pr.author}</AvatarFallback>
-                        </Avatar>
+                        {(() => {
+                          const details = {
+                            "MV": { name: "Meera Valenzuela", email: "meera@hivespace.io" },
+                            "RS": { name: "Reid Smith", email: "reid@hivespace.io" },
+                            "RK": { name: "Rajesh Kumar", email: "rajesh@hivespace.io" },
+                            "SA": { name: "Sarah Adams", email: "sarah@hivespace.io" },
+                            "DK": { name: "David K.", email: "david@hivespace.io" }
+                          }[pr.author] || { name: pr.author, email: `${pr.author.toLowerCase()}@hivespace.io` };
+                          return (
+                            <Avatar className="h-5 w-5" username={details.name} email={details.email}>
+                              <AvatarFallback className="bg-zinc-800 text-[8px] text-zinc-400 font-bold">{pr.author}</AvatarFallback>
+                            </Avatar>
+                          );
+                        })()}
                         <span className="text-[10px] text-zinc-600 font-mono">{pr.time}</span>
                       </div>
                     </div>
