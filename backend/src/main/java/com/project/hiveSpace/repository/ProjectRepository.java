@@ -23,6 +23,6 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     boolean existsByNameAndWorkspace(String name, Workspace workspace);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query(value = "UPDATE projects SET task_sequence = task_sequence + 1 WHERE id = :projectId RETURNING task_sequence", nativeQuery = true)
+    @Query(value = "UPDATE projects SET task_sequence = task_sequence + 1 WHERE id = :projectId", nativeQuery = true)
     int incrementAndGetTaskSequence(@Param("projectId") UUID projectId);
 }

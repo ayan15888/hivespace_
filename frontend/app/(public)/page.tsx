@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 import { motion } from "framer-motion"
 import ScrollReveal from "@/components/common/ScrollReveal"
-import { BackgroundGradientAnimation } from "@/components/common/BackgroundGradientAnimation"
+import { GradientBackground } from "@/components/common/GradientBackground"
 
 const ICONS = [
   "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/gatsby-icon.svg",
@@ -265,7 +265,8 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-500 selection:bg-primary/20">
+    <div className="min-h-screen bg-transparent text-foreground transition-colors duration-500 selection:bg-primary/20 relative">
+      <GradientBackground />
 
       {/* 1. HEADER / NAVIGATION */}
       <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border/10 transition-colors duration-300">
@@ -327,11 +328,6 @@ export default function LandingPage() {
 
       {/* 2. HERO SECTION */}
       <section className="relative overflow-hidden pt-20 pb-16 md:pt-28 md:pb-24 border-b border-border/10">
-        <BackgroundGradientAnimation containerClassName="absolute inset-0 -z-10" interactive={true}>
-          <div className="absolute inset-0 pointer-events-none opacity-20">
-            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-radial from-primary/20 via-transparent to-transparent blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
-          </div>
-        </BackgroundGradientAnimation>
 
         <div className="mx-auto max-w-4xl px-6 text-center relative z-10">
           <ScrollReveal delay={0}>
@@ -349,7 +345,7 @@ export default function LandingPage() {
                 {heroTitles.map((title, index) => (
                   <motion.span
                     key={title}
-                    className="absolute font-semibold bg-gradient-to-r from-primary via-hs-accent to-primary bg-clip-text text-transparent"
+                    className="absolute font-serif font-normal text-primary"
                     initial={{ opacity: 0, y: 60 }}
                     transition={{ type: "spring", stiffness: 60, damping: 14 }}
                     animate={
@@ -702,7 +698,7 @@ export default function LandingPage() {
       </section>
 
       {/* 4.5 TESTIMONIALS SECTION */}
-      <section className="py-24 bg-background border-t border-border/10 overflow-hidden" id="testimonials">
+      <section className="py-24 bg-transparent border-t border-border/10 overflow-hidden" id="testimonials">
         <div className="mx-auto max-w-5xl px-6">
           <div className="mb-14 text-center">
             <ScrollReveal delay={0}>

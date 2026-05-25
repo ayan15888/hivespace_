@@ -3,6 +3,7 @@ package com.project.hiveSpace.services;
 import com.project.hiveSpace.dto.TaskRequest;
 import com.project.hiveSpace.dto.TaskResponse;
 import com.project.hiveSpace.dto.TaskAssigneeResponse;
+import com.project.hiveSpace.dto.TaskActivityResponse;
 import com.project.hiveSpace.dto.UpdateTaskRequest;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
@@ -398,6 +399,34 @@ public class TaskService {
         }
 
         taskRepository.delete(task);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskActivityResponse> getTaskActivities(UUID taskId) {
+        rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
+        if (!rbacService.canViewTask(taskId)) {
+            throw new ForbiddenException("Access denied: You do not have permission to view this task");
+        }
+
+        return taskActivityRepository.findAllByTaskIdOrderByCreatedAtDesc(taskId)
+                .stream()
+                .map(this::mapToActivityResponse)
+                .collect(Collectors.toList());
+    }
+
+    private TaskActivityResponse mapToActivityResponse(TaskActivity activity) {
+        return TaskActivityResponse.builder()
+                .id(activity.getId())
+                .taskId(activity.getTask().getId())
+                .userId(activity.getUser() != null ? activity.getUser().getId() : null)
+                .username(activity.getUser() != null ? activity.getUser().getUsername() : null)
+                .fullName(activity.getUser() != null ? activity.getUser().getFullName() : null)
+                .avatarUrl(activity.getUser() != null ? activity.getUser().getAvatarUrl() : null)
+                .type(activity.getType())
+                .oldValue(activity.getOldValue())
+                .newValue(activity.getNewValue())
+                .createdAt(activity.getCreatedAt())
+                .build();
     }
 
 

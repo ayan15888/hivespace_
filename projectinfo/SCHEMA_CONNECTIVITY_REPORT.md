@@ -62,6 +62,10 @@ Legend:
 - Backend: create/list/update/status/delete via `TaskController` / `TaskService`
 - Frontend: wrappers exist in `frontend/lib/api/tasks.ts` and used heavily on board/dashboard pages
 
+### ✅ `task_activities`
+- Backend: logged automatically on CRUD/status/assignee mutations in `TaskService`/`TaskAssigneeService` and exposed via `GET /api/tasks/{taskId}/activities` in `TaskController`.
+- Frontend: wrapper `getTaskActivities` in `frontend/lib/api/tasks.ts` and rendered as a timeline feed in `TaskActivityFeed.tsx` on the project board page's task detail sheet.
+
 ### ✅ `task_assignees`
 - Backend: assignee CRUD via `TaskAssigneeController` / `TaskAssigneeService` (and task creation adds OWNER)
 - Frontend: wrappers exist in `frontend/lib/api/tasks.ts`
@@ -88,18 +92,6 @@ Frontend:
 - No endpoints to query attempts (as expected).
 
 Status: **Backend-only (by design)**.
-
-### ⚠️ `task_activities`
-Purpose (schema): log task events (created/assigned/unassigned/etc).
-
-Backend:
-- Written in `TaskService` and `TaskAssigneeService`.
-- No controller endpoint to list activities.
-
-Frontend:
-- No API wrapper/UI for task activity timeline.
-
-Status: **Backend-only (feature missing in UI)**.
 
 ---
 

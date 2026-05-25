@@ -179,6 +179,7 @@ Backend:
   - `GET /api/projects/{projectId}/tasks`
   - `GET /api/tasks/{taskId}`
   - `GET /api/tasks`
+  - `GET /api/tasks/{taskId}/activities` (live activity feed endpoint)
   - `PATCH /api/tasks/{taskId}/status`
   - `PUT /api/tasks/{taskId}`
   - `DELETE /api/tasks/{taskId}`
@@ -189,11 +190,11 @@ Backend:
   - `DELETE /api/tasks/{taskId}/assignees/{userId}`
 
 Frontend:
-- ✅ wrappers exist for all:
+- ✅ wrappers exist for all (including `getTaskActivities`):
   - `D:\hiveSpace\frontend\lib\api\tasks.ts`
 - ✅ used heavily by dashboard pages:
   - `D:\hiveSpace\frontend\components\features\tasks\CreateTaskModal.tsx`
-  - `D:\hiveSpace\frontend\app\(auth)\dashboard\projects\[projectSlug]\board\page.tsx` (optimistic quick create + status updates)
+  - `D:\hiveSpace\frontend\app\(auth)\dashboard\projects\[projectSlug]\board\page.tsx` (optimistic quick create, status updates, and live task activity log timeline rendering using `TaskActivityFeed`)
 
 Status: **Wired**
 

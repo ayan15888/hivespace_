@@ -2,6 +2,7 @@ package com.project.hiveSpace.controllers;
 
 import com.project.hiveSpace.dto.TaskRequest;
 import com.project.hiveSpace.dto.TaskResponse;
+import com.project.hiveSpace.dto.TaskActivityResponse;
 import com.project.hiveSpace.dto.UpdateTaskRequest;
 import com.project.hiveSpace.services.TaskService;
 import com.project.hiveSpace.models.User;
@@ -46,6 +47,11 @@ public class TaskController {
         return ResponseEntity.ok(taskService.getAllTasks());
     }
 
+    @GetMapping("/tasks/{taskId}/activities")
+    public ResponseEntity<List<TaskActivityResponse>> getTaskActivities(@PathVariable UUID taskId) {
+        return ResponseEntity.ok(taskService.getTaskActivities(taskId));
+    }
+
     @PatchMapping("/tasks/{taskId}/status")
     @PreAuthorize("@rbac.canEditTask(#taskId)")
     public ResponseEntity<TaskResponse> updateTaskStatus(
@@ -76,3 +82,4 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 }
+
