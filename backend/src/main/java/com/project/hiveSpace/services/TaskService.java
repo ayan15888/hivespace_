@@ -3,14 +3,20 @@ package com.project.hiveSpace.services;
 import com.project.hiveSpace.dto.TaskRequest;
 import com.project.hiveSpace.dto.TaskResponse;
 import com.project.hiveSpace.dto.TaskAssigneeResponse;
+import com.project.hiveSpace.dto.TaskActivityResponse;
 import com.project.hiveSpace.dto.UpdateTaskRequest;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
 import com.project.hiveSpace.security.RbacService;
+import com.project.hiveSpace.exceptions.ForbiddenException;
+import com.project.hiveSpace.exceptions.DomainValidationException;
+import com.project.hiveSpace.exceptions.NotFoundException;
+// import com.project.hiveSpace.exceptions.ConflictException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -28,16 +34,17 @@ public class TaskService {
     private final UserRepository userRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
     private final TaskActivityRepository taskActivityRepository;
+    private final ProjectTeamRepository projectTeamRepository;
     private final RbacService rbacService;
 
     @Transactional
     public TaskResponse createTask(UUID projectId, TaskRequest request, User creator) {
         rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+                .orElseThrow(() -> new NotFoundException("Project not found"));
 
         if (!rbacService.canCreateTask(projectId)) {
-            throw new SecurityException("Access denied: You do not have permission to create tasks in this project");
+            throw new ForbiddenException("Access denied: You do not have permission to create tasks in this project");
         }
 
         // 2. Resolve default status and priority if they are null
@@ -48,17 +55,24 @@ public class TaskService {
         Task parentTask = null;
         if (request.getParentId() != null) {
             parentTask = taskRepository.findById(request.getParentId())
-                    .orElseThrow(() -> new IllegalArgumentException("Parent task not found"));
+                    .orElseThrow(() -> new NotFoundException("Parent task not found"));
+            if (parentTask.getParentTask() != null) {
+                throw new DomainValidationException("Cannot create subtasks of subtasks. Maximum depth is 1 level.");
+            }
         }
 
         // 4. Resolve team if teamId is provided
         Team team = null;
         if (request.getTeamId() != null) {
             team = teamRepository.findById(request.getTeamId())
-                    .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+                    .orElseThrow(() -> new NotFoundException("Team not found"));
+            if (!projectTeamRepository.existsByProjectIdAndTeamId(projectId, request.getTeamId())) {
+                throw new DomainValidationException("Team is not associated with this project");
+            }
         }
 
-        // 5. Create the task
+        // 5. Increment project task sequence and create the task
+        projectRepository.incrementAndGetTaskSequence(projectId);
         Task task = Task.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -72,22 +86,19 @@ public class TaskService {
                 .team(team)
                 .createdBy(creator)
                 .createdAt(new Date())
-                .updatedAt(new Date())
                 .build();
 
         // 6. Assign the owner
         User ownerUser = creator;
         if (request.getAssigneeId() != null) {
             User explicitlyAssigned = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
+                    .orElseThrow(() -> new NotFoundException("Assignee user not found"));
             // Verify if the assignee is a member of this project
             if (!rbacService.hasProjectRoleForUser(explicitlyAssigned.getId(), projectId, ProjectMemberRole.VIEWER)) {
-                throw new IllegalArgumentException("Assignee must be a member of this project");
+                throw new DomainValidationException("Assignee must be a member of this project");
             }
             ownerUser = explicitlyAssigned;
         }
-        task.setAssignee(ownerUser);
-
         Task savedTask = taskRepository.save(task);
 
         // 7. Save owner assignee record
@@ -116,11 +127,11 @@ public class TaskService {
     public TaskResponse getTaskById(UUID taskId) {
         rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         if (!rbacService.canViewTask(taskId)) {
-            throw new SecurityException("Access denied: You do not have permission to view this task");
+            throw new ForbiddenException("Access denied: You do not have permission to view this task");
         }
 
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+                .orElseThrow(() -> new NotFoundException("Task not found"));
         TaskResponse response = mapToResponse(task);
 
         // Fetch subtasks only if this is a parent task
@@ -138,11 +149,11 @@ public class TaskService {
     public List<TaskResponse> getTasksByProject(UUID projectId) {
         rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
         if (!rbacService.canViewProject(projectId)) {
-            throw new SecurityException("Access denied: You do not have permission to view tasks in this project");
+            throw new ForbiddenException("Access denied: You do not have permission to view tasks in this project");
         }
 
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+                .orElseThrow(() -> new NotFoundException("Project not found"));
 
         return taskRepository.findAllByProjectAndParentTaskIsNullOrderByCreatedAtDesc(project)
                 .stream()
@@ -154,12 +165,12 @@ public class TaskService {
     public List<TaskResponse> getAllTasks() {
         User currentUser = rbacService.getCurrentUser();
         if (currentUser == null) {
-            throw new SecurityException("User not authenticated");
+            throw new ForbiddenException("User not authenticated");
         }
 
         UUID tenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
         if (tenantId == null || !rbacService.hasTenantRole(tenantId, TenantMemberRole.MEMBER)) {
-            throw new SecurityException("Access denied: Must be a member of the organization to view tasks");
+            throw new ForbiddenException("Access denied: Must be a member of the organization to view tasks");
         }
 
         List<ProjectMember> memberships = projectMemberRepository.findAllByUserId(currentUser.getId());
@@ -181,11 +192,11 @@ public class TaskService {
     public TaskResponse updateTaskStatus(UUID taskId, String statusStr) {
         rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         if (!rbacService.canEditTask(taskId)) {
-            throw new SecurityException("Access denied: You do not have permission to update this task");
+            throw new ForbiddenException("Access denied: You do not have permission to update this task");
         }
 
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+                .orElseThrow(() -> new NotFoundException("Task not found"));
 
         TaskStatus status;
         String normalized = statusStr.trim().toUpperCase().replace(" ", "_");
@@ -199,10 +210,26 @@ public class TaskService {
             }
         }
 
+        TaskStatus oldStatus = task.getStatus();
+        validateStatusTransition(oldStatus, status);
+
         task.setStatus(status);
         task.setUpdatedAt(new Date());
 
         Task saved = taskRepository.save(task);
+
+        // Fetch current user and log activity
+        User currentUser = getCurrentUser();
+        TaskActivity activity = TaskActivity.builder()
+                .task(saved)
+                .user(currentUser)
+                .type("STATUS_CHANGED")
+                .oldValue(oldStatus.name())
+                .newValue(status.name())
+                .createdAt(new Date())
+                .build();
+        taskActivityRepository.save(activity);
+
         return mapToResponse(saved);
     }
 
@@ -210,70 +237,146 @@ public class TaskService {
     public TaskResponse updateTask(UUID taskId, UpdateTaskRequest request, User actor) {
         rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+                .orElseThrow(() -> new NotFoundException("Task not found"));
 
         if (!rbacService.canEditTask(taskId)) {
-            throw new SecurityException("Access denied: You do not have permission to update this task");
+            throw new ForbiddenException("Access denied: You do not have permission to update this task");
         }
 
         boolean changed = false;
-        StringBuilder changes = new StringBuilder();
 
         if (request.getTitle() != null && !request.getTitle().trim().isEmpty() && !request.getTitle().equals(task.getTitle())) {
-            changes.append("Title: '").append(task.getTitle()).append("' -> '").append(request.getTitle()).append("'; ");
+            String oldValue = task.getTitle();
             task.setTitle(request.getTitle());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("TITLE_CHANGED")
+                    .oldValue(oldValue)
+                    .newValue(request.getTitle())
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
         if (request.getDescription() != null && !request.getDescription().equals(task.getDescription())) {
+            String oldValue = task.getDescription();
             task.setDescription(request.getDescription());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("DESCRIPTION_CHANGED")
+                    .oldValue(oldValue)
+                    .newValue(request.getDescription())
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
         if (request.getStatus() != null && request.getStatus() != task.getStatus()) {
+            validateStatusTransition(task.getStatus(), request.getStatus());
+            TaskStatus oldValue = task.getStatus();
             task.setStatus(request.getStatus());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("STATUS_CHANGED")
+                    .oldValue(oldValue.name())
+                    .newValue(request.getStatus().name())
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
         if (request.getPriority() != null && request.getPriority() != task.getPriority()) {
+            TaskPriority oldValue = task.getPriority();
             task.setPriority(request.getPriority());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("PRIORITY_CHANGED")
+                    .oldValue(oldValue.name())
+                    .newValue(request.getPriority().name())
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
         if (request.getLabels() != null && !request.getLabels().equals(task.getLabels())) {
+            String oldValue = task.getLabels();
             task.setLabels(request.getLabels());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("LABELS_CHANGED")
+                    .oldValue(oldValue)
+                    .newValue(request.getLabels())
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
         if (request.getPoints() != null && !request.getPoints().equals(task.getPoints())) {
+            Integer oldValue = task.getPoints();
             task.setPoints(request.getPoints());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("POINTS_CHANGED")
+                    .oldValue(oldValue != null ? oldValue.toString() : null)
+                    .newValue(request.getPoints() != null ? request.getPoints().toString() : null)
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
         if (request.getDueDate() != null && !request.getDueDate().equals(task.getDueDate())) {
+            Date oldValue = task.getDueDate();
             task.setDueDate(request.getDueDate());
+            taskActivityRepository.save(TaskActivity.builder()
+                    .task(task)
+                    .user(actor)
+                    .type("DUE_DATE_CHANGED")
+                    .oldValue(oldValue != null ? oldValue.toString() : null)
+                    .newValue(request.getDueDate() != null ? request.getDueDate().toString() : null)
+                    .createdAt(new Date())
+                    .build());
             changed = true;
         }
 
-        // Assignee update
-        if (request.getAssigneeId() != null && (task.getAssignee() == null || !request.getAssigneeId().equals(task.getAssignee().getId()))) {
-            User newAssignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
-            // Verify if the assignee is a member of this project
-            if (!rbacService.hasProjectRoleForUser(newAssignee.getId(), task.getProject().getId(), ProjectMemberRole.VIEWER)) {
-                throw new IllegalArgumentException("Assignee must be a member of this project");
-            }
-            task.setAssignee(newAssignee);
-
-            // Also need to update/insert OWNER in task_assignees
+        // Assignee update — transfer ownership if assigneeId changed
+        if (request.getAssigneeId() != null) {
             Optional<TaskAssignee> currentOwnerOpt = taskAssigneeRepository.findByTaskAndRole(task, TaskAssigneeRole.OWNER);
-            if (currentOwnerOpt.isPresent()) {
-                taskAssigneeRepository.delete(currentOwnerOpt.get());
-            }
-            taskAssigneeRepository.findByTaskAndUser(task, newAssignee).ifPresent(taskAssigneeRepository::delete);
+            User currentOwner = currentOwnerOpt.map(TaskAssignee::getUser).orElse(null);
 
-            TaskAssignee newAssigneeRecord = TaskAssignee.builder()
-                    .task(task)
-                    .user(newAssignee)
-                    .role(TaskAssigneeRole.OWNER)
-                    .assignedAt(new Date())
-                    .build();
-            taskAssigneeRepository.save(newAssigneeRecord);
-            changed = true;
+            boolean ownerChanged = currentOwner == null || !request.getAssigneeId().equals(currentOwner.getId());
+            if (ownerChanged) {
+                User newOwner = userRepository.findById(request.getAssigneeId())
+                        .orElseThrow(() -> new NotFoundException("Assignee user not found"));
+
+                if (!rbacService.hasProjectRoleForUser(newOwner.getId(), task.getProject().getId(), ProjectMemberRole.VIEWER)) {
+                    throw new DomainValidationException("Assignee must be a member of this project");
+                }
+
+                // Remove existing OWNER record
+                currentOwnerOpt.ifPresent(taskAssigneeRepository::delete);
+
+                // Remove any other role the new owner may have had on this task
+                taskAssigneeRepository.findByTaskAndUser(task, newOwner).ifPresent(taskAssigneeRepository::delete);
+
+                // Insert new OWNER record
+                TaskAssignee newOwnerRecord = TaskAssignee.builder()
+                        .task(task)
+                        .user(newOwner)
+                        .role(TaskAssigneeRole.OWNER)
+                        .assignedAt(new Date())
+                        .build();
+                taskAssigneeRepository.save(newOwnerRecord);
+
+                taskActivityRepository.save(TaskActivity.builder()
+                        .task(task)
+                        .user(actor)
+                        .type("OWNER_CHANGED")
+                        .oldValue(currentOwner != null ? currentOwner.getUsername() : null)
+                        .newValue(newOwner.getUsername())
+                        .createdAt(new Date())
+                        .build());
+                changed = true;
+            }
         }
 
         if (changed) {
@@ -282,17 +385,6 @@ public class TaskService {
 
         Task saved = taskRepository.save(task);
 
-        if (changed) {
-            TaskActivity activity = TaskActivity.builder()
-                    .task(saved)
-                    .user(actor)
-                    .type("UPDATED")
-                    .newValue(changes.length() > 0 ? changes.toString() : "Task details updated")
-                    .createdAt(new Date())
-                    .build();
-            taskActivityRepository.save(activity);
-        }
-
         return mapToResponse(saved);
     }
 
@@ -300,13 +392,41 @@ public class TaskService {
     public void deleteTask(UUID taskId, User actor) {
         rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+                .orElseThrow(() -> new NotFoundException("Task not found"));
 
         if (!rbacService.canDeleteTask(taskId)) {
-            throw new SecurityException("Access denied: Only project leads and workspace admins can delete tasks");
+            throw new ForbiddenException("Access denied: Only project leads and workspace admins can delete tasks");
         }
 
         taskRepository.delete(task);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskActivityResponse> getTaskActivities(UUID taskId) {
+        rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
+        if (!rbacService.canViewTask(taskId)) {
+            throw new ForbiddenException("Access denied: You do not have permission to view this task");
+        }
+
+        return taskActivityRepository.findAllByTaskIdOrderByCreatedAtDesc(taskId)
+                .stream()
+                .map(this::mapToActivityResponse)
+                .collect(Collectors.toList());
+    }
+
+    private TaskActivityResponse mapToActivityResponse(TaskActivity activity) {
+        return TaskActivityResponse.builder()
+                .id(activity.getId())
+                .taskId(activity.getTask().getId())
+                .userId(activity.getUser() != null ? activity.getUser().getId() : null)
+                .username(activity.getUser() != null ? activity.getUser().getUsername() : null)
+                .fullName(activity.getUser() != null ? activity.getUser().getFullName() : null)
+                .avatarUrl(activity.getUser() != null ? activity.getUser().getAvatarUrl() : null)
+                .type(activity.getType())
+                .oldValue(activity.getOldValue())
+                .newValue(activity.getNewValue())
+                .createdAt(activity.getCreatedAt())
+                .build();
     }
 
 
@@ -334,9 +454,10 @@ public class TaskService {
             response.setParentId(task.getParentTask().getId());
         }
 
-        // Dynamically compute the sequential task identifier (e.g. HS-001)
-        int seq = taskRepository.countByProjectAndCreatedAtLessThanEqual(task.getProject(), task.getCreatedAt());
+        // Use stored atomic task sequence for task identifier (e.g. HS-001)
+        int seq = task.getProject().getTaskSequence();
         response.setTaskIdentifier("HS-" + String.format("%03d", seq));
+
 
         // Subtask counts
         int subtaskCount = taskRepository.countByParentTask(task);
@@ -350,15 +471,10 @@ public class TaskService {
                 .map(this::mapToAssigneeResponse)
                 .collect(Collectors.toList()));
 
-        User assigneeUser = task.getAssignee();
-        if (assigneeUser == null) {
-            Optional<TaskAssignee> assigneeOpt = assignees.stream()
-                    .filter(ta -> ta.getRole() == TaskAssigneeRole.OWNER)
-                    .findFirst();
-            if (assigneeOpt.isPresent()) {
-                assigneeUser = assigneeOpt.get().getUser();
-            }
-        }
+        TaskAssignee owner = taskAssigneeRepository
+                .findByTaskIdAndRole(task.getId(), TaskAssigneeRole.OWNER)
+                .orElse(null);
+        User assigneeUser = owner != null ? owner.getUser() : null;
 
         if (assigneeUser != null) {
             response.setAssigneeId(assigneeUser.getId());
@@ -395,5 +511,32 @@ public class TaskService {
             initials.append(parts[1].charAt(0));
         }
         return initials.toString().toUpperCase();
+    }
+
+    private void validateStatusTransition(TaskStatus currentStatus, TaskStatus newStatus) {
+        if (currentStatus == newStatus) {
+            return;
+        }
+        if (newStatus == TaskStatus.CANCELLED) {
+            return;
+        }
+        boolean valid = switch (currentStatus) {
+            case TODO -> newStatus == TaskStatus.IN_PROGRESS;
+            case IN_PROGRESS -> newStatus == TaskStatus.IN_REVIEW || newStatus == TaskStatus.TODO;
+            case IN_REVIEW -> newStatus == TaskStatus.DONE || newStatus == TaskStatus.IN_PROGRESS;
+            case DONE -> newStatus == TaskStatus.IN_PROGRESS;
+            case CANCELLED -> newStatus == TaskStatus.TODO;
+        };
+        if (!valid) {
+            throw new DomainValidationException("Cannot transition task from " + currentStatus + " to " + newStatus);
+        }
+    }
+
+    private User getCurrentUser() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof User) {
+            return (User) principal;
+        }
+        throw new IllegalStateException("User not authenticated");
     }
 }

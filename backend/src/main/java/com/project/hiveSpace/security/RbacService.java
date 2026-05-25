@@ -2,19 +2,23 @@ package com.project.hiveSpace.security;
 
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
+import com.project.hiveSpace.exceptions.ForbiddenException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+// import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
+// import java.util.List;
 
 @Service("rbac")
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class RbacService {
 
+    // private final HttpServletRequest request;
     private final TenantMemberRepository tenantMemberRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final ProjectMemberRepository projectMemberRepository;
@@ -24,6 +28,7 @@ public class RbacService {
     private final TeamRepository teamRepository;
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
+    // private final ProjectTeamRepository projectTeamRepository;
     // private final TenantRepository tenantRepository;
 
     public User getCurrentUser() {
@@ -172,8 +177,7 @@ public class RbacService {
         return taskRepository.findById(taskId)
                 .map(task -> {
                     UUID projectId = task.getProject().getId();
-                    ProjectMemberRole role = getProjectRole(user.getId(), projectId);
-                    return role != null && projectRank(role) >= projectRank(ProjectMemberRole.MEMBER);
+                    return hasProjectRole(projectId, ProjectMemberRole.MEMBER);
                 })
                 .orElse(false);
     }
@@ -181,8 +185,7 @@ public class RbacService {
     public boolean canViewProject(UUID projectId) {
         User user = getCurrentUser();
         if (user == null || projectId == null) return false;
-        ProjectMemberRole role = getProjectRole(user.getId(), projectId);
-        if (role != null) return true;
+        if (hasProjectRole(projectId, ProjectMemberRole.VIEWER)) return true;
         return projectRepository.findById(projectId)
                 .map(project -> canAdminWorkspace(project.getWorkspace().getId()))
                 .orElse(false);
@@ -197,10 +200,7 @@ public class RbacService {
     }
 
     public boolean canCreateTask(UUID projectId) {
-        User user = getCurrentUser();
-        if (user == null || projectId == null) return false;
-        ProjectMemberRole role = getProjectRole(user.getId(), projectId);
-        return role != null && projectRank(role) >= projectRank(ProjectMemberRole.MEMBER);
+        return hasProjectRole(projectId, ProjectMemberRole.MEMBER);
     }
 
     public boolean canAssignTeamToProject(UUID projectId) {
@@ -354,15 +354,28 @@ public class RbacService {
         }
 
         if (!belongs) {
-            throw new SecurityException("Resource does not belong to the caller's organization");
+            throw new ForbiddenException("Resource does not belong to the caller's organization");
         }
     }
 
     public void verifyResourceBelongsToTenant(UUID resourceId, ResourceType type) {
         User user = getCurrentUser();
-        if (user == null || user.getTenant() == null) {
-            throw new SecurityException("User is not authenticated or not associated with a tenant");
+        if (user == null) {
+            throw new ForbiddenException("User is not authenticated");
         }
-        verifyResourceBelongsToTenant(resourceId, type, user.getTenant().getId());
+
+        if (user.getTenant() == null) {
+            throw new ForbiddenException("User is not associated with an organization");
+        }
+
+        UUID tenantId = user.getTenant().getId();
+
+        // Secure validation: verify the user is actually a member of their associated tenant
+        boolean isMember = tenantMemberRepository.findByTenantIdAndUserId(tenantId, user.getId()).isPresent();
+        if (!isMember) {
+            throw new ForbiddenException("User is not a member of their associated organization");
+        }
+
+        verifyResourceBelongsToTenant(resourceId, type, tenantId);
     }
 }

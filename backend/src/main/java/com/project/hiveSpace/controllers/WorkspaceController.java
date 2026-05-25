@@ -1,8 +1,10 @@
 package com.project.hiveSpace.controllers;
 
 import com.project.hiveSpace.dto.WorkspaceMemberResponse;
+import com.project.hiveSpace.dto.WorkspaceMemberRequest;
 import com.project.hiveSpace.dto.WorkspaceRequest;
 import com.project.hiveSpace.dto.WorkspaceResponse;
+import com.project.hiveSpace.models.WorkspaceMemberRole;
 import com.project.hiveSpace.services.WorkspaceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,5 +34,28 @@ public class WorkspaceController {
     @GetMapping("/{workspaceId}/members")
     public ResponseEntity<List<WorkspaceMemberResponse>> getWorkspaceMembers(@PathVariable UUID workspaceId) {
         return ResponseEntity.ok(workspaceService.getWorkspaceMembers(workspaceId));
+    }
+
+    @PostMapping("/{workspaceId}/members")
+    public ResponseEntity<WorkspaceMemberResponse> addWorkspaceMember(
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody WorkspaceMemberRequest request) {
+        return ResponseEntity.ok(workspaceService.addWorkspaceMember(workspaceId, request));
+    }
+
+    @PatchMapping("/{workspaceId}/members/{userId}/role")
+    public ResponseEntity<WorkspaceMemberResponse> updateWorkspaceMemberRole(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID userId,
+            @RequestParam WorkspaceMemberRole role) {
+        return ResponseEntity.ok(workspaceService.updateWorkspaceMemberRole(workspaceId, userId, role));
+    }
+
+    @DeleteMapping("/{workspaceId}/members/{userId}")
+    public ResponseEntity<Void> removeWorkspaceMember(
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID userId) {
+        workspaceService.removeWorkspaceMember(workspaceId, userId);
+        return ResponseEntity.noContent().build();
     }
 }

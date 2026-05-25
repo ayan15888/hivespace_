@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
+import { useAuthStore } from "@/store/authStore"
 import {
   Terminal,
   ArrowRight,
@@ -18,6 +20,91 @@ import {
 } from "lucide-react"
 import { motion } from "framer-motion"
 import ScrollReveal from "@/components/common/ScrollReveal"
+import { GradientBackground } from "@/components/common/GradientBackground"
+
+const ICONS = [
+  "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/gatsby-icon.svg",
+  "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/github-icon.svg",
+  "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/google-icon.svg",
+  "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/sketch-icon.svg",
+  "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/slack-icon.svg",
+  "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/spotify-icon.svg",
+]
+
+interface SemiCircleOrbitProps {
+  radius: number
+  centerX: number
+  centerY: number
+  count: number
+  iconSize: number
+}
+
+function SemiCircleOrbit({ radius, centerX, centerY, count, iconSize }: SemiCircleOrbitProps) {
+  return (
+    <>
+      {/* Semi-circle glow background */}
+      <div className="absolute inset-0 flex justify-center">
+        <div
+          className="
+            w-[1000px] h-[1000px] rounded-full 
+            bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.05),transparent_70%)]
+            dark:bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05),transparent_70%)]
+            blur-3xl 
+            -mt-40 
+            pointer-events-none
+          "
+          style={{ zIndex: 0 }}
+        />
+      </div>
+
+      {/* Orbit icons */}
+      {Array.from({ length: count }).map((_, index) => {
+        const angle = (index / (count - 1)) * 180
+        const x = radius * Math.cos((angle * Math.PI) / 180)
+        const y = radius * Math.sin((angle * Math.PI) / 180)
+        const icon = ICONS[index % ICONS.length]
+
+        // Tooltip positioning — above or below based on angle
+        const tooltipAbove = angle > 90
+
+        return (
+          <div
+            key={index}
+            className="absolute flex flex-col items-center group"
+            style={{
+              left: `${centerX + x - iconSize / 2}px`,
+              top: `${centerY - y - iconSize / 2}px`,
+              zIndex: 5,
+            }}
+          >
+            <img
+              src={icon}
+              alt={`icon-${index}`}
+              width={iconSize}
+              height={iconSize}
+              className="object-contain cursor-pointer transition-transform hover:scale-110"
+              style={{ minWidth: iconSize, minHeight: iconSize }} // fix accidental shrink
+            />
+
+            {/* Tooltip */}
+            <div
+              className={`absolute ${
+                tooltipAbove ? "bottom-[calc(100%+8px)]" : "top-[calc(100%+8px)]"
+              } hidden group-hover:block w-28 rounded-lg bg-black px-2 py-1 text-xs text-white shadow-lg text-center`}
+            >
+              App {index + 1}
+              <div
+                className={`absolute left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-black ${
+                  tooltipAbove ? "top-full" : "bottom-full"
+                }`}
+              ></div>
+            </div>
+          </div>
+        )
+      })}
+    </>
+  )
+}
 
 interface FAQItem {
   question: string
@@ -74,6 +161,9 @@ const testimonialsCol2 = testimonials.slice(3, 6)
 
 export default function LandingPage() {
   const { theme, setTheme } = useTheme()
+  const { isAuthenticated, loading, fetchUser } = useAuthStore()
+  const router = useRouter()
+  const [isRedirecting, setIsRedirecting] = useState(true)
   const [activeFaq, setActiveFaq] = useState<number | null>(null)
   const [titleNumber, setTitleNumber] = useState(0)
   const heroTitles = useMemo(
@@ -87,6 +177,46 @@ export default function LandingPage() {
     }, 2200)
     return () => clearTimeout(id)
   }, [titleNumber, heroTitles])
+
+  useEffect(() => {
+    const hasToken = typeof document !== "undefined" && document.cookie.includes("token=")
+    if (!isAuthenticated && !hasToken) {
+      setIsRedirecting(false)
+    } else {
+      fetchUser()
+    }
+  }, [fetchUser, isAuthenticated])
+
+  useEffect(() => {
+    const hasToken = typeof document !== "undefined" && document.cookie.includes("token=")
+    if (!loading) {
+      if (isAuthenticated) {
+        router.push("/dashboard")
+      } else if (!hasToken) {
+        setIsRedirecting(false)
+      }
+    }
+  }, [isAuthenticated, loading, router])
+
+  const [size, setSize] = useState({ width: 0, height: 0 })
+
+  useEffect(() => {
+    const updateSize = () => setSize({ width: window.innerWidth, height: window.innerHeight })
+    updateSize()
+    window.addEventListener("resize", updateSize)
+    return () => window.removeEventListener("resize", updateSize)
+  }, [])
+
+  const baseWidth = Math.min(size.width * 0.8, 700)
+  const centerX = baseWidth / 2
+  const centerY = baseWidth * 0.5
+
+  const iconSize =
+    size.width < 480
+      ? Math.max(24, baseWidth * 0.05)
+      : size.width < 768
+      ? Math.max(28, baseWidth * 0.06)
+      : Math.max(32, baseWidth * 0.07)
 
   const cycleTheme = () => {
     if (theme === "light") setTheme("dark")
@@ -126,8 +256,17 @@ export default function LandingPage() {
     { name: "HV-102: Invite Flow Auth", unread: false, type: "task" },
   ]
 
+  if (isRedirecting) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#0E0E10]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#7C5CFC] border-t-transparent" />
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-500 selection:bg-primary/20">
+    <div className="min-h-screen bg-transparent text-foreground transition-colors duration-500 selection:bg-primary/20 relative">
+      <GradientBackground />
 
       {/* 1. HEADER / NAVIGATION */}
       <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border/10 transition-colors duration-300">
@@ -135,9 +274,6 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <span className="font-serif text-xl font-normal tracking-tight">
               HiveSpace
-            </span>
-            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-              [HV.10]
             </span>
           </div>
 
@@ -188,12 +324,9 @@ export default function LandingPage() {
       </header>
 
       {/* 2. HERO SECTION */}
-      <section className="relative overflow-hidden pt-20 pb-16 md:pt-28 md:pb-24">
-        <div className="absolute inset-0 -z-10 pointer-events-none opacity-25">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-radial from-primary/15 via-transparent to-transparent blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
-        </div>
+      <section className="relative overflow-hidden pt-20 pb-16 md:pt-28 md:pb-24 border-b border-border/10">
 
-        <div className="mx-auto max-w-4xl px-6 text-center">
+        <div className="mx-auto max-w-4xl px-6 text-center relative z-10">
           <ScrollReveal delay={0}>
             <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 bg-primary/10 border border-primary/20 text-primary font-mono text-[10px] uppercase tracking-widest mb-6">
               <span className="size-1.5 rounded-full bg-primary animate-ping" />
@@ -209,7 +342,7 @@ export default function LandingPage() {
                 {heroTitles.map((title, index) => (
                   <motion.span
                     key={title}
-                    className="absolute font-semibold bg-gradient-to-r from-primary via-hs-accent to-primary bg-clip-text text-transparent"
+                    className="absolute font-serif font-normal text-primary"
                     initial={{ opacity: 0, y: 60 }}
                     transition={{ type: "spring", stiffness: 60, damping: 14 }}
                     animate={
@@ -533,8 +666,36 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* 4.25 INTEGRATIONS SECTION */}
+      <section className="py-24 bg-muted/10 border-t border-border/10 overflow-hidden relative" id="integrations">
+        <div className="relative flex flex-col items-center text-center z-10 mx-auto max-w-5xl px-6">
+          <ScrollReveal delay={0}>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">
+              CONNECTED ECOSYSTEM
+            </span>
+            <h2 className="font-serif text-4xl sm:text-5xl font-normal tracking-tight mt-2.5 mb-3 text-balance">
+              Integrations
+            </h2>
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-md mx-auto mb-12 text-balance">
+              Connect your favourite apps to your workflow.
+            </p>
+          </ScrollReveal>
+
+          <ScrollReveal delay={150}>
+            <div
+              className="relative mx-auto mt-6"
+              style={{ width: baseWidth, height: baseWidth * 0.6 }}
+            >
+              <SemiCircleOrbit radius={baseWidth * 0.22} centerX={centerX} centerY={centerY} count={6} iconSize={iconSize} />
+              <SemiCircleOrbit radius={baseWidth * 0.36} centerX={centerX} centerY={centerY} count={8} iconSize={iconSize} />
+              <SemiCircleOrbit radius={baseWidth * 0.5} centerX={centerX} centerY={centerY} count={10} iconSize={iconSize} />
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
       {/* 4.5 TESTIMONIALS SECTION */}
-      <section className="py-24 bg-background border-t border-border/10 overflow-hidden" id="testimonials">
+      <section className="py-24 bg-transparent border-t border-border/10 overflow-hidden" id="testimonials">
         <div className="mx-auto max-w-5xl px-6">
           <div className="mb-14 text-center">
             <ScrollReveal delay={0}>

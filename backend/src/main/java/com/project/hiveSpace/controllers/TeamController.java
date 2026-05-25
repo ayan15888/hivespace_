@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,6 +22,7 @@ public class TeamController {
     private final TeamService teamService;
 
     @PostMapping
+    @PreAuthorize("@rbac.canCreateTeam(#workspaceId)")
     public ResponseEntity<TeamResponse> createTeam(
             @PathVariable UUID workspaceId,
             @Valid @RequestBody TeamRequest request,
@@ -35,6 +37,7 @@ public class TeamController {
     }
 
     @PutMapping("/{teamId}")
+    @PreAuthorize("@rbac.canManageTeamMembers(#teamId)")
     public ResponseEntity<TeamResponse> updateTeam(
             @PathVariable UUID teamId,
             @Valid @RequestBody TeamRequest request) {
@@ -42,6 +45,7 @@ public class TeamController {
     }
 
     @DeleteMapping("/{teamId}")
+    @PreAuthorize("@rbac.canManageTeamMembers(#teamId)")
     public ResponseEntity<Void> deleteTeam(@PathVariable UUID teamId) {
         teamService.deleteTeam(teamId);
         return ResponseEntity.noContent().build();

@@ -55,6 +55,7 @@ import {
   updateTask,
   deleteTask
 } from "@/lib/api/tasks";
+import { TaskActivityFeed } from "@/components/features/tasks/TaskActivityFeed";
 import { columnNameToStatus, statusMatchesColumn } from "@/lib/taskUtils";
 import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
@@ -813,35 +814,12 @@ export default function SprintThreeBoardPage() {
                 </div>
               </div>
 
-              {/* Activity Section */}
-              <div className="mt-2 flex flex-col gap-4">
+              {/* Activity Section — live from backend */}
+              <div className="mt-2 flex flex-col gap-3">
                 <span className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase">Activity</span>
-                <div className="relative pl-7 flex flex-col gap-6">
-                  <div className="absolute left-3 top-2 bottom-0 w-[1px] bg-zinc-800" />
-                  <div className="relative flex flex-col gap-1">
-                    <Avatar className="absolute -left-7 top-0 h-6 w-6 ring-4 ring-[#1B1B1D]">
-                      <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass("DK"))}>DK</AvatarFallback>
-                    </Avatar>
-                    <div className="flex items-start justify-between">
-                      <p className="text-xs text-zinc-300 leading-tight">
-                        <span className="font-semibold text-white">David K.</span> identified the leak in the Hike config
-                      </p>
-                      <span className="text-[10px] text-zinc-500 shrink-0 ml-4">2d ago</span>
-                    </div>
-                  </div>
-
-                  <div className="relative flex flex-col gap-1">
-                    <Avatar className="absolute -left-7 top-0 h-6 w-6 ring-4 ring-[#1B1B1D]">
-                      <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass("SM"))}>SM</AvatarFallback>
-                    </Avatar>
-                    <div className="flex items-start justify-between">
-                      <p className="text-xs text-zinc-300 leading-tight">
-                        <span className="font-semibold text-white">Sarah M.</span> assigned the task to Alex R.
-                      </p>
-                      <span className="text-[10px] text-zinc-500 shrink-0 ml-4">3d ago</span>
-                    </div>
-                  </div>
-                </div>
+                {selectedTask && (
+                  <TaskActivityFeed taskId={selectedTask.id} />
+                )}
               </div>
 
             </div>

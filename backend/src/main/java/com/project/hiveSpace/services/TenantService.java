@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.project.hiveSpace.exceptions.ForbiddenException;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -31,27 +32,29 @@ public class TenantService {
     private final TenantRepository tenantRepository;
     private final com.project.hiveSpace.repository.UserRepository userRepository;
     private final com.project.hiveSpace.repository.TenantMemberRepository tenantMemberRepository;
+    private final com.project.hiveSpace.repository.WorkspaceRepository workspaceRepository;
 
     @Transactional
     public TenantResponse createTenant(TenantRequest request) {
         User currentUser = getCurrentUser();
 
-        if (tenantRepository.findByName(request.getName()).isPresent()) {
+        String normalizedName = request.getName() != null ? request.getName().trim() : "";
+        String normalizedSlug = request.getSlug() != null ? request.getSlug().toLowerCase().trim() : "";
+
+        if (tenantRepository.findByNameIgnoreCase(normalizedName).isPresent()) {
             throw new IllegalArgumentException("Organization name already exists");
         }
-        if (tenantRepository.findBySlug(request.getSlug()).isPresent()) {
+        if (tenantRepository.findBySlugIgnoreCase(normalizedSlug).isPresent()) {
             throw new IllegalArgumentException("Slug already exists");
         }
 
         Tenant tenant = Tenant.builder()
-                .name(request.getName())
-                .slug(request.getSlug())
+                .name(normalizedName)
+                .slug(normalizedSlug)
                 .ownerEmail(currentUser.getEmail())
                 .plan(request.getPlan())
                 .description(request.getDescription())
                 .active(true)
-                .membersCount(1)
-                .workspacesCount(0)
                 .build();
 
         Tenant savedTenant = tenantRepository.save(tenant);
@@ -81,6 +84,9 @@ public class TenantService {
     }
 
     private TenantResponse mapToResponse(Tenant tenant) {
+        long membersCount = tenantMemberRepository.countByTenantId(tenant.getId());
+        long workspacesCount = workspaceRepository.countByTenantId(tenant.getId());
+
         return new TenantResponse(
                 tenant.getId(),
                 tenant.getName(),
@@ -88,8 +94,8 @@ public class TenantService {
                 tenant.getOwnerEmail(),
                 tenant.getPlan(),
                 tenant.isActive(),
-                tenant.getMembersCount(),
-                tenant.getWorkspacesCount()
+                (int) membersCount,
+                (int) workspacesCount
         );
     }
 
@@ -142,6 +148,10 @@ public class TenantService {
     @Transactional(readOnly = true)
     public List<MemberResponse> getMembersByTenantId(UUID tenantId) {
         User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new ForbiddenException("Access denied: Cannot access members of a different organization");
+        }
 
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
@@ -205,6 +215,11 @@ public class TenantService {
     @Transactional
     public MemberResponse updateMemberRole(UUID tenantId, UUID userId, String roleStr) {
         User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new ForbiddenException("Access denied: Cannot update roles in a different organization");
+        }
+
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
@@ -254,6 +269,11 @@ public class TenantService {
     @Transactional
     public void removeMember(UUID tenantId, UUID userId) {
         User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new ForbiddenException("Access denied: Cannot remove members from a different organization");
+        }
+
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
@@ -276,8 +296,5 @@ public class TenantService {
         }
 
         tenantMemberRepository.delete(memberToRemove);
-        
-        tenant.setMembersCount(Math.max(1, tenant.getMembersCount() - 1));
-        tenantRepository.save(tenant);
     }
 }

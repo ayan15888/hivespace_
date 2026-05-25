@@ -125,3 +125,22 @@ export async function deleteTask(taskId: string): Promise<void> {
     method: "DELETE",
   });
 }
+
+// ── Task Activity Log ─────────────────────────────────────────────────────────
+
+export interface TaskActivityResponse {
+  id: string;
+  taskId: string;
+  userId: string | null;
+  username: string | null;
+  fullName: string | null;
+  avatarUrl: string | null;
+  type: string; // CREATED | STATUS_CHANGED | PRIORITY_CHANGED | TITLE_CHANGED | DESCRIPTION_CHANGED | LABELS_CHANGED | POINTS_CHANGED | DUE_DATE_CHANGED | OWNER_CHANGED | ASSIGNEE_ADDED | ASSIGNEE_REMOVED
+  oldValue: string | null;
+  newValue: string | null;
+  createdAt: string;
+}
+
+export async function getTaskActivities(taskId: string): Promise<TaskActivityResponse[]> {
+  return apiFetch(`/api/tasks/${taskId}/activities`);
+}

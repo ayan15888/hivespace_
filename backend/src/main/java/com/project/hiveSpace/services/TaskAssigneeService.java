@@ -16,6 +16,10 @@ import com.project.hiveSpace.repository.TaskActivityRepository;
 import com.project.hiveSpace.security.RbacService;
 import com.project.hiveSpace.models.ProjectMemberRole;
 import com.project.hiveSpace.models.ResourceType;
+import com.project.hiveSpace.exceptions.ForbiddenException;
+import com.project.hiveSpace.exceptions.DomainValidationException;
+import com.project.hiveSpace.exceptions.NotFoundException;
+import com.project.hiveSpace.exceptions.ConflictException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,11 +45,11 @@ public class TaskAssigneeService {
     public List<TaskAssigneeResponse> getAssigneesForTask(UUID taskId) {
         rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         if (!rbacService.canViewTask(taskId)) {
-            throw new SecurityException("Access denied: You do not have permission to view assignees for this task");
+            throw new ForbiddenException("Access denied: You do not have permission to view assignees for this task");
         }
 
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+                .orElseThrow(() -> new NotFoundException("Task not found"));
         return taskAssigneeRepository.findAllByTask(task)
                 .stream()
                 .map(this::mapToResponse)
@@ -57,29 +61,33 @@ public class TaskAssigneeService {
         rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         User currentUser = actor != null ? actor : rbacService.getCurrentUser();
         if (currentUser == null) {
-            throw new SecurityException("User not authenticated");
+            throw new ForbiddenException("User not authenticated");
         }
 
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+                .orElseThrow(() -> new NotFoundException("Task not found"));
 
         if (!rbacService.canAddTaskAssignee(taskId)) {
-            throw new SecurityException("Access denied: Only the task owner, project leads, or workspace admins can add assignees");
+            throw new ForbiddenException("Access denied: Only the task owner, project leads, or workspace admins can add assignees");
+        }
+
+        if (request.getRole() == TaskAssigneeRole.OWNER) {
+            throw new DomainValidationException("Use the change-owner endpoint to transfer ownership");
         }
 
         UUID projectId = task.getProject().getId();
 
         User targetUser = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
 
         // RULE: User must be a member of the project
         if (!rbacService.hasProjectRoleForUser(targetUser.getId(), projectId, ProjectMemberRole.VIEWER)) {
-            throw new IllegalArgumentException("Assignee must be a member of this project");
+            throw new DomainValidationException("Assignee must be a member of this project");
         }
 
         // Check if already assigned
         if (taskAssigneeRepository.existsByTaskAndUser(task, targetUser)) {
-            throw new IllegalArgumentException("User is already assigned to this task");
+            throw new ConflictException("User is already assigned to this task");
         }
 
         // Build and save assignee
@@ -91,11 +99,11 @@ public class TaskAssigneeService {
                 .build();
         TaskAssignee saved = taskAssigneeRepository.save(assignee);
 
-        // Record activity
+        String activityType = request.getRole() == TaskAssigneeRole.REVIEWER ? "REVIEWER_ADDED" : "COLLABORATOR_ADDED";
         TaskActivity activity = TaskActivity.builder()
                 .task(task)
                 .user(actor)
-                .type("ASSIGNED_" + request.getRole().name())
+                .type(activityType)
                 .newValue(targetUser.getUsername())
                 .createdAt(new Date())
                 .build();
@@ -109,24 +117,24 @@ public class TaskAssigneeService {
         rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         User currentUser = actor != null ? actor : rbacService.getCurrentUser();
         if (currentUser == null) {
-            throw new SecurityException("User not authenticated");
+            throw new ForbiddenException("User not authenticated");
         }
 
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+                .orElseThrow(() -> new NotFoundException("Task not found"));
 
         if (!rbacService.canAddTaskAssignee(taskId)) {
-            throw new SecurityException("Access denied: Only the task owner, project leads, or workspace admins can change task ownership");
+            throw new ForbiddenException("Access denied: Only the task owner, project leads, or workspace admins can change task ownership");
         }
 
         UUID projectId = task.getProject().getId();
 
         User newOwner = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
 
         // RULE: Must be a member of the project
         if (!rbacService.hasProjectRoleForUser(newOwner.getId(), projectId, ProjectMemberRole.VIEWER)) {
-            throw new IllegalArgumentException("New owner must be a member of this project");
+            throw new DomainValidationException("New owner must be a member of this project");
         }
 
         // 1. Locate and remove/update current OWNER
@@ -150,8 +158,8 @@ public class TaskAssigneeService {
                 .build();
         TaskAssignee saved = taskAssigneeRepository.save(newAssignee);
 
-        // 3. Keep sync with task.assignee for backwards compatibility / quick queries
-        task.setAssignee(newOwner);
+        // 3. Update task modification timestamp
+        task.setUpdatedAt(new Date());
         taskRepository.save(task);
 
         // Record activity
@@ -173,25 +181,25 @@ public class TaskAssigneeService {
         rbacService.verifyResourceBelongsToTenant(taskId, ResourceType.TASK);
         User currentUser = actor != null ? actor : rbacService.getCurrentUser();
         if (currentUser == null) {
-            throw new SecurityException("User not authenticated");
+            throw new ForbiddenException("User not authenticated");
         }
 
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+                .orElseThrow(() -> new NotFoundException("Task not found"));
 
         if (!rbacService.canRemoveTaskAssignee(taskId, targetUserId)) {
-            throw new SecurityException("Access denied: Only the task owner, project leads, workspace admins, or the user themselves can remove assignments");
+            throw new ForbiddenException("Access denied: Only the task owner, project leads, workspace admins, or the user themselves can remove assignments");
         }
 
         User targetUser = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
 
         TaskAssignee assignment = taskAssigneeRepository.findByTaskAndUser(task, targetUser)
-                .orElseThrow(() -> new IllegalArgumentException("User assignment not found on this task"));
+                .orElseThrow(() -> new NotFoundException("User assignment not found on this task"));
 
         // RULE: Cannot remove OWNER if they are the only assignee (or you cannot delete OWNER via standard remove)
         if (assignment.getRole() == TaskAssigneeRole.OWNER) {
-            throw new IllegalArgumentException("Cannot delete primary OWNER. Use changeOwner instead.");
+            throw new DomainValidationException("Cannot delete primary OWNER. Use changeOwner instead.");
         }
 
         taskAssigneeRepository.delete(assignment);
@@ -200,7 +208,7 @@ public class TaskAssigneeService {
         TaskActivity activity = TaskActivity.builder()
                 .task(task)
                 .user(actor)
-                .type("UNASSIGNED")
+                .type("ASSIGNEE_REMOVED")
                 .oldValue(assignment.getUser().getUsername())
                 .createdAt(new Date())
                 .build();

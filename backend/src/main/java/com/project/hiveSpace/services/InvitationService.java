@@ -6,6 +6,9 @@ import com.project.hiveSpace.dto.JoinRequest;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
 import com.project.hiveSpace.security.RbacService;
+import com.project.hiveSpace.exceptions.ForbiddenException;
+import com.project.hiveSpace.exceptions.NotFoundException;
+// import com.project.hiveSpace.exceptions.DomainValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -54,7 +57,7 @@ public class InvitationService {
         }
 
         if (!rbacService.canManageInvite(tenant.getId())) {
-            throw new SecurityException("Only organization owners or administrators can create invitations");
+            throw new ForbiddenException("Only organization owners or administrators can create invitations");
         }
 
         // Determine inviter's actual role
@@ -75,12 +78,12 @@ public class InvitationService {
         }
 
         if (targetRole == TenantMemberRole.OWNER) {
-            throw new SecurityException("The Owner role cannot be assigned via invitation");
+            throw new ForbiddenException("The Owner role cannot be assigned via invitation");
         }
 
         if (inviterRole == TenantMemberRole.ADMIN) {
             if (targetRole == TenantMemberRole.ADMIN || targetRole == TenantMemberRole.OWNER) {
-                throw new SecurityException("Only organization owners can invite Administrators or Owners");
+                throw new ForbiddenException("Only organization owners can invite Administrators or Owners");
             }
         }
 
@@ -111,6 +114,7 @@ public class InvitationService {
             if (t.getWorkspace() == null || !t.getWorkspace().getTenant().getId().equals(tenant.getId())) {
                 throw new IllegalArgumentException("Team " + tId + " does not belong to the specified tenant");
             }
+            targetWorkspaceSet.add(t.getWorkspace()); // Make sure we auto-include team workspaces
             targetTeamSet.add(t);
         }
 
@@ -138,7 +142,7 @@ public class InvitationService {
 
         for (Workspace w : allInviteWorkspaces) {
             if (!rbacService.hasWorkspaceRole(w.getId(), WorkspaceMemberRole.MEMBER)) {
-                throw new SecurityException("You must have at least Member access to '" + w.getName() + "' to invite others into it");
+                throw new ForbiddenException("You must have at least Member access to '" + w.getName() + "' to invite others into it");
             }
         }
 
@@ -156,8 +160,6 @@ public class InvitationService {
                 .token(token)
                 .pinHash(pinHash)
                 .tenant(tenant)
-                .workspace(workspace)
-                .team(team)
                 .project(project)
                 .workspaces(targetWorkspaceSet)
                 .teams(targetTeamSet)
@@ -202,6 +204,11 @@ public class InvitationService {
 
     @Transactional
     public void acceptInvite(JoinRequest request) {
+        acceptInvite(request, null);
+    }
+
+    @Transactional
+    public void acceptInvite(JoinRequest request, jakarta.servlet.http.HttpServletRequest servletRequest) {
         User currentUser = getCurrentUser();
         
         Invitation invitation = invitationRepository.findByToken(request.getToken())
@@ -239,10 +246,24 @@ public class InvitationService {
         // 3. Verify PIN
         boolean pinMatches = passwordEncoder.matches(request.getPin(), invitation.getPinHash());
 
+        String ip = "127.0.0.1";
+        if (servletRequest != null) {
+            ip = servletRequest.getHeader("X-Forwarded-For");
+            if (ip == null || ip.isBlank()) {
+                ip = servletRequest.getRemoteAddr();
+            }
+            if (ip != null && ip.contains(",")) {
+                ip = ip.split(",")[0].trim();
+            }
+        }
+        if (ip == null) {
+            ip = "127.0.0.1";
+        }
+
         // Track attempt in the database
         InvitationAttempt attempt = InvitationAttempt.builder()
                 .invitation(invitation)
-                .ipAddress("127.0.0.1") // Fallback / mock ip tracking
+                .ipAddress(ip)
                 .attemptedAt(new Date())
                 .success(pinMatches)
                 .build();
@@ -290,9 +311,6 @@ public class InvitationService {
                     .joinedAt(new Date())
                     .build();
             tenantMemberRepository.save(tenantMember);
-
-            tenant.setMembersCount(tenant.getMembersCount() + 1);
-            tenantRepository.save(tenant);
         }
 
         // Dynamically associate user with their active tenant context if not set
@@ -311,8 +329,6 @@ public class InvitationService {
                         .joinedAt(new Date())
                         .build();
                 workspaceMemberRepository.save(wm);
-                ws.setMembersCount(ws.getMembersCount() + 1);
-                workspaceRepository.save(ws);
             }
         }
 
@@ -327,8 +343,6 @@ public class InvitationService {
                         .joinedAt(new Date())
                         .build();
                 workspaceMemberRepository.save(wm);
-                teamWorkspace.setMembersCount(teamWorkspace.getMembersCount() + 1);
-                workspaceRepository.save(teamWorkspace);
             }
             if (!teamMemberRepository.existsByTeamAndUser(t, currentUser)) {
                 TeamMember tm = TeamMember.builder()
@@ -338,8 +352,6 @@ public class InvitationService {
                         .joinedAt(new Date())
                         .build();
                 teamMemberRepository.save(tm);
-                t.setMembersCount(t.getMembersCount() + 1);
-                teamRepository.save(t);
             }
         }
 
@@ -356,8 +368,6 @@ public class InvitationService {
                         .joinedAt(new Date())
                         .build();
                 workspaceMemberRepository.save(wm);
-                projectWorkspace.setMembersCount(projectWorkspace.getMembersCount() + 1);
-                workspaceRepository.save(projectWorkspace);
             }
 
             if (!projectMemberRepository.existsByProjectAndUser(project, currentUser)) {
@@ -368,8 +378,6 @@ public class InvitationService {
                         .joinedAt(new Date())
                         .build();
                 projectMemberRepository.save(pm);
-                project.setMembersCount(project.getMembersCount() + 1);
-                projectRepository.save(project);
             }
         }
 
@@ -402,6 +410,11 @@ public class InvitationService {
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public java.util.List<InviteResponse> getInvitationsByTenant(UUID tenantId) {
         User currentUser = getCurrentUser();
+        UUID activeTenantId = currentUser.getTenant() != null ? currentUser.getTenant().getId() : null;
+        if (activeTenantId == null || !activeTenantId.equals(tenantId)) {
+            throw new ForbiddenException("Access denied: Cannot view invitations of a different organization");
+        }
+
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
@@ -412,7 +425,7 @@ public class InvitationService {
                 && (member.getRole() == TenantMemberRole.OWNER || member.getRole() == TenantMemberRole.ADMIN);
 
         if (!isOwner && !isAdmin) {
-            throw new SecurityException("Only organization owners or administrators can view invitations");
+            throw new ForbiddenException("Only organization owners or administrators can view invitations");
         }
 
         return invitationRepository.findByTenantIdOrderByCreatedAtDesc(tenantId).stream()
@@ -444,10 +457,10 @@ public class InvitationService {
                 .tenantId(invite.getTenant().getId())
                 .tenantName(invite.getTenant().getName())
                 .tenantSlug(invite.getTenant().getSlug())
-                .workspaceId(invite.getWorkspace() != null ? invite.getWorkspace().getId() : null)
-                .workspaceName(invite.getWorkspace() != null ? invite.getWorkspace().getName() : null)
-                .teamId(invite.getTeam() != null ? invite.getTeam().getId() : null)
-                .teamName(invite.getTeam() != null ? invite.getTeam().getName() : null)
+                .workspaceId(invite.getWorkspaces().isEmpty() ? null : invite.getWorkspaces().iterator().next().getId())
+                .workspaceName(invite.getWorkspaces().isEmpty() ? null : invite.getWorkspaces().iterator().next().getName())
+                .teamId(invite.getTeams().isEmpty() ? null : invite.getTeams().iterator().next().getId())
+                .teamName(invite.getTeams().isEmpty() ? null : invite.getTeams().iterator().next().getName())
                 .projectId(invite.getProject() != null ? invite.getProject().getId() : null)
                 .projectName(invite.getProject() != null ? invite.getProject().getName() : null)
                 .workspaceIds(invite.getWorkspaces().stream().map(Workspace::getId).collect(java.util.stream.Collectors.toList()))
@@ -471,5 +484,26 @@ public class InvitationService {
         } catch (IllegalArgumentException ex) {
             return TenantMemberRole.MEMBER;
         }
+    }
+
+    @Transactional
+    public void revokeInvite(UUID invitationId) {
+        User currentUser = getCurrentUser();
+        Invitation invitation = invitationRepository.findById(invitationId)
+                .orElseThrow(() -> new NotFoundException("Invitation not found"));
+
+        // Only inviter or tenant owner/admin can revoke invitation
+        boolean isInviter = invitation.getInviter().getId().equals(currentUser.getId());
+        boolean isOwner = invitation.getTenant().getOwnerEmail().equalsIgnoreCase(currentUser.getEmail());
+        boolean isAdmin = tenantMemberRepository.findByTenantIdAndUserId(invitation.getTenant().getId(), currentUser.getId())
+                .map(member -> member.getRole() == TenantMemberRole.OWNER || member.getRole() == TenantMemberRole.ADMIN)
+                .orElse(false);
+
+        if (!isInviter && !isOwner && !isAdmin) {
+            throw new ForbiddenException("Access denied: You do not have permission to revoke this invitation");
+        }
+
+        invitation.setStatus(InvitationStatus.REVOKED);
+        invitationRepository.save(invitation);
     }
 }

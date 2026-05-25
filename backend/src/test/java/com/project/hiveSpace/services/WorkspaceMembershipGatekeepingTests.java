@@ -4,6 +4,7 @@ import com.project.hiveSpace.dto.*;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
 import com.project.hiveSpace.security.RbacService;
+import com.project.hiveSpace.exceptions.DomainValidationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -90,14 +91,12 @@ class WorkspaceMembershipGatekeepingTests {
                 .id(projectId)
                 .name("Test Project")
                 .workspace(workspace)
-                .membersCount(0)
                 .build();
 
         team = Team.builder()
                 .id(teamId)
                 .name("Test Team")
                 .workspace(workspace)
-                .membersCount(0)
                 .build();
     }
 
@@ -132,7 +131,7 @@ class WorkspaceMembershipGatekeepingTests {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(false);
 
-        SecurityException exception = assertThrows(SecurityException.class, () ->
+        DomainValidationException exception = assertThrows(DomainValidationException.class, () ->
                 projectMemberService.addMemberToProject(projectId, userId, ProjectMemberRole.MEMBER)
         );
 
@@ -171,7 +170,7 @@ class WorkspaceMembershipGatekeepingTests {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(false);
 
-        SecurityException exception = assertThrows(SecurityException.class, () ->
+        DomainValidationException exception = assertThrows(DomainValidationException.class, () ->
                 teamMemberService.addMemberToTeam(teamId, request)
         );
 
@@ -254,5 +253,70 @@ class WorkspaceMembershipGatekeepingTests {
 
         assertEquals(otherUserId, result.get(1).getUserId());
         assertFalse(result.get(1).isBelongsToAssignedTeam());
+    }
+
+    @Mock
+    private TenantMemberRepository tenantMemberRepository;
+
+    @Test
+    void testAddWorkspaceMember_Success() {
+        WorkspaceMemberRequest request = new WorkspaceMemberRequest(userId, WorkspaceMemberRole.MEMBER);
+        Tenant tenant = Tenant.builder().id(UUID.randomUUID()).build();
+        workspace.setTenant(tenant);
+
+        when(rbacService.canAdminWorkspace(workspaceId)).thenReturn(true);
+        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(tenantMemberRepository.existsByTenantIdAndUserId(tenant.getId(), userId)).thenReturn(true);
+        when(workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(false);
+        when(workspaceMemberRepository.save(any(WorkspaceMember.class))).thenAnswer(invocation -> {
+            WorkspaceMember wm = invocation.getArgument(0);
+            wm.setId(UUID.randomUUID());
+            return wm;
+        });
+
+        WorkspaceMemberResponse response = workspaceService.addWorkspaceMember(workspaceId, request);
+
+        assertNotNull(response);
+        assertEquals(workspaceId, response.getWorkspaceId());
+        assertEquals(userId, response.getUserId());
+        assertEquals(WorkspaceMemberRole.MEMBER, response.getRole());
+    }
+
+    @Test
+    void testUpdateWorkspaceMemberRole_Success() {
+        WorkspaceMember member = WorkspaceMember.builder()
+                .id(UUID.randomUUID())
+                .workspace(workspace)
+                .user(user)
+                .role(WorkspaceMemberRole.MEMBER)
+                .build();
+
+        when(rbacService.canAdminWorkspace(workspaceId)).thenReturn(true);
+        when(workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(Optional.of(member));
+        when(workspaceMemberRepository.save(any(WorkspaceMember.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        WorkspaceMemberResponse response = workspaceService.updateWorkspaceMemberRole(workspaceId, userId, WorkspaceMemberRole.ADMIN);
+
+        assertNotNull(response);
+        assertEquals(WorkspaceMemberRole.ADMIN, response.getRole());
+    }
+
+    @Test
+    void testRemoveWorkspaceMember_Success() {
+        WorkspaceMember member = WorkspaceMember.builder()
+                .id(UUID.randomUUID())
+                .workspace(workspace)
+                .user(user)
+                .role(WorkspaceMemberRole.MEMBER)
+                .build();
+
+        when(rbacService.canAdminWorkspace(workspaceId)).thenReturn(true);
+        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
+        when(workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, userId)).thenReturn(Optional.of(member));
+
+        workspaceService.removeWorkspaceMember(workspaceId, userId);
+
+        verify(workspaceMemberRepository, times(1)).delete(member);
     }
 }

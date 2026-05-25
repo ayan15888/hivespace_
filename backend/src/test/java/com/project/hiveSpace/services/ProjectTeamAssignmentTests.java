@@ -15,6 +15,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.List;
 import com.project.hiveSpace.dto.TeamResponse;
+import com.project.hiveSpace.exceptions.ForbiddenException;
+import com.project.hiveSpace.exceptions.DomainValidationException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,6 +33,21 @@ class ProjectTeamAssignmentTests {
 
     @Mock
     private ProjectTeamRepository projectTeamRepository;
+
+    @Mock
+    private ProjectMemberRepository projectMemberRepository;
+
+    @Mock
+    private TeamMemberRepository teamMemberRepository;
+
+    @Mock
+    private WorkspaceRepository workspaceRepository;
+
+    @Mock
+    private WorkspaceMemberRepository workspaceMemberRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
     private RbacService rbacService;
@@ -67,7 +84,6 @@ class ProjectTeamAssignmentTests {
                 .id(projectId)
                 .name("Project")
                 .workspace(workspace)
-                .teamsCount(0)
                 .build();
 
         team = Team.builder()
@@ -83,14 +99,13 @@ class ProjectTeamAssignmentTests {
         when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
         when(projectTeamRepository.existsByProjectIdAndTeamId(projectId, teamId)).thenReturn(false);
-        when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(projectTeamRepository.countByProjectId(projectId)).thenReturn(1L);
 
         ProjectResponse response = projectService.assignTeam(projectId, teamId, actor);
 
         assertNotNull(response);
         assertEquals(1, response.getTeamsCount());
         verify(projectTeamRepository, times(1)).save(any(ProjectTeam.class));
-        verify(projectRepository, times(1)).save(any(Project.class));
     }
 
     @Test
@@ -99,7 +114,7 @@ class ProjectTeamAssignmentTests {
         when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(false);
         when(rbacService.canAdminWorkspace(workspaceId)).thenReturn(false);
 
-        SecurityException exception = assertThrows(SecurityException.class, () ->
+        ForbiddenException exception = assertThrows(ForbiddenException.class, () ->
                 projectService.assignTeam(projectId, teamId, actor)
         );
 
@@ -118,7 +133,7 @@ class ProjectTeamAssignmentTests {
         when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(true);
         when(teamRepository.findById(teamId)).thenReturn(Optional.of(team));
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+        DomainValidationException exception = assertThrows(DomainValidationException.class, () ->
                 projectService.assignTeam(projectId, teamId, actor)
         );
 
@@ -165,7 +180,7 @@ class ProjectTeamAssignmentTests {
         when(rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER)).thenReturn(false);
         when(rbacService.canAdminWorkspace(workspaceId)).thenReturn(false);
 
-        SecurityException exception = assertThrows(SecurityException.class, () ->
+        ForbiddenException exception = assertThrows(ForbiddenException.class, () ->
                 projectService.getAssignedTeams(projectId)
         );
 
@@ -174,11 +189,10 @@ class ProjectTeamAssignmentTests {
 
     @Test
     void testUnassignTeam_Success() {
-        project.setTeamsCount(1);
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
         when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(true);
         when(projectTeamRepository.existsByProjectIdAndTeamId(projectId, teamId)).thenReturn(true);
-        when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(projectTeamRepository.countByProjectId(projectId)).thenReturn(0L);
 
         ProjectResponse response = projectService.unassignTeam(projectId, teamId, actor);
 
@@ -193,7 +207,7 @@ class ProjectTeamAssignmentTests {
         when(rbacService.hasProjectRole(projectId, ProjectMemberRole.LEAD)).thenReturn(false);
         when(rbacService.canAdminWorkspace(workspaceId)).thenReturn(false);
 
-        SecurityException exception = assertThrows(SecurityException.class, () ->
+        ForbiddenException exception = assertThrows(ForbiddenException.class, () ->
                 projectService.unassignTeam(projectId, teamId, actor)
         );
 

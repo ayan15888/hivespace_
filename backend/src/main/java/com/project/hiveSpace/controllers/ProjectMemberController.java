@@ -11,18 +11,18 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/projects/{projectId}/members")
+@RequestMapping("/api/projects/{projectId}")
 @RequiredArgsConstructor
 public class ProjectMemberController {
 
     private final ProjectMemberService projectMemberService;
 
-    @GetMapping
+    @GetMapping("/members")
     public ResponseEntity<List<ProjectMemberResponse>> getMembersByProject(@PathVariable UUID projectId) {
         return ResponseEntity.ok(projectMemberService.getMembersByProject(projectId));
     }
 
-    @PostMapping
+    @PostMapping("/members")
     public ResponseEntity<ProjectMemberResponse> addMemberToProject(
             @PathVariable UUID projectId,
             @RequestParam UUID userId,
@@ -30,7 +30,7 @@ public class ProjectMemberController {
         return ResponseEntity.ok(projectMemberService.addMemberToProject(projectId, userId, role));
     }
 
-    @PutMapping("/{userId}/role")
+    @PutMapping("/members/{userId}/role")
     public ResponseEntity<ProjectMemberResponse> updateMemberRole(
             @PathVariable UUID projectId,
             @PathVariable UUID userId,
@@ -38,11 +38,16 @@ public class ProjectMemberController {
         return ResponseEntity.ok(projectMemberService.updateMemberRole(projectId, userId, role));
     }
 
-    @DeleteMapping("/{userId}")
+    @DeleteMapping("/members/{userId}")
     public ResponseEntity<Void> removeMemberFromProject(
             @PathVariable UUID projectId,
             @PathVariable UUID userId) {
         projectMemberService.removeMemberFromProject(projectId, userId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/team-members")
+    public ResponseEntity<List<ProjectMemberResponse>> getTeamMembersOfProjectTeams(@PathVariable UUID projectId) {
+        return ResponseEntity.ok(projectMemberService.getTeamMembersOfProjectTeams(projectId));
     }
 }

@@ -25,10 +25,6 @@ public class Team {
     @Column(name = "description", nullable = true)
     private String description;
 
-    @Builder.Default
-    @Column(name = "members_count", nullable = false)
-    private int membersCount = 0;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workspace_id", nullable = false)
     private Workspace workspace;

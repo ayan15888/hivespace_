@@ -14,4 +14,5 @@ public interface ProjectTeamRepository extends JpaRepository<ProjectTeam, Projec
     List<ProjectTeam> findByTeamId(UUID teamId);
     boolean existsByProjectIdAndTeamId(UUID projectId, UUID teamId);
     void deleteByProjectIdAndTeamId(UUID projectId, UUID teamId);
+    long countByProjectId(UUID projectId);
 }

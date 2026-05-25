@@ -15,4 +15,5 @@ public class TeamRequest {
     private UUID workspaceId;
     private UUID projectId;
     private UUID leadUserId;
+    private Boolean addCreatorAsMember;
 }

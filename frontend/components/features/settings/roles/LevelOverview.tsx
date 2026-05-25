@@ -28,6 +28,17 @@ export default function LevelOverview({ activeDetail }: LevelOverviewProps) {
           </p>
         </div>
       </div>
+
+      {activeDetail.id !== "tenant" && (
+        <div className="mt-4 flex items-start gap-2.5 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/10 text-amber-200/90 text-xs leading-relaxed">
+          <span className="font-bold shrink-0 uppercase tracking-wider bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded text-[9px] font-mono leading-none">
+            Playground Model
+          </span>
+          <span>
+            This tier uses HiveSpace's localized capability mapping schema for RBAC simulation. Roles here serve as visual guides to preview permissions across workspace teams and task boards. Only organization-level (Tenant) assignments are saved to the persistent database.
+          </span>
+        </div>
+      )}
     </div>
   );
 }
