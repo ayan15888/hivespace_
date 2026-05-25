@@ -17,9 +17,16 @@ import { Loader2 } from "lucide-react";
 import { createTeam } from "@/lib/api/teams";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { getWorkspaceMembers, WorkspaceMemberResponse } from "@/lib/api/workspaces";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useProjectStore } from "@/store/projectStore";
 import { useTeamStore } from "@/store/teamStore";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 
 interface CreateTeamModalProps {
   isOpen: boolean;
@@ -57,8 +64,8 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "var(--hs-ac
         name: name.trim(),
         description: description.trim(),
         workspaceId,
-        projectId: projectId ? projectId : undefined,
-        leadUserId: leadUserId || undefined
+        projectId: (projectId && projectId !== "none") ? projectId : undefined,
+        leadUserId: (leadUserId && leadUserId !== "me") ? leadUserId : undefined
       });
       
       // Sync to Zustand store immediately
@@ -80,21 +87,13 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "var(--hs-ac
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <AnimatePresence>
-        {isOpen && (
-          <DialogContent className="sm:max-w-[425px] bg-hs-card border-border/50 text-foreground overflow-hidden p-0 rounded-[28px] shadow-2xl">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div 
-                className="h-2 w-full transition-colors duration-500" 
-                style={{ backgroundColor: themeColor }} 
-              />
-              
-              <div className="p-6">
+      <DialogContent className="sm:max-w-[425px] bg-hs-card border-border/50 text-foreground overflow-hidden p-0 rounded-[28px] shadow-2xl">
+        <div 
+          className="h-2 w-full transition-colors duration-500" 
+          style={{ backgroundColor: themeColor }} 
+        />
+        
+        <div className="p-6">
                 <DialogHeader className="mb-4">
                   <DialogTitle className="text-xl font-semibold tracking-tight text-foreground">Create Team</DialogTitle>
                   <DialogDescription className="text-zinc-500 text-xs">
@@ -117,36 +116,42 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "var(--hs-ac
 
                   <div className="space-y-2">
                     <Label htmlFor="t-project" className="text-xs font-bold text-zinc-600 uppercase tracking-widest">Associate with Project</Label>
-                    <select
-                      id="t-project"
-                      value={projectId}
-                      onChange={(e) => setProjectId(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-hs-main border border-border/50 focus:border-hs-accent/50 focus:ring-0 rounded-xl text-foreground outline-none text-xs"
+                    <Select
+                      value={projectId || "none"}
+                      onValueChange={setProjectId}
                     >
-                      <option value="">None (Workspace-wide Team)</option>
-                      {projects.map((p) => (
-                        <option key={p.id} value={p.id} className="bg-hs-card">
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="w-full h-10 bg-hs-main border border-border/50 focus:border-hs-accent/50 focus:ring-0 rounded-xl text-foreground text-xs cursor-pointer px-3 flex items-center justify-between">
+                        <SelectValue placeholder="None (Workspace-wide Team)" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-hs-card border border-border/50 text-foreground">
+                        <SelectItem value="none" className="text-zinc-400">None (Workspace-wide Team)</SelectItem>
+                        {projects.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="t-lead" className="text-xs font-bold text-zinc-600 uppercase tracking-widest">Team Lead (optional)</Label>
-                    <select
-                      id="t-lead"
-                      value={leadUserId}
-                      onChange={(e) => setLeadUserId(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-hs-main border border-border/50 focus:border-hs-accent/50 focus:ring-0 rounded-xl text-foreground outline-none text-xs cursor-pointer"
+                    <Select
+                      value={leadUserId || "me"}
+                      onValueChange={setLeadUserId}
                     >
-                      <option value="" className="bg-hs-card">Defaults to you</option>
-                      {workspaceMembers.map((m) => (
-                        <option key={m.userId} value={m.userId} className="bg-hs-card">
-                          {m.fullName || m.username}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="w-full h-10 bg-hs-main border border-border/50 focus:border-hs-accent/50 focus:ring-0 rounded-xl text-foreground text-xs cursor-pointer px-3 flex items-center justify-between">
+                        <SelectValue placeholder="Defaults to you" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-hs-card border border-border/50 text-foreground">
+                        <SelectItem value="me" className="text-zinc-400">Defaults to you</SelectItem>
+                        {workspaceMembers.map((m) => (
+                          <SelectItem key={m.userId} value={m.userId}>
+                            {m.fullName || m.username}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
  
                   <div className="space-y-2">
@@ -175,10 +180,7 @@ export function CreateTeamModal({ isOpen, workspaceId, themeColor = "var(--hs-ac
                   </DialogFooter>
                 </form>
               </div>
-            </motion.div>
-          </DialogContent>
-        )}
-      </AnimatePresence>
+      </DialogContent>
     </Dialog>
   );
 }

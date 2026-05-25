@@ -22,7 +22,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { createTask, TaskRequest } from "@/lib/api/tasks";
-import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
+import { getProjectMembers, ProjectMemberResponse, getProjectTeams, addProjectMember } from "@/lib/api/projects";
+import { getTeamMembers, TeamResponse } from "@/lib/api/teams";
 import { columnNameToStatus, priorityToBackend } from "@/lib/taskUtils";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { motion, AnimatePresence } from "framer-motion";
@@ -56,6 +57,12 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState(false);
 
+  // Teams-related state
+  const [projectTeams, setProjectTeams] = useState<TeamResponse[]>([]);
+  const [teamId, setTeamId] = useState("");
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [addingTeamMembers, setAddingTeamMembers] = useState(false);
+
   useEffect(() => {
     if (!isOpen || !projectId) {
       setProjectMembers([]);
@@ -77,6 +84,62 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       });
   }, [isOpen, projectId]);
 
+  useEffect(() => {
+    if (!isOpen || !projectId) {
+      setProjectTeams([]);
+      setTeamId("");
+      setTeamMembers([]);
+      return;
+    }
+    getProjectTeams(projectId)
+      .then((data) => {
+        setProjectTeams(data);
+      })
+      .catch((err) => {
+        console.error("Failed to load project teams:", err);
+        setProjectTeams([]);
+      });
+  }, [isOpen, projectId]);
+
+  useEffect(() => {
+    if (!teamId) {
+      setTeamMembers([]);
+      return;
+    }
+    getTeamMembers(teamId)
+      .then((data) => {
+        setTeamMembers(data);
+      })
+      .catch((err) => {
+        console.error("Failed to load team members:", err);
+        setTeamMembers([]);
+      });
+  }, [teamId]);
+
+  const nonProjectTeamMembers = teamMembers.filter(
+    (tm) => !projectMembers.some((pm) => pm.userId === tm.userId)
+  );
+
+  const handleAddTeamMembersToProject = async () => {
+    if (nonProjectTeamMembers.length === 0) return;
+    setAddingTeamMembers(true);
+    try {
+      await Promise.all(
+        nonProjectTeamMembers.map((tm) =>
+          addProjectMember(projectId, tm.userId, "MEMBER")
+        )
+      );
+      toast.success("Added team members to project");
+      const updatedMembers = await getProjectMembers(projectId);
+      setProjectMembers(updatedMembers);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add some team members to project");
+    } finally {
+      setAddingTeamMembers(false);
+    }
+  };
+
   const { user } = useAuthStore();
   const currentUserProjectMember = projectMembers.find(m => m.userId === user?.id);
   const projectRole = currentUserProjectMember?.role || null;
@@ -95,6 +158,8 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       setLabels("");
       setPoints("");
       setAssigneeId("");
+      setTeamId("");
+      setTeamMembers([]);
       
       if (initialProjectId) {
         setProjectId(initialProjectId);
@@ -122,6 +187,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
         labels: labels.trim() || undefined,
         points: points ? Number(points) : undefined,
         assigneeId: assigneeId || undefined,
+        teamId: teamId || undefined,
       };
 
       const newTask = await createTask(projectId, taskData);
@@ -138,6 +204,8 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       setLabels("");
       setPoints("");
       setAssigneeId("");
+      setTeamId("");
+      setTeamMembers([]);
       onSuccess?.();
       onClose();
     } catch (error: any) {
@@ -250,6 +318,54 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                       disabled={loading}
                     />
                   </div>
+                  {projectId && projectTeams.length > 0 && (
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Team (optional)</Label>
+                      <Select value={teamId || "default"} onValueChange={(v) => setTeamId(v === "default" ? "" : v)} disabled={loading}>
+                        <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
+                          <SelectValue placeholder="Select team label" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-hs-main border-border text-foreground">
+                          <SelectItem value="default">No team</SelectItem>
+                          {projectTeams.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {teamId && nonProjectTeamMembers.length > 0 && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs p-3 rounded-xl flex flex-col gap-2 animate-fade-in">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">
+                          {projectTeams.find(t => t.id === teamId)?.name} is assigned to this project.
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-amber-500/80">
+                        Team members not yet added to this project:{" "}
+                        <span className="font-semibold text-amber-400">
+                          {nonProjectTeamMembers.map(tm => tm.fullName || tm.username).join(", ")}
+                        </span>
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddTeamMembersToProject}
+                        disabled={addingTeamMembers}
+                        className="bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-300 font-semibold self-start text-[10px] h-7 px-3 rounded-lg"
+                      >
+                        {addingTeamMembers ? (
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        ) : null}
+                        Add all to project
+                      </Button>
+                    </div>
+                  )}
+
                   {projectId && projectMembers.length > 0 && (
                     <div className="grid gap-2">
                       <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Owner (optional)</Label>

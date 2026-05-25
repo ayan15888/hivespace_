@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
+import com.project.hiveSpace.exceptions.ForbiddenException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,28 +75,24 @@ class InvitationServiceTests {
                 .id(tenantId)
                 .name("Test Tenant")
                 .ownerEmail("owner@example.com")
-                .membersCount(1)
                 .build();
 
         workspace = Workspace.builder()
                 .id(workspaceId)
                 .name("Test Workspace")
                 .tenant(tenant)
-                .membersCount(1)
                 .build();
 
         team = Team.builder()
                 .id(teamId)
                 .name("Test Team")
                 .workspace(workspace)
-                .membersCount(1)
                 .build();
 
         project = Project.builder()
                 .id(projectId)
                 .name("Test Project")
                 .workspace(workspace)
-                .membersCount(1)
                 .build();
 
         mockSecurityContext(currentUser);
@@ -127,6 +124,7 @@ class InvitationServiceTests {
         request.setProjectId(projectId);
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(true);
         when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
         when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
@@ -143,9 +141,9 @@ class InvitationServiceTests {
                 .token("secure_token")
                 .pinHash("hashed_pin")
                 .tenant(tenant)
-                .workspace(workspace)
-                .team(team)
                 .project(project)
+                .workspaces(new java.util.HashSet<>(java.util.List.of(workspace)))
+                .teams(new java.util.HashSet<>(java.util.List.of(team)))
                 .inviter(currentUser)
                 .tenantRole("MEMBER")
                 .maxUses(5)
@@ -181,9 +179,10 @@ class InvitationServiceTests {
         request.setPin("123456");
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(false);
 
-        SecurityException exception = assertThrows(SecurityException.class, () ->
+        ForbiddenException exception = assertThrows(ForbiddenException.class, () ->
                 invitationService.createInvite(request)
         );
 
@@ -203,6 +202,7 @@ class InvitationServiceTests {
         request.setPin("123456");
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(true);
         when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
         when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
@@ -229,6 +229,7 @@ class InvitationServiceTests {
         request.setPin("123456");
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(true);
         when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
         when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
@@ -255,6 +256,7 @@ class InvitationServiceTests {
         request.setPin("123456");
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(true);
         when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
         when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
@@ -277,6 +279,7 @@ class InvitationServiceTests {
         request.setPin("123456");
 
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(workspaceRepository.findAllByTenant(tenant)).thenReturn(java.util.List.of(workspace));
         when(rbacService.canManageInvite(tenantId)).thenReturn(true);
         when(rbacService.isTenantOwner(tenantId)).thenReturn(false);
         when(rbacService.hasTenantRole(tenantId, TenantMemberRole.ADMIN)).thenReturn(true);
@@ -284,7 +287,7 @@ class InvitationServiceTests {
 
         when(rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.MEMBER)).thenReturn(false);
 
-        SecurityException exception = assertThrows(SecurityException.class, () ->
+        ForbiddenException exception = assertThrows(ForbiddenException.class, () ->
                 invitationService.createInvite(request)
         );
 
@@ -300,8 +303,6 @@ class InvitationServiceTests {
                 .token("secure_token")
                 .pinHash("hashed_pin")
                 .tenant(tenant)
-                .workspace(workspace)
-                .team(team)
                 .project(project)
                 .workspaces(new java.util.HashSet<>(java.util.List.of(workspace)))
                 .teams(new java.util.HashSet<>(java.util.List.of(team)))

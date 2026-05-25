@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { OrgResponse, getMyOrganizations } from "@/lib/api/orgs";
+import { registerActiveTenantIdGetter } from "@/lib/api/client";
 
 interface OrgState {
   orgs: OrgResponse[];
@@ -45,3 +46,8 @@ export const useOrgStore = create<OrgState>()(
     }
   )
 );
+
+// Register the active tenant ID getter for the API client dynamically (avoids circular dependency loops in standard ESM)
+if (typeof window !== "undefined") {
+  registerActiveTenantIdGetter(() => useOrgStore.getState().activeOrg?.id);
+}

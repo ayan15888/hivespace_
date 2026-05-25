@@ -1,17 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  Search, 
-  UserPlus, 
-  MoreHorizontal, 
-  Mail, 
-  Link as LinkIcon, 
-  ExternalLink, 
-  RefreshCw, 
-  Plus,
-  Eye,
-  EyeOff
+import {
+  Search,
+  UserPlus,
+  Info,
+  MoreHorizontal,
+  UserMinus,
+  ShieldAlert,
+  Loader2,
+  Building2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,135 +19,122 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { CTAButton } from "@/components/common/CTAButton";
-import { cn } from "@/lib/utils";
+import { cn, getAvatarColorClass } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-
-import { useMembers } from "@/hooks/useMembers";
+import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
 import { useAuth } from "@/hooks/useAuth";
-import { useOrgStore } from "@/store/orgStore";
-import { getTenantInvitations, generateInvite } from "@/lib/api/invites";
-import { InviteResponse } from "@/types/invite";
-import { gooeyToast as toast } from "@/components/ui/goey-toaster";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import { InviteModal } from "@/components/common/InviteModal";
-import { TENANT_ROLES, type TenantRole, roleLabel } from "@/types/roles";
+import { usePermission } from "@/hooks/usePermission";
 import {
-  canManageOrgMembers,
-  canViewOrgMemberDirectory,
-  normalizeTenantRole,
-} from "@/lib/permissions/tenant";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { removeWorkspaceMember, WorkspaceMemberResponse, getWorkspacesByTenant, WorkspaceResponse } from "@/lib/api/workspaces";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
+import { useQueryClient } from "@tanstack/react-query";
+import { AddToWorkspaceModal } from "@/components/features/settings/AddToWorkspaceModal";
+import { getOrganizationMembers, MemberResponse } from "@/lib/api/orgs";
+import { useOrgStore } from "@/store/orgStore";
 
-const pendingInvites: Array<{ email: string; role: string; expires: string }> = [];
-
-const roleColors: Record<string, string> = {
-  OWNER: "text-[#7C5CFC] bg-[#7C5CFC]/10 border-[#7C5CFC]/20",
-  ADMIN: "text-blue-400 bg-blue-400/10 border-blue-400/20",
-  BILLING_ADMIN: "text-green-400 bg-green-400/10 border-green-400/20",
-  MEMBER: "text-zinc-400 bg-zinc-800 border-zinc-700",
+const workspaceRoleColors: Record<string, string> = {
+  ADMIN: "text-[#7C5CFC] bg-[#7C5CFC]/10 border-[#7C5CFC]/20",
+  MEMBER: "text-zinc-300 bg-zinc-800 border-zinc-700",
+  VIEWER: "text-blue-400 bg-blue-400/10 border-blue-400/20",
 };
 
-function TenantRoleChip({ role }: { role: TenantRole }) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "h-7 shrink-0 text-[10px] px-2.5 py-0 font-medium rounded-sm border uppercase tracking-wide",
-        roleColors[role],
-      )}
-    >
-      {roleLabel(role)}
-    </Badge>
-  );
-}
-
-export default function MembersSettings() {
-  const { members, loading } = useMembers();
+export default function WorkspaceMembersSettings() {
+  const { activeWorkspace } = useWorkspaceStore();
+  const { members, loading } = useWorkspaceMembers();
   const { user } = useAuth();
+  const { canAdminWorkspace, loading: permissionsLoading } = usePermission();
   const { activeOrg } = useOrgStore();
+  const queryClient = useQueryClient();
 
-  // Dynamic Invite Links
-  const [inviteLinks, setInviteLinks] = useState<InviteResponse[]>([]);
-  const [invitesLoading, setInvitesLoading] = useState(false);
-  const [visiblePins, setVisiblePins] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
 
-  const togglePinVisibility = (id: string) => {
-    setVisiblePins((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-  };
+  // Remove member confirmation state
+  const [memberToRemove, setMemberToRemove] = useState<WorkspaceMemberResponse | null>(null);
+  const [removing, setRemoving] = useState(false);
 
-  // Popover States
-  const [popoverRole, setPopoverRole] = useState<TenantRole>("MEMBER");
-  const [popoverLimitUses, setPopoverLimitUses] = useState(false);
-  const [popoverMaxUses, setPopoverMaxUses] = useState(10);
-  const [popoverGenerating, setPopoverGenerating] = useState(false);
+  // Add existing member state
+  const [addMemberTarget, setAddMemberTarget] = useState<MemberResponse | null>(null);
+  const [orgMembers, setOrgMembers] = useState<MemberResponse[]>([]);
+  const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceResponse[]>([]);
 
-  const fetchInvitations = async () => {
-    if (!activeOrg?.id) return;
-    setInvitesLoading(true);
-    try {
-      const data = await getTenantInvitations(activeOrg.id);
-      setInviteLinks(data);
-    } catch (err) {
-      console.error("Failed to load invitations", err);
-    } finally {
-      setInvitesLoading(false);
-    }
-  };
-
-  const canViewMembers = canViewOrgMemberDirectory(members, user?.email, activeOrg);
-  const canManageMembers = canManageOrgMembers(members, user?.email, activeOrg);
-
+  // Load org members + all workspaces (for AddToWorkspaceModal)
   useEffect(() => {
-    if (!activeOrg?.id || !canManageMembers) {
-      setInviteLinks([]);
-      return;
-    }
-    fetchInvitations();
-  }, [activeOrg?.id, canManageMembers]);
+    if (!activeOrg?.id || !canAdminWorkspace) return;
+    getOrganizationMembers(activeOrg.id)
+      .then(setOrgMembers)
+      .catch(() => {});
+    getWorkspacesByTenant(activeOrg.id)
+      .then(setAllWorkspaces)
+      .catch(() => {});
+  }, [activeOrg?.id, canAdminWorkspace]);
 
-  const handleCreateInviteLink = async () => {
-    if (!activeOrg?.id) return;
-    setPopoverGenerating(true);
+  // Org members not yet in THIS workspace (for quick-add)
+  const memberUserIds = new Set(members.map((m) => m.userId));
+  const nonWorkspaceMembers = orgMembers.filter((m) => !memberUserIds.has(m.id));
+
+  const filteredMembers = members.filter((member) => {
+    const matchesSearch =
+      !searchQuery ||
+      member.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.username?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesRole = roleFilter === "all" || member.role === roleFilter;
+
+    return matchesSearch && matchesRole;
+  });
+
+  const handleRemoveMember = async () => {
+    if (!memberToRemove || !activeWorkspace) return;
+    setRemoving(true);
     try {
-      const response = await generateInvite({
-        tenantId: activeOrg.id,
-        tenantRole: popoverRole,
-        role: popoverRole,
-        maxUses: popoverLimitUses ? popoverMaxUses : 999999,
-      });
-      setInviteLinks((prev) => [response, ...prev]);
-      toast.success("Successfully generated invite link and PIN copied!");
-      
-      const copyUrl = `${window.location.origin}/invite/${activeOrg.slug}/${response.token}`;
-      navigator.clipboard.writeText(`Invite Link: ${copyUrl}\nSecurity PIN: ${response.pin}`);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to generate link");
+      await removeWorkspaceMember(activeWorkspace.id, memberToRemove.userId);
+      toast.success(`${memberToRemove.fullName || memberToRemove.username} removed from workspace`);
+      // Invalidate the members list query so the UI refreshes
+      queryClient.invalidateQueries({ queryKey: ["workspaceMembers", activeWorkspace.id] });
+      setMemberToRemove(null);
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Failed to remove member");
     } finally {
-      setPopoverGenerating(false);
+      setRemoving(false);
     }
   };
 
-  if (!loading && !canViewMembers) {
+  if (!activeWorkspace) {
     return (
-      <div className="max-w-4xl px-8 py-6">
-        <header className="mb-6">
-          <h1 className="text-xl font-semibold text-[#E5E1E4]">Members</h1>
-          <p className="text-sm text-zinc-400 mt-1">
-            Member directory access is limited to organization owners, admins, and members.
-          </p>
-        </header>
-        <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 px-4 py-8 text-center text-sm text-zinc-500">
-          You do not have permission to view the full member list for this organization.
+      <div className="max-w-4xl px-8 py-12 flex flex-col items-center justify-center text-center">
+        <div className="p-4 bg-zinc-800/40 rounded-full mb-4 border border-zinc-700/50">
+          <Info className="h-8 w-8 text-zinc-500" />
         </div>
+        <h1 className="text-xl font-semibold text-[#E5E1E4]">No Active Workspace</h1>
+        <p className="text-sm text-zinc-400 mt-2 max-w-sm leading-relaxed">
+          Please select or create a workspace from the sidebar menu to view its members.
+        </p>
       </div>
     );
   }
@@ -157,10 +142,10 @@ export default function MembersSettings() {
   return (
     <div className="max-w-4xl px-8 py-6">
       <header className="mb-6">
-        <h1 className="text-xl font-semibold text-[#E5E1E4]">Members</h1>
-        <p className="text-sm text-zinc-400 mt-1">
-          {members.length} members in {activeOrg?.name || "Organization"}{" "}
-          {activeOrg?.ownerEmail && `· Owner: ${activeOrg.ownerEmail}`}
+        <h1 className="text-xl font-semibold text-[#E5E1E4]">Workspace Members</h1>
+        <p className="text-sm text-zinc-450 mt-1">
+          {members.length} members in the{" "}
+          <span className="text-violet-400 font-medium">{activeWorkspace.name}</span> workspace
         </p>
       </header>
 
@@ -168,280 +153,270 @@ export default function MembersSettings() {
         <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
           <Input
-            placeholder="Search members..."
+            placeholder="Search workspace members..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 bg-zinc-800 border-zinc-700 h-9 text-sm focus-visible:ring-hs-accent/50"
           />
         </div>
-        <Select defaultValue="all">
+
+        <Select value={roleFilter} onValueChange={setRoleFilter}>
           <SelectTrigger className="w-[140px] bg-zinc-800 border-zinc-700 h-9 text-sm text-zinc-300">
             <SelectValue placeholder="All roles" />
           </SelectTrigger>
           <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-300">
             <SelectItem value="all">All roles</SelectItem>
-            <SelectItem value="OWNER">{roleLabel("OWNER")}</SelectItem>
-            <SelectItem value="ADMIN">{roleLabel("ADMIN")}</SelectItem>
-            <SelectItem value="BILLING_ADMIN">{roleLabel("BILLING_ADMIN")}</SelectItem>
-            <SelectItem value="MEMBER">{roleLabel("MEMBER")}</SelectItem>
+            <SelectItem value="ADMIN">Admin</SelectItem>
+            <SelectItem value="MEMBER">Member</SelectItem>
+            <SelectItem value="VIEWER">Viewer</SelectItem>
           </SelectContent>
         </Select>
+
         <div className="ml-auto">
-          {canManageMembers && (
-            <InviteModal
-              trigger={
-                <CTAButton className="flex items-center gap-2 !bg-none !bg-emerald-600 hover:!bg-emerald-500 hover:opacity-100 transition-colors">
-                  <UserPlus className="h-3.5 w-3.5" />
-                  Invite Member
-                </CTAButton>
-              }
-            />
+          {permissionsLoading ? (
+            <button
+              disabled
+              className="flex h-9 items-center gap-2 rounded-md bg-emerald-600/30 px-4 text-xs font-semibold text-white/50 cursor-not-allowed"
+            >
+              <UserPlus className="h-3.5 w-3.5 animate-pulse" />
+              Invite to Workspace
+            </button>
+          ) : canAdminWorkspace ? (
+            <div className="flex items-center gap-2">
+              {/* Add existing org member to this workspace */}
+              {nonWorkspaceMembers.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex h-9 items-center gap-2 rounded-md bg-zinc-700 px-4 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-600">
+                      <Building2 className="h-3.5 w-3.5" />
+                      Add Existing Member
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-800 text-zinc-300 max-h-64 overflow-y-auto">
+                    {nonWorkspaceMembers.map((m) => (
+                      <DropdownMenuItem
+                        key={m.id}
+                        className="cursor-pointer gap-2 focus:bg-zinc-800"
+                        onClick={() => setAddMemberTarget(m)}
+                      >
+                        <div className="h-5 w-5 rounded-full bg-zinc-700 flex items-center justify-center text-[9px] font-bold text-zinc-300 shrink-0">
+                          {(m.fullName || m.username).substring(0, 2).toUpperCase()}
+                        </div>
+                        <span className="truncate text-xs">{m.fullName || m.username}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              <InviteModal
+                trigger={
+                  <button className="flex h-9 items-center gap-2 rounded-md bg-emerald-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-emerald-500">
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Invite to Workspace
+                  </button>
+                }
+              />
+            </div>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="block">
+                    <button
+                      disabled
+                      className="flex h-9 items-center gap-2 rounded-md bg-emerald-600/30 px-4 text-xs font-semibold text-white/50 cursor-not-allowed"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      Invite to Workspace
+                    </button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="bg-zinc-800 border-zinc-700 text-xs text-zinc-300 ml-2">
+                  Only workspace and organization admins can invite new members.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
         </div>
       </div>
 
       <div className="space-y-1">
         {loading ? (
-          <div className="py-4 text-center text-zinc-500 text-sm">
-            Loading members...
-          </div>
-        ) : members.length === 0 ? (
-          <div className="py-4 text-center text-zinc-500 text-sm">
-            No members found.
+          <div className="py-8 text-center text-zinc-500 text-sm">Loading members...</div>
+        ) : filteredMembers.length === 0 ? (
+          <div className="py-8 text-center text-zinc-500 text-sm border border-dashed border-zinc-800 rounded-lg bg-zinc-900/10">
+            No workspace members found matching the filters.
           </div>
         ) : (
-          members.map((member) => (
-            (() => {
-              const memberRole = normalizeTenantRole(member.role);
-              return (
-            <div
-              key={member.id}
-              className="h-14 flex items-center gap-3 px-4 rounded-md transition-colors hover:bg-zinc-800/30 group"
-            >
-              <div className="relative">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-zinc-800 text-xs text-zinc-400 font-medium">
-                    {member.fullName?.substring(0, 2).toUpperCase() ||
-                      member.username?.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div
-                  className={cn(
-                    "absolute -right-0.5 -bottom-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#201F21] bg-green-500"
-                  )}
-                />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-[#E5E1E4] truncate">
-                    {member.fullName}
-                  </span>
-                  {user?.id === member.id && (
-                    <span className="text-[10px] text-zinc-500 font-medium">
-                      (you)
+          filteredMembers.map((member) => {
+            const displayName = member.fullName || member.username;
+            const initials = displayName ? displayName.substring(0, 2).toUpperCase() : "JD";
+            const memberRole = member.role || "MEMBER";
+            const isCurrentUser = user?.id === member.userId;
+            // Cannot remove yourself or the last admin
+            const canRemove = canAdminWorkspace && !isCurrentUser;
+
+            return (
+              <div
+                key={member.id}
+                className="h-14 flex items-center gap-3 px-4 rounded-md transition-colors hover:bg-zinc-800/30 group"
+              >
+                <div className="relative">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback
+                      className={cn(
+                        "text-xs font-semibold text-white",
+                        getAvatarColorClass(displayName || "JD")
+                      )}
+                    >
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -right-0.5 -bottom-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#201F21] bg-green-500" />
+                </div>
+
+                <div className="flex flex-col min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-[#E5E1E4] truncate">
+                      {displayName}
                     </span>
+                    {isCurrentUser && (
+                      <span className="text-[10px] text-zinc-500 font-medium">(you)</span>
+                    )}
+                  </div>
+                  {member.email && (
+                    <span className="text-xs text-zinc-400 truncate">{member.email}</span>
                   )}
                 </div>
-                <span className="text-xs text-zinc-400 truncate">
-                  {member.email}
-                </span>
+
+                <div className="ml-6 shrink-0">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-7 shrink-0 text-[10px] px-2.5 py-0 font-medium rounded-sm border uppercase tracking-wide",
+                      workspaceRoleColors[memberRole]
+                    )}
+                  >
+                    {memberRole}
+                  </Badge>
+                </div>
+
+                <div className="ml-auto text-xs text-zinc-500 shrink-0">
+                  {member.joinedAt
+                    ? new Date(member.joinedAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "—"}
+                </div>
+
+                {/* Actions dropdown — visible to admins, hidden for self */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className={cn(
+                        "p-2 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/50 transition-all shrink-0",
+                        canAdminWorkspace
+                          ? "opacity-0 group-hover:opacity-100"
+                          : "hidden"
+                      )}
+                      aria-label="Member actions"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-48 bg-zinc-900 border-zinc-800 text-zinc-300"
+                  >
+                    {canRemove ? (
+                      <>
+                        <DropdownMenuSeparator className="bg-zinc-800" />
+                        <DropdownMenuItem
+                          className="text-red-400 focus:bg-red-500/10 focus:text-red-300 cursor-pointer gap-2"
+                          onClick={() => setMemberToRemove(member)}
+                        >
+                          <UserMinus className="h-3.5 w-3.5" />
+                          Remove from workspace
+                        </DropdownMenuItem>
+                      </>
+                    ) : isCurrentUser ? (
+                      <DropdownMenuItem disabled className="text-zinc-500 text-xs gap-2 cursor-default">
+                        <ShieldAlert className="h-3.5 w-3.5" />
+                        Cannot remove yourself
+                      </DropdownMenuItem>
+                    ) : null}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-
-              <div className="ml-6">
-                <TenantRoleChip role={memberRole} />
-              </div>
-
-              <div className="ml-auto text-xs text-zinc-500">Just now</div>
-
-              <button className="p-2 text-zinc-500 hover:text-zinc-200 transition-opacity opacity-0 group-hover:opacity-100">
-                <MoreHorizontal className="h-4 w-4" />
-              </button>
-            </div>
-              );
-            })()
-          ))
+            );
+          })
         )}
       </div>
 
-      {canManageMembers && (
-      <div className="mt-10">
-        <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-4 px-4">
-          PENDING INVITES
-        </h3>
-        <div className="space-y-1">
-          {pendingInvites.length === 0 ? (
-            <div className="text-xs text-zinc-500 px-4 py-3 font-normal border border-dashed border-zinc-800/50 rounded-lg text-center">
-              No pending invitations.
-            </div>
-          ) : (
-            pendingInvites.map((invite) => (
-              <div
-                key={invite.email}
-                className="h-12 flex items-center gap-3 px-4 rounded-md hover:bg-zinc-800/20 group"
-              >
-                <div className="h-8 w-8 rounded-md bg-zinc-800 flex items-center justify-center">
-                  <Mail className="h-4 w-4 text-zinc-500" />
+      {/* ── Remove confirmation dialog ── */}
+      <Dialog open={!!memberToRemove} onOpenChange={(open) => !open && setMemberToRemove(null)}>
+        <DialogContent className="sm:max-w-[400px] bg-zinc-900 border-zinc-800 text-zinc-100 rounded-2xl p-0 overflow-hidden">
+          {/* Danger header stripe */}
+          <div className="h-1.5 w-full bg-gradient-to-r from-red-600 to-rose-500" />
+          <div className="p-6">
+            <DialogHeader className="mb-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="h-9 w-9 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                  <UserMinus className="h-4 w-4 text-red-400" />
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-sm text-zinc-300">{invite.email}</span>
-                  <span className="text-[10px] text-zinc-500 mt-0.5">
-                    {invite.role}
-                  </span>
-                </div>
-                <div className="ml-auto flex items-center gap-4">
-                  <span className="text-[10px] text-zinc-600">
-                    Expires in {invite.expires}
-                  </span>
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="text-[10px] text-zinc-400 hover:text-zinc-200 uppercase font-bold tracking-widest px-2 py-1">
-                      Resend
-                    </button>
-                    <button className="text-[10px] text-red-400/70 hover:text-red-400 uppercase font-bold tracking-widest px-2 py-1">
-                      Revoke
-                    </button>
-                  </div>
-                </div>
+                <DialogTitle className="text-base font-semibold text-zinc-100">
+                  Remove member
+                </DialogTitle>
               </div>
-            ))
-          )}
-        </div>
-      </div>
-      )}
+              <DialogDescription className="text-sm text-zinc-400 leading-relaxed">
+                Are you sure you want to remove{" "}
+                <span className="font-semibold text-zinc-200">
+                  {memberToRemove?.fullName || memberToRemove?.username}
+                </span>{" "}
+                from{" "}
+                <span className="font-semibold text-zinc-200">{activeWorkspace.name}</span>?
+                <br />
+                <span className="text-xs mt-1 block text-zinc-500">
+                  They will lose access to all projects and teams within this workspace.
+                </span>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="border-0 bg-transparent p-0 -mx-0 -mb-0 mt-2">
+              <Button
+                variant="ghost"
+                onClick={() => setMemberToRemove(null)}
+                disabled={removing}
+                className="text-zinc-400 hover:text-zinc-200 rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRemoveMember}
+                disabled={removing}
+                className="bg-red-600 hover:bg-red-500 text-white rounded-xl font-semibold px-6"
+              >
+                {removing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Remove"
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      {canManageMembers && (
-      <div className="mt-10">
-        <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-3 px-4">
-          INVITE LINKS
-        </h3>
-        <p className="text-xs text-zinc-400 mb-6 px-4">
-          Share these links to let people join without sending individual emails. Anyone
-          with the link can join with the assigned role.
-        </p>
-
-        <div className="space-y-3">
-          {invitesLoading ? (
-            <div className="text-xs text-zinc-500 px-4 py-8 border border-dashed border-zinc-800/50 rounded-lg text-center animate-pulse">
-              Loading invite link history...
-            </div>
-          ) : inviteLinks.length === 0 ? (
-            <div className="text-xs text-[#E5E1E4]/60 px-4 py-8 border border-dashed border-zinc-800/60 rounded-lg text-center bg-zinc-950/20">
-              No active invite links. Create one below to share!
-            </div>
-          ) : (
-            inviteLinks.map((link) => {
-              const isActive = link.status === "ACTIVE";
-              const inviteUrl =
-                typeof window !== "undefined"
-                  ? `${window.location.origin}/invite/${activeOrg?.slug}/${link.token}`
-                  : `hivespace.app/invite/${activeOrg?.slug || "org"}/${link.token}`;
-
-              const createdDate = new Date(link.createdAt).toLocaleDateString();
-              const expiresDate = new Date(link.expiresAt).toLocaleDateString();
-
-              const daysLeft = Math.max(
-                0,
-                Math.ceil(
-                  (new Date(link.expiresAt).getTime() - Date.now()) /
-                    (1000 * 60 * 60 * 24)
-                )
-              );
-
-              return (
-                <div
-                  key={link.id}
-                  className={cn(
-                    "bg-[#272629] border border-zinc-800/50 rounded-lg p-4 group transition-all duration-300 hover:border-zinc-700/60",
-                    !isActive && "opacity-60"
-                  )}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <LinkIcon className="h-3.5 w-3.5 text-zinc-400" />
-                      <Badge
-                        variant="outline"
-                        className="bg-zinc-800 border-zinc-700 text-[10px] font-medium px-2 py-0.5 text-zinc-300 rounded-sm"
-                      >
-                        {roleLabel(normalizeTenantRole((link.tenantRole || link.role) as any))}
-                      </Badge>
-                      <span className="text-[11px] text-zinc-500 ml-3 font-medium">
-                        Used {link.currentUses} times
-                      </span>
-                      <span className="text-[11px] text-zinc-600">
-                        by {link.inviterUsername}
-                      </span>
-                    </div>
-                    <Badge
-                      className={cn(
-                        "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm border",
-                        isActive
-                          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                          : "bg-zinc-800 border-zinc-700 text-zinc-600"
-                      )}
-                    >
-                      {link.status}
-                    </Badge>
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-3">
-                    <div className="bg-zinc-800/60 rounded px-2.5 py-1.5 flex-1 min-w-0 border border-zinc-800">
-                      <p className="text-[10px] font-mono text-zinc-400 truncate">
-                        {inviteUrl}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3.5 shrink-0">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(inviteUrl);
-                          toast.success("Invite link copied!");
-                        }}
-                        className="text-[10px] font-bold text-[#7C5CFC] uppercase tracking-wider hover:opacity-80 transition-opacity cursor-pointer"
-                      >
-                        Copy Link
-                      </button>
-                      {link.pin && link.pin.length < 20 && (
-                        <div className="flex items-center gap-1.5 border-l border-zinc-850 pl-3">
-                          <span className="text-[9px] text-zinc-550">PIN:</span>
-                          <span className="bg-amber-500/10 border-amber-500/20 text-amber-400 font-mono text-[9px] rounded-sm px-1.5 py-0.5 tracking-wider min-w-[45px] text-center">
-                            {visiblePins[link.id] ? link.pin : "••••••"}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => togglePinVisibility(link.id)}
-                            className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-zinc-200 cursor-pointer ml-0.5 shrink-0 flex items-center justify-center"
-                            title={visiblePins[link.id] ? "Hide PIN" : "Show PIN"}
-                          >
-                            {visiblePins[link.id] ? (
-                              <EyeOff className="h-3 w-3" />
-                            ) : (
-                              <Eye className="h-3 w-3" />
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex items-center gap-5 text-[10px] font-medium text-zinc-600">
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={cn(daysLeft <= 1 && isActive && "text-amber-500")}
-                      >
-                        Expires: {expiresDate} ·{" "}
-                        {daysLeft === 0 ? "Expired" : `${daysLeft} days left`}
-                      </span>
-                    </div>
-                    <span>
-                      Max uses:{" "}
-                      {link.maxUses >= 999999
-                        ? "Unlimited"
-                        : `${link.maxUses} (${link.currentUses} used)`}
-                    </span>
-                    <span>Created: {createdDate}</span>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
+      {/* ── Add existing org member to this workspace ── */}
+      {activeOrg && (
+        <AddToWorkspaceModal
+          open={!!addMemberTarget}
+          onClose={() => setAddMemberTarget(null)}
+          member={addMemberTarget}
+          workspaces={allWorkspaces}
+          orgId={activeOrg.id}
+        />
       )}
     </div>
   );

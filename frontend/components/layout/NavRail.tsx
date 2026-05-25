@@ -147,9 +147,15 @@ export function NavRail() {
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-zinc-800/50 my-1" />
               <DropdownMenuLabel className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">Organization</DropdownMenuLabel>
-              <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer text-zinc-400">Org Settings</DropdownMenuItem>
-              <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer text-zinc-400">Members</DropdownMenuItem>
-              <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer text-zinc-400">Billing</DropdownMenuItem>
+              <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer text-zinc-400" asChild>
+                <Link href="/settings/general">Org Settings</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer text-zinc-400" asChild>
+                <Link href="/settings/global-members">Members</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="hover:bg-zinc-800 cursor-pointer text-zinc-400" asChild>
+                <Link href="/settings/subscription">Billing</Link>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

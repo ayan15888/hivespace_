@@ -78,7 +78,7 @@ export function SettingsSidebar() {
       let items = group.items
       if (group.label === "WORKSPACE") {
         items = items.filter((item) => {
-          if (item.id === "members" || item.id === "roles") {
+          if (item.id === "roles") {
             return canManageMembers
           }
           return true

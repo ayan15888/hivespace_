@@ -11,8 +11,10 @@ import java.util.Optional;
 public interface TenantRepository extends JpaRepository<Tenant, java.util.UUID> {
 
     Optional<Tenant> findByName(String name);
+    Optional<Tenant> findByNameIgnoreCase(String name);
 
     Optional<Tenant> findBySlug(String slug);
+    Optional<Tenant> findBySlugIgnoreCase(String slug);
 
     List<Tenant> findAllByOwnerEmail(String ownerEmail);
 

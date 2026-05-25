@@ -19,4 +19,5 @@ public interface WorkspaceRepository extends JpaRepository<Workspace, UUID> {
     List<Workspace> findAllByTenantId(UUID tenantId);
 
     boolean existsByNameAndTenant(String name, Tenant tenant);
+    long countByTenantId(UUID tenantId);
 }

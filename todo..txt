@@ -14,12 +14,19 @@ In accordance with the discussion document, the inline Invite/Assign Form and th
 
 //ayan 23 
 
-memeber can create worksapce 
-role and permission notworking
+memeber can create worksapce if permission given  from roles and permission 
+role and permission not working
 teneant is not  uniqye 
 assign memebers to task not working 
 wokspace page should be there to asign or to kickoutmemebr
-auto join team even if lead is selected
+
+
+  when owner teams is cratee and and given to different team  lead  to other memeber owner also becomes member of that team not only team ui wise 
+
+
+there should be dedicated memeber page near org seeting functional  where team lead/owner/ admin can  do all the team management stuff for all member 
+team lead is not updating if owner 
+toast problem of team member removing by lead showing toast error in toast
 
 
 //need refactoring 

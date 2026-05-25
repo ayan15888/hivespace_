@@ -2,6 +2,7 @@ package com.project.hiveSpace.controllers;
 
 import com.project.hiveSpace.dto.TaskRequest;
 import com.project.hiveSpace.dto.TaskResponse;
+import com.project.hiveSpace.dto.TaskActivityResponse;
 import com.project.hiveSpace.dto.UpdateTaskRequest;
 import com.project.hiveSpace.services.TaskService;
 import com.project.hiveSpace.models.User;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,6 +24,7 @@ public class TaskController {
     private final TaskService taskService;
 
     @PostMapping("/projects/{projectId}/tasks")
+    @PreAuthorize("@rbac.canCreateTask(#projectId)")
     public ResponseEntity<TaskResponse> createTask(
             @PathVariable UUID projectId,
             @Valid @RequestBody TaskRequest request,
@@ -41,11 +44,16 @@ public class TaskController {
 
     @GetMapping("/tasks")
     public ResponseEntity<List<TaskResponse>> getAllTasks() {
-        System.out.println("=== TaskController.getAllTasks CALLED ===");
         return ResponseEntity.ok(taskService.getAllTasks());
     }
 
+    @GetMapping("/tasks/{taskId}/activities")
+    public ResponseEntity<List<TaskActivityResponse>> getTaskActivities(@PathVariable UUID taskId) {
+        return ResponseEntity.ok(taskService.getTaskActivities(taskId));
+    }
+
     @PatchMapping("/tasks/{taskId}/status")
+    @PreAuthorize("@rbac.canEditTask(#taskId)")
     public ResponseEntity<TaskResponse> updateTaskStatus(
             @PathVariable UUID taskId,
             @RequestBody java.util.Map<String, String> body) {
@@ -57,6 +65,7 @@ public class TaskController {
     }
 
     @PutMapping("/tasks/{taskId}")
+    @PreAuthorize("@rbac.canEditTask(#taskId)")
     public ResponseEntity<TaskResponse> updateTask(
             @PathVariable UUID taskId,
             @RequestBody UpdateTaskRequest request,
@@ -65,6 +74,7 @@ public class TaskController {
     }
 
     @DeleteMapping("/tasks/{taskId}")
+    @PreAuthorize("@rbac.canDeleteTask(#taskId)")
     public ResponseEntity<Void> deleteTask(
             @PathVariable UUID taskId,
             @AuthenticationPrincipal User actor) {
@@ -72,3 +82,4 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 }
+
