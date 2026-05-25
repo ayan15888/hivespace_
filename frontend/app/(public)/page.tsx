@@ -275,9 +275,6 @@ export default function LandingPage() {
             <span className="font-serif text-xl font-normal tracking-tight">
               HiveSpace
             </span>
-            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-              [HV.10]
-            </span>
           </div>
 
           <nav className="hidden md:flex items-center gap-8">
