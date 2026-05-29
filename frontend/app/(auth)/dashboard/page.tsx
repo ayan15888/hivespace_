@@ -106,7 +106,7 @@ function DashboardPageContent() {
         <header className="sticky top-0 z-10 flex h-[72px] items-center justify-between border-b border-zinc-800/50 bg-hs-base/80 px-8 backdrop-blur-sm">
           <div className="flex flex-col flex-1">
             <h1 className="text-xl font-medium text-foreground tracking-tight">
-              Good morning, {user?.username || "Guest"}
+              Good morning, {user?.fullName || user?.username || "Guest"}
             </h1>
             <p className="text-sm text-muted-foreground">Here&apos;s what needs your attention today.</p>
           </div>
