@@ -73,6 +73,10 @@ public class TaskService {
 
         // 5. Increment project task sequence and create the task
         projectRepository.incrementAndGetTaskSequence(projectId);
+        Project updatedProject = projectRepository.findById(projectId)
+                .orElseThrow(() -> new NotFoundException("Project not found"));
+        int seq = updatedProject.getTaskSequence();
+
         Task task = Task.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -81,11 +85,12 @@ public class TaskService {
                 .labels(request.getLabels())
                 .dueDate(request.getDueDate())
                 .points(request.getPoints())
-                .project(project)
+                .project(updatedProject)
                 .parentTask(parentTask)
                 .team(team)
                 .createdBy(creator)
                 .createdAt(new Date())
+                .sequenceNumber(seq)
                 .build();
 
         // 6. Assign the owner
@@ -455,7 +460,7 @@ public class TaskService {
         }
 
         // Use stored atomic task sequence for task identifier (e.g. HS-001)
-        int seq = task.getProject().getTaskSequence();
+        int seq = task.getSequenceNumber() != null ? task.getSequenceNumber() : 0;
         response.setTaskIdentifier("HS-" + String.format("%03d", seq));
 
 
@@ -523,7 +528,7 @@ public class TaskService {
         boolean valid = switch (currentStatus) {
             case TODO -> newStatus == TaskStatus.IN_PROGRESS;
             case IN_PROGRESS -> newStatus == TaskStatus.IN_REVIEW || newStatus == TaskStatus.TODO;
-            case IN_REVIEW -> newStatus == TaskStatus.DONE || newStatus == TaskStatus.IN_PROGRESS;
+            case IN_REVIEW -> newStatus == TaskStatus.DONE || newStatus == TaskStatus.IN_PROGRESS || newStatus == TaskStatus.TODO;
             case DONE -> newStatus == TaskStatus.IN_PROGRESS;
             case CANCELLED -> newStatus == TaskStatus.TODO;
         };
