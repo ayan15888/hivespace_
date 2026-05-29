@@ -75,6 +75,8 @@ CREATE TABLE public.projects (
   task_sequence integer NOT NULL DEFAULT 0,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  members_count integer NOT NULL DEFAULT 0,
+  teams_count integer NOT NULL DEFAULT 0,
   CONSTRAINT projects_pkey PRIMARY KEY (id),
   CONSTRAINT projects_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
   CONSTRAINT projects_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
@@ -137,6 +139,7 @@ CREATE TABLE public.tasks (
   parent_id uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  sequence_number integer,
   CONSTRAINT tasks_pkey PRIMARY KEY (id),
   CONSTRAINT tasks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
   CONSTRAINT tasks_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
@@ -161,6 +164,7 @@ CREATE TABLE public.teams (
   created_by uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  members_count integer NOT NULL DEFAULT 0,
   CONSTRAINT teams_pkey PRIMARY KEY (id),
   CONSTRAINT teams_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
   CONSTRAINT teams_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
@@ -186,6 +190,8 @@ CREATE TABLE public.tenants (
   active boolean NOT NULL DEFAULT true,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  members_count integer NOT NULL DEFAULT 0,
+  workspaces_count integer NOT NULL DEFAULT 0,
   CONSTRAINT tenants_pkey PRIMARY KEY (id),
   CONSTRAINT fk_tenants_owner FOREIGN KEY (owner_id) REFERENCES public.users(id)
 );
@@ -226,6 +232,7 @@ CREATE TABLE public.workspaces (
   created_by uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  members_count integer NOT NULL DEFAULT 0,
   CONSTRAINT workspaces_pkey PRIMARY KEY (id),
   CONSTRAINT workspaces_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
   CONSTRAINT workspaces_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)

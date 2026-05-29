@@ -10,8 +10,9 @@ const GrainGradient = dynamic(
   { ssr: false }
 )
 
-export function GradientBackground() {
+export function GradientBackground({ theme }: { theme?: string }) {
   const { resolvedTheme } = useTheme()
+  const activeTheme = theme || resolvedTheme
   const [mounted, setMounted] = useState(false)
 
   // Prevent hydration mismatch
@@ -27,13 +28,13 @@ export function GradientBackground() {
   let colorBack = "hsl(0, 0%, 98%)" // Warm bone/light base
   let colors = ["hsl(262, 80%, 92%)", "hsl(210, 100%, 95%)", "hsl(320, 80%, 94%)"] // Soft light pastels
 
-  if (resolvedTheme === "dark") {
+  if (activeTheme === "dark") {
     colorBack = "hsl(240, 10%, 4%)" // Deep near-black #0E0E10
     colors = ["hsla(263, 100%, 12%, 1.00)", "hsl(195, 70%, 15%)", "hsl(330, 70%, 15%)"] // Deep violet/teal/rose
-  } else if (resolvedTheme === "dark-blue") {
+  } else if (activeTheme === "dark-blue") {
     colorBack = "hsla(0, 0%, 0%, 1.00)" // Deep dark blue #090D16
     colors = ["hsl(244, 55%, 18%)", "hsl(199, 89%, 15%)", "hsl(271, 70%, 18%)"] // Indigo/cyan/purple
-  } else if (resolvedTheme === "claude") {
+  } else if (activeTheme === "claude") {
     colorBack = "hsla(60, 10%, 10%, 1.00)" // Warm terracotta-charcoal #262624
     colors = ["hsla(13, 88%, 10%, 1.00)", "hsl(35, 30%, 15%)", "hsl(4, 30%, 18%)"] // Terracotta/sand/clay
   }

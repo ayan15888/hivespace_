@@ -170,7 +170,7 @@ public class ShareableLinkService {
         }
 
         // Use stored task_sequence for task identifier (public view)
-        int seq = task.getProject().getTaskSequence();
+        int seq = task.getSequenceNumber() != null ? task.getSequenceNumber() : 0;
         response.setTaskIdentifier("HS-" + String.format("%03d", seq));
 
         return response;

@@ -50,6 +50,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useShareStore } from "@/store/shareStore";
+import { useOrgStore } from "@/store/orgStore";
 
 // --- MOCK DATA ---
 
@@ -82,6 +84,44 @@ export default function ProjectOverviewPage() {
   const currentProject = projects.find(p => p.id === projectId);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
   const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+
+  // Share store integration
+  const { shareLinks, fetchOrCreateShareLink, revokeProjectShareLink } = useShareStore();
+  const { activeOrg } = useOrgStore();
+
+  const activeLink = currentProject ? shareLinks[currentProject.id] : null;
+
+  useEffect(() => {
+    if (currentProject?.id) {
+      fetchOrCreateShareLink(currentProject.id);
+    }
+  }, [currentProject?.id, fetchOrCreateShareLink]);
+
+  const handleCopyLink = () => {
+    if (!activeLink || !activeOrg) return;
+    const shareUrl = `${window.location.origin}/share/${activeOrg.slug}/project/${activeLink.token}`;
+    navigator.clipboard.writeText(shareUrl);
+    toast.success("Public share link copied to clipboard!");
+  };
+
+  const handleRevoke = async () => {
+    if (!currentProject?.id || !activeLink) return;
+    try {
+      await revokeProjectShareLink(currentProject.id, activeLink.id);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!currentProject?.id) return;
+    try {
+      await fetchOrCreateShareLink(currentProject.id);
+      toast.success("Share link generated successfully!");
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Dialog State
   const [isTeamsDialogOpen, setIsTeamsDialogOpen] = useState(false);
@@ -244,15 +284,20 @@ export default function ProjectOverviewPage() {
               {projectMembers.length > 0 ? (
                 <>
                   {projectMembers.slice(0, 5).map((member, i) => (
-                    <Avatar key={member.id} className={cn(
-                      "h-8 w-8 ring-4 ring-background -ml-2.5 first:ml-0 bg-muted border border-border/50 relative group",
-                      i === 0 && "z-10",
-                      i === 1 && "z-20",
-                      i === 2 && "z-30",
-                      i === 3 && "z-40",
-                      i === 4 && "z-50",
-                      member.role === "LEAD" && "border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
-                    )}>
+                    <Avatar 
+                      key={member.id} 
+                      className={cn(
+                        "h-8 w-8 ring-4 ring-background -ml-2.5 first:ml-0 bg-muted border border-border/50 relative group",
+                        i === 0 && "z-10",
+                        i === 1 && "z-20",
+                        i === 2 && "z-30",
+                        i === 3 && "z-40",
+                        i === 4 && "z-50",
+                        member.role === "LEAD" && "border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                      )}
+                      username={member.fullName || member.username}
+                      email={member.email || `${member.username.toLowerCase()}@hivespace.io`}
+                    >
                       <AvatarFallback className={cn("bg-muted text-[10px] text-muted-foreground font-bold", member.role === "LEAD" && "text-amber-500")}>
                         {member.fullName ? member.fullName.substring(0, 2).toUpperCase() : member.username.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
@@ -366,9 +411,20 @@ export default function ProjectOverviewPage() {
                     <Badge className={cn("border-none text-[10px] font-bold h-5 uppercase tracking-wide", task.statusColor)}>
                       {task.status}
                     </Badge>
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-400 font-bold">{task.assignee}</AvatarFallback>
-                    </Avatar>
+                    {(() => {
+                      const details = {
+                        "MV": { name: "Meera Valenzuela", email: "meera@hivespace.io" },
+                        "RS": { name: "Reid Smith", email: "reid@hivespace.io" },
+                        "RK": { name: "Rajesh Kumar", email: "rajesh@hivespace.io" },
+                        "SA": { name: "Sarah Adams", email: "sarah@hivespace.io" },
+                        "DK": { name: "David K.", email: "david@hivespace.io" }
+                      }[task.assignee] || { name: task.assignee, email: `${task.assignee.toLowerCase()}@hivespace.io` };
+                      return (
+                        <Avatar className="h-6 w-6" username={details.name} email={details.email}>
+                          <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-400 font-bold">{task.assignee}</AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -401,9 +457,20 @@ export default function ProjectOverviewPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-xs text-zinc-500 font-mono italic">edited {doc.edited}</span>
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-400 font-bold">{doc.author}</AvatarFallback>
-                    </Avatar>
+                    {(() => {
+                      const details = {
+                        "MV": { name: "Meera Valenzuela", email: "meera@hivespace.io" },
+                        "RS": { name: "Reid Smith", email: "reid@hivespace.io" },
+                        "RK": { name: "Rajesh Kumar", email: "rajesh@hivespace.io" },
+                        "SA": { name: "Sarah Adams", email: "sarah@hivespace.io" },
+                        "DK": { name: "David K.", email: "david@hivespace.io" }
+                      }[doc.author] || { name: doc.author, email: `${doc.author.toLowerCase()}@hivespace.io` };
+                      return (
+                        <Avatar className="h-6 w-6" username={details.name} email={details.email}>
+                          <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-400 font-bold">{doc.author}</AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -417,7 +484,7 @@ export default function ProjectOverviewPage() {
               <div className="absolute left-3.5 top-2 bottom-4 w-px bg-zinc-800" />
               
               <div className="relative flex gap-4">
-                <Avatar className="h-7 w-7 ring-4 ring-[#000000] absolute -left-10 z-10">
+                <Avatar className="h-7 w-7 ring-4 ring-[#000000] absolute -left-10 z-10" username="Meera Valenzuela" email="meera@hivespace.io">
                   <AvatarFallback className="bg-zinc-800 text-[10px] text-zinc-400">MV</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col gap-1">
@@ -441,7 +508,7 @@ export default function ProjectOverviewPage() {
               </div>
 
               <div className="relative flex gap-4">
-                 <Avatar className="h-7 w-7 ring-4 ring-[#000000] absolute -left-10 z-10">
+                 <Avatar className="h-7 w-7 ring-4 ring-[#000000] absolute -left-10 z-10" username="David K." email="david@hivespace.io">
                   <AvatarFallback className="bg-zinc-800 text-[10px] text-zinc-400">DK</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col gap-1">
@@ -503,9 +570,20 @@ export default function ProjectOverviewPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5">
-                          <AvatarFallback className="bg-zinc-800 text-[8px] text-zinc-400 font-bold">{pr.author}</AvatarFallback>
-                        </Avatar>
+                        {(() => {
+                          const details = {
+                            "MV": { name: "Meera Valenzuela", email: "meera@hivespace.io" },
+                            "RS": { name: "Reid Smith", email: "reid@hivespace.io" },
+                            "RK": { name: "Rajesh Kumar", email: "rajesh@hivespace.io" },
+                            "SA": { name: "Sarah Adams", email: "sarah@hivespace.io" },
+                            "DK": { name: "David K.", email: "david@hivespace.io" }
+                          }[pr.author] || { name: pr.author, email: `${pr.author.toLowerCase()}@hivespace.io` };
+                          return (
+                            <Avatar className="h-5 w-5" username={details.name} email={details.email}>
+                              <AvatarFallback className="bg-zinc-800 text-[8px] text-zinc-400 font-bold">{pr.author}</AvatarFallback>
+                            </Avatar>
+                          );
+                        })()}
                         <span className="text-[10px] text-zinc-600 font-mono">{pr.time}</span>
                       </div>
                     </div>
@@ -521,29 +599,52 @@ export default function ProjectOverviewPage() {
 
 
           {/* Stakeholder Share */}
-          <section className="flex flex-col bg-[#1C1B1F] rounded-[28px] border border-zinc-800/30 p-6 shadow-2xl shadow-black/40">
+          <section className="flex flex-col bg-[#1C1B1F] rounded-[28px] border border-zinc-800/30 p-6 shadow-2xl shadow-black/40 animate-in fade-in duration-300">
              <div className="flex items-center justify-between mb-4 px-2">
                 <h3 className="text-xs font-bold tracking-widest text-zinc-600 uppercase">Stakeholder Share</h3>
-                <Share2 className="h-4 w-4 text-zinc-500 hover:text-white cursor-pointer transition-colors" strokeWidth={1.5} />
+                <Share2 className="h-4 w-4 text-zinc-500 hover:text-white cursor-pointer transition-colors" strokeWidth={1.5} onClick={handleCopyLink} />
              </div>
              <div className="flex flex-col">
-                <div className="flex items-center gap-2 mb-4">
-                   <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                   <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">Public link active</span>
-                </div>
-                <div className="bg-zinc-950/50 border border-zinc-800 rounded px-3 py-2 flex items-center justify-between mb-4">
-                   <span className="font-mono text-xs text-zinc-600 truncate mr-4">{process.env.NEXT_PUBLIC_APP_DOMAIN || "hivespace.app"}/share/abc123xyz789</span>
-                   <button className="text-zinc-500 hover:text-white transition-colors">
-                      <PlusCircle className="h-3.5 w-3.5 rotate-45" strokeWidth={1.5} />
-                   </button>
-                </div>
-                <div className="flex items-center justify-between">
-                   <span className="text-[10px] text-zinc-600 font-medium">Viewed 12 times in last 7 days</span>
-                   <div className="flex gap-3">
-                      <button className="text-[11px] font-semibold text-zinc-400 hover:text-white transition-colors">Revoke</button>
-                       <button className="text-[11px] font-semibold hover:opacity-80 transition-colors" style={{ color: themeColor }}>Copy link</button>
-                   </div>
-                </div>
+                {activeLink && activeLink.isActive ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                       <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                       <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">Public link active</span>
+                    </div>
+                    <div className="bg-zinc-950/50 border border-zinc-800 rounded px-3 py-2 flex items-center justify-between mb-4">
+                       <span className="font-mono text-xs text-zinc-400 truncate mr-4">
+                         {typeof window !== "undefined" ? `${window.location.origin}/share/${activeOrg?.slug}/project/${activeLink.token}` : ""}
+                       </span>
+                       <button className="text-zinc-500 hover:text-white transition-colors" onClick={handleCopyLink}>
+                          <Link2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                       </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                       <span className="text-[10px] text-zinc-600 font-medium">Expires: Never (active)</span>
+                       <div className="flex gap-3">
+                          <button className="text-[11px] font-semibold text-zinc-400 hover:text-white transition-colors" onClick={handleRevoke}>Revoke</button>
+                          <button className="text-[11px] font-semibold hover:opacity-80 transition-colors" style={{ color: themeColor }} onClick={handleCopyLink}>Copy link</button>
+                       </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                       <div className="h-2 w-2 rounded-full bg-zinc-600" />
+                       <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">No active share link</span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+                      Generate a public, read-only link for external stakeholders to track this project's sprint progress and task status.
+                    </p>
+                    <Button 
+                      className="h-8 font-bold border-none text-[11px] uppercase tracking-wider rounded-md w-full"
+                      style={{ backgroundColor: themeColor, color: "#111113" }}
+                      onClick={handleGenerate}
+                    >
+                      Generate Share Link
+                    </Button>
+                  </>
+                )}
              </div>
           </section>
 

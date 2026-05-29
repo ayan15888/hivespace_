@@ -22,3 +22,11 @@ export async function updateProfile(data: {
     body: JSON.stringify(data),
   });
 }
+
+export async function switchTenant(tenantId: string) {
+  return apiFetch("/api/auth/switch-tenant", {
+    method: "POST",
+    body: JSON.stringify({ tenantId }),
+  });
+}
+

@@ -283,11 +283,19 @@ export default function SprintThreeBoardPage() {
           </Button>
           
           <div className="flex items-center ml-2 mr-2">
-            {["MV", "RK", "PL", "RS"].map((initials, i) => (
-              <Avatar key={initials} className={`h-6 w-6 ring-2 ring-background -ml-1.5 first:ml-0 border border-border/50`}>
-                <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass(initials))}>{initials}</AvatarFallback>
-              </Avatar>
-            ))}
+            {["MV", "RK", "PL", "RS"].map((initials, i) => {
+              const details = {
+                "MV": { name: "Max Valenzuela", email: "max@hivespace.io" },
+                "RK": { name: "Rajesh Kumar", email: "rajesh@hivespace.io" },
+                "PL": { name: "Pierre Laurent", email: "pierre@hivespace.io" },
+                "RS": { name: "Reid Smith", email: "reid@hivespace.io" },
+              }[initials] || { name: initials, email: `${initials.toLowerCase()}@hivespace.io` };
+              return (
+                <Avatar key={initials} className={`h-6 w-6 ring-2 ring-background -ml-1.5 first:ml-0 border border-border/50`} username={details.name} email={details.email}>
+                  <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass(initials))}>{initials}</AvatarFallback>
+                </Avatar>
+              );
+            })}
           </div>
 
           <Button 
@@ -558,7 +566,11 @@ export default function SprintThreeBoardPage() {
               <div className="flex flex-col text-[13px]">
                 <MetadataRow label="Owner">
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-5 w-5 border border-border/50">
+                    <Avatar 
+                      className="h-5 w-5 border border-border/50"
+                      username={selectedTask?.assigneeName || "Unassigned"}
+                      email={selectedTask?.assigneeName ? `${selectedTask?.assigneeInitials?.toLowerCase() || "user"}@hivespace.io` : undefined}
+                    >
                       <AvatarFallback className={cn("text-[9px] font-semibold uppercase", getAvatarColorClass(selectedTask?.assigneeInitials || ""))}>
                         {selectedTask?.assigneeInitials || "U"}
                       </AvatarFallback>
@@ -609,7 +621,11 @@ export default function SprintThreeBoardPage() {
                       const initials = toInitials(assignee.fullName);
                       return (
                         <div key={assignee.id} className="group relative flex items-center bg-hs-card border border-border/50 rounded-full pl-1.5 pr-2 py-0.5 text-xs gap-1.5 hover:bg-muted/30">
-                          <Avatar className="h-4.5 w-4.5 border border-border/50">
+                          <Avatar 
+                            className="h-4.5 w-4.5 border border-border/50"
+                            username={assignee.fullName}
+                            email={`${initials.toLowerCase()}@hivespace.io`}
+                          >
                             <AvatarFallback className={cn("text-[8px] font-semibold", getAvatarColorClass(initials))}>
                               {initials}
                             </AvatarFallback>
@@ -968,16 +984,13 @@ function TaskCard({
 
         {/* Assignee Avatar - Positioned Bottom Right */}
         <div className="absolute bottom-3 right-3 shrink-0">
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Avatar className="h-6 w-6 rounded-full border border-border/40 shrink-0">
-                  <AvatarFallback className={cn("text-xs font-semibold", getAvatarColorClass(task.assigneeInitials || ""))}>{task.assigneeInitials}</AvatarFallback>
-                </Avatar>
-              </TooltipTrigger>
-              <TooltipContent className="bg-black text-[10px] border-zinc-800">{task.assigneeName || "Unassigned"}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Avatar 
+            className="h-6 w-6 rounded-full border border-border/40 shrink-0"
+            username={task.assigneeName || "Unassigned"}
+            email={task.assigneeName ? `${task.assigneeInitials?.toLowerCase() || "user"}@hivespace.io` : undefined}
+          >
+            <AvatarFallback className={cn("text-xs font-semibold", getAvatarColorClass(task.assigneeInitials || ""))}>{task.assigneeInitials}</AvatarFallback>
+          </Avatar>
         </div>
       </div>
     </div>

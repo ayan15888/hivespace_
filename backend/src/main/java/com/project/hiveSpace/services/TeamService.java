@@ -88,10 +88,6 @@ public class TeamService {
                 throw new DomainValidationException("Assigned lead must be a workspace member first");
             }
         }
-
-        boolean shouldAddCreator = (leadUserId == null || leadUserId.equals(creator.getId()))
-                || (request.getAddCreatorAsMember() != null && request.getAddCreatorAsMember());
-
         Team team = Team.builder()
                 .name(request.getName())
                 .description(request.getDescription())
@@ -115,7 +111,7 @@ public class TeamService {
                     .build();
             teamMemberRepository.save(leadMember);
 
-            if (!leadUserId.equals(creator.getId()) && shouldAddCreator) {
+            if (!leadUserId.equals(creator.getId())) {
                 TeamMember creatorMember = TeamMember.builder()
                         .team(savedTeam)
                         .user(creator)

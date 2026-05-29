@@ -8,9 +8,13 @@ import { cn } from "@/lib/utils"
 function Avatar({
   className,
   size = "default",
+  email,
+  username,
   ...props
 }: React.ComponentProps<typeof AvatarPrimitive.Root> & {
   size?: "default" | "sm" | "lg"
+  email?: string
+  username?: string
 }) {
   return (
     <AvatarPrimitive.Root
@@ -21,7 +25,26 @@ function Avatar({
         className
       )}
       {...props}
-    />
+    >
+      {props.children}
+      {(username || email) && (
+        <div className="absolute right-[calc(100%+8px)] top-1/2 -translate-y-1/2 scale-90 opacity-0 pointer-events-none group-hover/avatar:scale-100 group-hover/avatar:opacity-100 group-hover/avatar:pointer-events-auto transition-all duration-200 ease-out z-50 flex flex-col items-center gap-0.5 rounded-md border border-zinc-800 bg-zinc-950/95 backdrop-blur-md px-2.5 py-1.5 shadow-xl shadow-black/50 min-w-[120px] text-center select-text">
+          {username && (
+            <span className="text-[10px] font-semibold text-zinc-100 truncate w-full max-w-[150px]">
+              {username}
+            </span>
+          )}
+          {email && (
+            <span className="text-[8px] font-mono text-zinc-400 truncate w-full max-w-[150px]">
+              {email}
+            </span>
+          )}
+          {/* Subtle arrow pointing right */}
+          <div className="absolute left-full top-1/2 -translate-y-1/2 border-[4px] border-transparent border-l-zinc-800" />
+          <div className="absolute left-[calc(100%-1px)] top-1/2 -translate-y-1/2 border-[4px] border-transparent border-l-zinc-950" />
+        </div>
+      )}
+    </AvatarPrimitive.Root>
   )
 }
 
