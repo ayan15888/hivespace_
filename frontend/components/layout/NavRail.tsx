@@ -35,6 +35,7 @@ import { useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { useOrgs } from "@/hooks/useOrgs"
 import { useOrgStore } from "@/store/orgStore"
+import { useAuthStore } from "@/store/authStore"
 import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
 import { cn, getAvatarColorClass } from "@/lib/utils"
@@ -46,7 +47,18 @@ export function NavRail() {
   const { user, logout } = useAuth()
   const { orgs, loading: orgsLoading } = useOrgs()
   const { activeOrg, setActiveOrg } = useOrgStore()
+  const { switchTenant } = useAuthStore()
   const { theme, setTheme } = useTheme()
+
+  const handleSwitchTenant = async (org: any) => {
+    try {
+      await switchTenant(org.id);
+      setActiveOrg(org);
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error("Failed to switch organization:", err);
+    }
+  };
 
   const cycleTheme = () => {
     if (theme === "light") setTheme("dark")
@@ -117,21 +129,13 @@ export function NavRail() {
                     );
                   }
                   return (
-                    <Tooltip key={org.id}>
-                      <TooltipTrigger asChild>
-                        <span className="block w-full">
-                          <DropdownMenuItem 
-                            disabled
-                            className="opacity-50 cursor-not-allowed flex justify-between items-center w-full"
-                          >
-                            {org.name}
-                          </DropdownMenuItem>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="bg-zinc-800 text-xs text-white border-zinc-700 ml-2">
-                        Switching organizations coming soon
-                      </TooltipContent>
-                    </Tooltip>
+                    <DropdownMenuItem 
+                      key={org.id} 
+                      className="hover:bg-zinc-800 cursor-pointer flex justify-between items-center w-full text-zinc-400 hover:text-white"
+                      onClick={() => handleSwitchTenant(org)}
+                    >
+                      {org.name}
+                    </DropdownMenuItem>
                   );
                 })
               ) : (

@@ -50,6 +50,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useShareStore } from "@/store/shareStore";
+import { useOrgStore } from "@/store/orgStore";
 
 // --- MOCK DATA ---
 
@@ -82,6 +84,44 @@ export default function ProjectOverviewPage() {
   const currentProject = projects.find(p => p.id === projectId);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
   const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+
+  // Share store integration
+  const { shareLinks, fetchOrCreateShareLink, revokeProjectShareLink } = useShareStore();
+  const { activeOrg } = useOrgStore();
+
+  const activeLink = currentProject ? shareLinks[currentProject.id] : null;
+
+  useEffect(() => {
+    if (currentProject?.id) {
+      fetchOrCreateShareLink(currentProject.id);
+    }
+  }, [currentProject?.id, fetchOrCreateShareLink]);
+
+  const handleCopyLink = () => {
+    if (!activeLink || !activeOrg) return;
+    const shareUrl = `${window.location.origin}/share/${activeOrg.slug}/project/${activeLink.token}`;
+    navigator.clipboard.writeText(shareUrl);
+    toast.success("Public share link copied to clipboard!");
+  };
+
+  const handleRevoke = async () => {
+    if (!currentProject?.id || !activeLink) return;
+    try {
+      await revokeProjectShareLink(currentProject.id, activeLink.id);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!currentProject?.id) return;
+    try {
+      await fetchOrCreateShareLink(currentProject.id);
+      toast.success("Share link generated successfully!");
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Dialog State
   const [isTeamsDialogOpen, setIsTeamsDialogOpen] = useState(false);
@@ -559,29 +599,52 @@ export default function ProjectOverviewPage() {
 
 
           {/* Stakeholder Share */}
-          <section className="flex flex-col bg-[#1C1B1F] rounded-[28px] border border-zinc-800/30 p-6 shadow-2xl shadow-black/40">
+          <section className="flex flex-col bg-[#1C1B1F] rounded-[28px] border border-zinc-800/30 p-6 shadow-2xl shadow-black/40 animate-in fade-in duration-300">
              <div className="flex items-center justify-between mb-4 px-2">
                 <h3 className="text-xs font-bold tracking-widest text-zinc-600 uppercase">Stakeholder Share</h3>
-                <Share2 className="h-4 w-4 text-zinc-500 hover:text-white cursor-pointer transition-colors" strokeWidth={1.5} />
+                <Share2 className="h-4 w-4 text-zinc-500 hover:text-white cursor-pointer transition-colors" strokeWidth={1.5} onClick={handleCopyLink} />
              </div>
              <div className="flex flex-col">
-                <div className="flex items-center gap-2 mb-4">
-                   <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                   <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">Public link active</span>
-                </div>
-                <div className="bg-zinc-950/50 border border-zinc-800 rounded px-3 py-2 flex items-center justify-between mb-4">
-                   <span className="font-mono text-xs text-zinc-600 truncate mr-4">{process.env.NEXT_PUBLIC_APP_DOMAIN || "hivespace.app"}/share/abc123xyz789</span>
-                   <button className="text-zinc-500 hover:text-white transition-colors">
-                      <PlusCircle className="h-3.5 w-3.5 rotate-45" strokeWidth={1.5} />
-                   </button>
-                </div>
-                <div className="flex items-center justify-between">
-                   <span className="text-[10px] text-zinc-600 font-medium">Viewed 12 times in last 7 days</span>
-                   <div className="flex gap-3">
-                      <button className="text-[11px] font-semibold text-zinc-400 hover:text-white transition-colors">Revoke</button>
-                       <button className="text-[11px] font-semibold hover:opacity-80 transition-colors" style={{ color: themeColor }}>Copy link</button>
-                   </div>
-                </div>
+                {activeLink && activeLink.isActive ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                       <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                       <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">Public link active</span>
+                    </div>
+                    <div className="bg-zinc-950/50 border border-zinc-800 rounded px-3 py-2 flex items-center justify-between mb-4">
+                       <span className="font-mono text-xs text-zinc-400 truncate mr-4">
+                         {typeof window !== "undefined" ? `${window.location.origin}/share/${activeOrg?.slug}/project/${activeLink.token}` : ""}
+                       </span>
+                       <button className="text-zinc-500 hover:text-white transition-colors" onClick={handleCopyLink}>
+                          <Link2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                       </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                       <span className="text-[10px] text-zinc-600 font-medium">Expires: Never (active)</span>
+                       <div className="flex gap-3">
+                          <button className="text-[11px] font-semibold text-zinc-400 hover:text-white transition-colors" onClick={handleRevoke}>Revoke</button>
+                          <button className="text-[11px] font-semibold hover:opacity-80 transition-colors" style={{ color: themeColor }} onClick={handleCopyLink}>Copy link</button>
+                       </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                       <div className="h-2 w-2 rounded-full bg-zinc-600" />
+                       <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">No active share link</span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+                      Generate a public, read-only link for external stakeholders to track this project's sprint progress and task status.
+                    </p>
+                    <Button 
+                      className="h-8 font-bold border-none text-[11px] uppercase tracking-wider rounded-md w-full"
+                      style={{ backgroundColor: themeColor, color: "#111113" }}
+                      onClick={handleGenerate}
+                    >
+                      Generate Share Link
+                    </Button>
+                  </>
+                )}
              </div>
           </section>
 

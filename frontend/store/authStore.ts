@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from '@/types/auth';
-import { getCurrentUser, updateProfile as apiUpdateProfile } from '@/lib/api/auth';
+import { getCurrentUser, updateProfile as apiUpdateProfile, switchTenant as apiSwitchTenant } from '@/lib/api/auth';
 import { gooeyToast } from '@/components/ui/goey-toaster';
 
 function getCookie(name: string): string | null {
@@ -29,6 +29,7 @@ interface AuthState {
     bio: string;
     avatarUrl?: string;
   }) => Promise<void>;
+  switchTenant: (tenantId: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -130,6 +131,25 @@ export const useAuthStore = create<AuthState>()(
           gooeyToast.success("Profile updated successfully!");
         } catch (err: any) {
           const msg = err.message || "Failed to update profile";
+          set({ error: msg, loading: false });
+          gooeyToast.error(msg);
+          throw err;
+        }
+      },
+
+      switchTenant: async (tenantId) => {
+        set({ loading: true, error: null });
+        try {
+          const response = await apiSwitchTenant(tenantId);
+          // response is UserResponse containing user details and the token
+          const { token, ...userFields } = response;
+          
+          // Use login flow to set cookie and state
+          get().login(token, userFields as User);
+          
+          gooeyToast.success("Switched organization successfully!");
+        } catch (err: any) {
+          const msg = err.message || "Failed to switch organization";
           set({ error: msg, loading: false });
           gooeyToast.error(msg);
           throw err;
