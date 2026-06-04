@@ -120,7 +120,7 @@ public class TaskService {
                 .task(savedTask)
                 .user(creator)
                 .type("CREATED")
-                .newValue(creator.getUsername())
+                .newValue(creator.getActualUsername())
                 .createdAt(new Date())
                 .build();
         taskActivityRepository.save(activity);
@@ -376,8 +376,8 @@ public class TaskService {
                         .task(task)
                         .user(actor)
                         .type("OWNER_CHANGED")
-                        .oldValue(currentOwner != null ? currentOwner.getUsername() : null)
-                        .newValue(newOwner.getUsername())
+                        .oldValue(currentOwner != null ? currentOwner.getActualUsername() : null)
+                        .newValue(newOwner.getActualUsername())
                         .createdAt(new Date())
                         .build());
                 changed = true;
@@ -424,7 +424,7 @@ public class TaskService {
                 .id(activity.getId())
                 .taskId(activity.getTask().getId())
                 .userId(activity.getUser() != null ? activity.getUser().getId() : null)
-                .username(activity.getUser() != null ? activity.getUser().getUsername() : null)
+                .username(activity.getUser() != null ? activity.getUser().getActualUsername() : null)
                 .fullName(activity.getUser() != null ? activity.getUser().getFullName() : null)
                 .avatarUrl(activity.getUser() != null ? activity.getUser().getAvatarUrl() : null)
                 .type(activity.getType())
@@ -496,7 +496,7 @@ public class TaskService {
                 .taskId(assignee.getTask().getId())
                 .userId(assignee.getUser().getId())
                 .fullName(assignee.getUser().getFullName())
-                .username(assignee.getUser().getUsername())
+                .username(assignee.getUser().getActualUsername())
                 .avatarUrl(assignee.getUser().getAvatarUrl())
                 .role(assignee.getRole())
                 .assignedAt(assignee.getAssignedAt())

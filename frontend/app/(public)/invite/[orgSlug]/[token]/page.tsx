@@ -68,6 +68,7 @@ export default function InviteAcceptancePage() {
   const [authError, setAuthError] = React.useState<string | null>(null)
 
   // Sign Up Fields
+  const [fullName, setFullName] = React.useState("")
   const [username, setUsername] = React.useState("")
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -188,7 +189,7 @@ export default function InviteAcceptancePage() {
     setAuthError(null)
     setAuthLoading(true)
 
-    if (!username.trim() || !email.trim() || !password.trim()) {
+    if (!fullName.trim() || !username.trim() || !email.trim() || !password.trim()) {
       setAuthError("All fields are required")
       setAuthLoading(false)
       return
@@ -208,7 +209,7 @@ export default function InviteAcceptancePage() {
       // 1. Create account
       const registerRes = await apiFetch("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ fullName, username, email, password }),
       })
 
       // 2. Initialize auth session store
@@ -550,6 +551,13 @@ export default function InviteAcceptancePage() {
                   </p>
                   
                   <div className="space-y-2.5">
+                    <Input 
+                      placeholder="Full Name" 
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="bg-zinc-900 border-white/[0.06] focus:border-[#7C5CFC]/50 h-10 text-xs text-white focus-visible:ring-0 rounded-xl"
+                      required
+                    />
                     <Input 
                       placeholder="Username" 
                       value={username}

@@ -99,6 +99,10 @@ public class User implements UserDetails {
                 return email; // Using email as the primary login principal
         }
 
+        public String getActualUsername() {
+                return this.username;
+        }
+
         @Override
         public boolean isAccountNonExpired() {
                 return true;

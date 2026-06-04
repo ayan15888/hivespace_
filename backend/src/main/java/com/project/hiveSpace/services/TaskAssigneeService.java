@@ -104,7 +104,7 @@ public class TaskAssigneeService {
                 .task(task)
                 .user(actor)
                 .type(activityType)
-                .newValue(targetUser.getUsername())
+                .newValue(targetUser.getActualUsername())
                 .createdAt(new Date())
                 .build();
         taskActivityRepository.save(activity);
@@ -142,7 +142,7 @@ public class TaskAssigneeService {
         String oldOwnerUsername = "None";
         if (currentOwnerOpt.isPresent()) {
             TaskAssignee currentOwner = currentOwnerOpt.get();
-            oldOwnerUsername = currentOwner.getUser().getUsername();
+            oldOwnerUsername = currentOwner.getUser().getActualUsername();
             taskAssigneeRepository.delete(currentOwner);
         }
 
@@ -168,7 +168,7 @@ public class TaskAssigneeService {
                 .user(actor)
                 .type("OWNER_CHANGED")
                 .oldValue(oldOwnerUsername)
-                .newValue(newOwner.getUsername())
+                .newValue(newOwner.getActualUsername())
                 .createdAt(new Date())
                 .build();
         taskActivityRepository.save(activity);
@@ -209,7 +209,7 @@ public class TaskAssigneeService {
                 .task(task)
                 .user(actor)
                 .type("ASSIGNEE_REMOVED")
-                .oldValue(assignment.getUser().getUsername())
+                .oldValue(assignment.getUser().getActualUsername())
                 .createdAt(new Date())
                 .build();
         taskActivityRepository.save(activity);
@@ -221,7 +221,7 @@ public class TaskAssigneeService {
                 .taskId(assignee.getTask().getId())
                 .userId(assignee.getUser().getId())
                 .fullName(assignee.getUser().getFullName())
-                .username(assignee.getUser().getUsername())
+                .username(assignee.getUser().getActualUsername())
                 .avatarUrl(assignee.getUser().getAvatarUrl())
                 .role(assignee.getRole())
                 .assignedAt(assignee.getAssignedAt())
