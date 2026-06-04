@@ -3,7 +3,10 @@
 ---------------------- UP AND RUNNING IN THE DB ---------------------------
 ---------------------------------------------------------------------------
 
--- TRIGGER FUNCTION
+-- =============================================================================
+-- SECTION 1: TRIGGER FUNCTION
+-- =============================================================================
+
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -13,19 +16,23 @@ END;
 $$ LANGUAGE 'plpgsql';
 
 
--- TENANTS
+-- =============================================================================
+-- SECTION 2: TENANTS
+-- =============================================================================
+
 CREATE TABLE tenants (
-  id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
-  name         VARCHAR NOT NULL UNIQUE,
-  slug         VARCHAR NOT NULL UNIQUE,
-  description  VARCHAR,
-  owner_email  VARCHAR NOT NULL,
-  owner_id     UUID,                          -- FK added after users table
-  plan         VARCHAR NOT NULL DEFAULT 'FREE'
-                 CHECK (plan IN ('FREE', 'PRO', 'ULTIMATE', 'ENTERPRISE')),
-  active       BOOLEAN NOT NULL DEFAULT true,
-  created_at   TIMESTAMP NOT NULL DEFAULT now(),
-  updated_at   TIMESTAMP NOT NULL DEFAULT now(),
+  id          UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        VARCHAR NOT NULL UNIQUE,
+  slug        VARCHAR NOT NULL UNIQUE,
+  description VARCHAR,
+  owner_email VARCHAR NOT NULL,
+  owner_id    UUID,
+  plan        VARCHAR NOT NULL DEFAULT 'FREE'
+                CHECK (plan IN ('FREE', 'PRO', 'ULTIMATE', 'ENTERPRISE')),
+  active      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMP NOT NULL DEFAULT now(),
+
   CONSTRAINT check_slug_lowercase    CHECK (slug = lower(slug)),
   CONSTRAINT check_slug_not_reserved CHECK (slug NOT IN (
     'api', 'app', 'auth', 'invite', 'share', 'admin',
@@ -39,15 +46,19 @@ CREATE TRIGGER trigger_tenants_updated_at
   BEFORE UPDATE ON tenants
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- USERS
+
+-- =============================================================================
+-- SECTION 3: USERS
+-- =============================================================================
+
 CREATE TABLE users (
   id              UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   full_name       VARCHAR,
   username        VARCHAR NOT NULL UNIQUE,
   email           VARCHAR NOT NULL UNIQUE,
-  password        VARCHAR NOT NULL,             -- BCrypt hashed, never plain
+  password        VARCHAR NOT NULL,
   avatar_url      VARCHAR,
-  avatar_color    VARCHAR,                       -- hex color e.g. #6366f1
+  avatar_color    VARCHAR,
   bio             TEXT,
   job_title       VARCHAR,
   github_id       BIGINT,
@@ -63,22 +74,36 @@ CREATE TRIGGER trigger_users_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 
--- ADD FK CONSTRAINT FOR TENANTS OWNER (AVOIDS CIRCULAR REFERENCE AT TABLE CREATION)
-ALTER TABLE tenants ADD CONSTRAINT fk_tenants_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
+-- =============================================================================
+-- SECTION 4: TENANTS OWNER FK
+-- (Added after users to avoid circular reference)
+-- =============================================================================
+
+ALTER TABLE tenants
+  ADD CONSTRAINT fk_tenants_owner
+  FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
 
 
--- TENANT MEMBERS
+-- =============================================================================
+-- SECTION 5: TENANT MEMBERS
+-- =============================================================================
+
 CREATE TABLE tenant_members (
-  id         UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id  UUID    NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  user_id    UUID    NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
-  role       VARCHAR NOT NULL DEFAULT 'MEMBER'
-               CHECK (role IN ('OWNER', 'ADMIN', 'BILLING_ADMIN', 'MEMBER')),
-  joined_at  TIMESTAMP NOT NULL DEFAULT now(),
+  id        UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID    NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id   UUID    NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  role      VARCHAR NOT NULL DEFAULT 'MEMBER'
+              CHECK (role IN ('OWNER', 'ADMIN', 'BILLING_ADMIN', 'MEMBER')),
+  joined_at TIMESTAMP NOT NULL DEFAULT now(),
+
   UNIQUE (tenant_id, user_id)
 );
 
--- WORKSPACES
+
+-- =============================================================================
+-- SECTION 6: WORKSPACES
+-- =============================================================================
+
 CREATE TABLE workspaces (
   id          UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   name        VARCHAR NOT NULL,
@@ -93,7 +118,11 @@ CREATE TRIGGER trigger_workspaces_updated_at
   BEFORE UPDATE ON workspaces
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- WORKSPACE MEMBERS
+
+-- =============================================================================
+-- SECTION 7: WORKSPACE MEMBERS
+-- =============================================================================
+
 CREATE TABLE workspace_members (
   id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id UUID    NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -101,10 +130,15 @@ CREATE TABLE workspace_members (
   role         VARCHAR NOT NULL DEFAULT 'MEMBER'
                  CHECK (role IN ('ADMIN', 'MEMBER', 'VIEWER')),
   joined_at    TIMESTAMP NOT NULL DEFAULT now(),
+
   UNIQUE (workspace_id, user_id)
 );
 
--- PROJECTS
+
+-- =============================================================================
+-- SECTION 8: PROJECTS
+-- =============================================================================
+
 CREATE TABLE projects (
   id            UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   name          VARCHAR NOT NULL,
@@ -116,7 +150,7 @@ CREATE TABLE projects (
   created_by    UUID    REFERENCES users(id) ON DELETE SET NULL,
   start_date    TIMESTAMP,
   end_date      TIMESTAMP,
-  task_sequence INTEGER NOT NULL DEFAULT 0,     -- atomic counter for HS-001 identifiers
+  task_sequence INTEGER NOT NULL DEFAULT 0,
   created_at    TIMESTAMP NOT NULL DEFAULT now(),
   updated_at    TIMESTAMP NOT NULL DEFAULT now()
 );
@@ -125,7 +159,11 @@ CREATE TRIGGER trigger_projects_updated_at
   BEFORE UPDATE ON projects
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- PROJECT MEMBERS
+
+-- =============================================================================
+-- SECTION 9: PROJECT MEMBERS
+-- =============================================================================
+
 CREATE TABLE project_members (
   id         UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID    NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -133,10 +171,14 @@ CREATE TABLE project_members (
   role       VARCHAR NOT NULL DEFAULT 'MEMBER'
                CHECK (role IN ('LEAD', 'MEMBER', 'VIEWER')),
   joined_at  TIMESTAMP NOT NULL DEFAULT now(),
+
   UNIQUE (project_id, user_id)
 );
 
--- TEAMS
+
+-- =============================================================================
+-- SECTION 10: TEAMS
+-- =============================================================================
 
 CREATE TABLE teams (
   id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -152,7 +194,11 @@ CREATE TRIGGER trigger_teams_updated_at
   BEFORE UPDATE ON teams
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- TEAM MEMBERS
+
+-- =============================================================================
+-- SECTION 11: TEAM MEMBERS
+-- =============================================================================
+
 CREATE TABLE team_members (
   id        UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id   UUID    NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
@@ -160,44 +206,58 @@ CREATE TABLE team_members (
   role      VARCHAR NOT NULL DEFAULT 'MEMBER'
               CHECK (role IN ('LEAD', 'MEMBER')),
   joined_at TIMESTAMP NOT NULL DEFAULT now(),
+
   UNIQUE (team_id, user_id)
 );
 
--- PROJECTS TEAMS 
+
+-- =============================================================================
+-- SECTION 12: PROJECT TEAMS
+-- =============================================================================
+
 CREATE TABLE project_teams (
   project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   team_id     UUID NOT NULL REFERENCES teams(id)    ON DELETE CASCADE,
   assigned_at TIMESTAMP NOT NULL DEFAULT now(),
   assigned_by UUID REFERENCES users(id) ON DELETE SET NULL,
+
   PRIMARY KEY (project_id, team_id)
 );
 
--- TASKS
--- TASKS
+
+-- =============================================================================
+-- SECTION 13: TASKS
+-- =============================================================================
+
 CREATE TABLE tasks (
-  id          UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
-  title       VARCHAR NOT NULL,
-  description TEXT,
-  status      VARCHAR NOT NULL DEFAULT 'TODO'
-                CHECK (status IN ('TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED')),
-  priority    VARCHAR NOT NULL DEFAULT 'MEDIUM'
-                CHECK (priority IN ('URGENT', 'HIGH', 'MEDIUM', 'LOW')),
-  due_date    TIMESTAMP,
-  points      INTEGER,
-  labels      VARCHAR,
-  project_id  UUID    NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  team_id     UUID    REFERENCES teams(id)    ON DELETE SET NULL,
-  created_by  UUID    REFERENCES users(id)    ON DELETE SET NULL,
-  parent_id   UUID    REFERENCES tasks(id)    ON DELETE CASCADE,
-  created_at  TIMESTAMP NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMP NOT NULL DEFAULT now()
+  id              UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  title           VARCHAR NOT NULL,
+  description     TEXT,
+  status          VARCHAR NOT NULL DEFAULT 'TODO'
+                    CHECK (status IN ('TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED')),
+  priority        VARCHAR NOT NULL DEFAULT 'MEDIUM'
+                    CHECK (priority IN ('URGENT', 'HIGH', 'MEDIUM', 'LOW')),
+  due_date        TIMESTAMP,
+  points          INTEGER,
+  labels          VARCHAR,
+  sequence_number INTEGER,
+  project_id      UUID    NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  team_id         UUID    REFERENCES teams(id)    ON DELETE SET NULL,
+  created_by      UUID    REFERENCES users(id)    ON DELETE SET NULL,
+  parent_id       UUID    REFERENCES tasks(id)    ON DELETE CASCADE,
+  created_at      TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMP NOT NULL DEFAULT now()
 );
 
 CREATE TRIGGER trigger_tasks_updated_at
   BEFORE UPDATE ON tasks
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- TASK ASSIGNEES
+
+-- =============================================================================
+-- SECTION 14: TASK ASSIGNEES
+-- =============================================================================
+
 CREATE TABLE task_assignees (
   id          UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   task_id     UUID    NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -205,39 +265,52 @@ CREATE TABLE task_assignees (
   role        VARCHAR NOT NULL DEFAULT 'OWNER'
                 CHECK (role IN ('OWNER', 'COLLABORATOR', 'REVIEWER')),
   assigned_at TIMESTAMP NOT NULL DEFAULT now(),
+
   UNIQUE (task_id, user_id)
 );
 
--- TASK ACTIVITIES
+
+-- =============================================================================
+-- SECTION 15: TASK ACTIVITIES
+-- =============================================================================
+
 CREATE TABLE task_activities (
-  id        UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
-  task_id   UUID    NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-  user_id   UUID    REFERENCES users(id) ON DELETE SET NULL,
-  type      VARCHAR NOT NULL,   -- see activity type reference below
-  old_value VARCHAR,
-  new_value VARCHAR,
+  id         UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id    UUID    NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  user_id    UUID    REFERENCES users(id) ON DELETE SET NULL,
+  type       VARCHAR NOT NULL,
+  old_value  VARCHAR,
+  new_value  VARCHAR,
   created_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
--- INVITATIONS
+
+-- =============================================================================
+-- SECTION 16: INVITATIONS
+-- =============================================================================
+
 CREATE TABLE invitations (
-  id            UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
-  token         VARCHAR NOT NULL UNIQUE,           -- raw token in URL, SHA-256 hashed before storage
-  pin_hash      VARCHAR NOT NULL,                  -- BCrypt hashed PIN, shown once on creation
-  tenant_id     UUID    NOT NULL REFERENCES tenants(id)  ON DELETE CASCADE,
-  project_id    UUID    REFERENCES projects(id)    ON DELETE CASCADE,
-  inviter_id    UUID    NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
-  tenant_role   VARCHAR NOT NULL DEFAULT 'MEMBER'
-                  CHECK (tenant_role IN ('OWNER', 'ADMIN', 'BILLING_ADMIN', 'MEMBER')),
-  max_uses      INTEGER NOT NULL DEFAULT 1,
-  current_uses  INTEGER NOT NULL DEFAULT 0,
-  status        VARCHAR NOT NULL DEFAULT 'ACTIVE'
-                  CHECK (status IN ('ACTIVE', 'EXPIRED', 'EXHAUSTED', 'REVOKED')),
-  expires_at    TIMESTAMP NOT NULL,
-  created_at    TIMESTAMP NOT NULL DEFAULT now()
+  id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  token        VARCHAR NOT NULL UNIQUE,
+  pin_hash     VARCHAR NOT NULL,
+  tenant_id    UUID    NOT NULL REFERENCES tenants(id)  ON DELETE CASCADE,
+  project_id   UUID    REFERENCES projects(id)          ON DELETE CASCADE,
+  inviter_id   UUID    NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
+  tenant_role  VARCHAR NOT NULL DEFAULT 'MEMBER'
+                 CHECK (tenant_role IN ('OWNER', 'ADMIN', 'BILLING_ADMIN', 'MEMBER')),
+  max_uses     INTEGER NOT NULL DEFAULT 1,
+  current_uses INTEGER NOT NULL DEFAULT 0,
+  status       VARCHAR NOT NULL DEFAULT 'ACTIVE'
+                 CHECK (status IN ('ACTIVE', 'EXPIRED', 'EXHAUSTED', 'REVOKED')),
+  expires_at   TIMESTAMP NOT NULL,
+  created_at   TIMESTAMP NOT NULL DEFAULT now()
 );
 
--- INVITATION ATTEMPTS
+
+-- =============================================================================
+-- SECTION 17: INVITATION ATTEMPTS
+-- =============================================================================
+
 CREATE TABLE invitation_attempts (
   id            UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   invitation_id UUID    NOT NULL REFERENCES invitations(id) ON DELETE CASCADE,
@@ -246,14 +319,23 @@ CREATE TABLE invitation_attempts (
   success       BOOLEAN NOT NULL DEFAULT false
 );
 
--- INVITATION WORKSPACES
+
+-- =============================================================================
+-- SECTION 18: INVITATION WORKSPACES
+-- =============================================================================
+
 CREATE TABLE invitation_workspaces (
   invitation_id UUID NOT NULL REFERENCES invitations(id)  ON DELETE CASCADE,
   workspace_id  UUID NOT NULL REFERENCES workspaces(id)   ON DELETE CASCADE,
+
   PRIMARY KEY (invitation_id, workspace_id)
 );
 
--- INVITATION TEAMS
+
+-- =============================================================================
+-- SECTION 19: INVITATION TEAMS
+-- =============================================================================
+
 CREATE TABLE invitation_teams (
   invitation_id UUID NOT NULL REFERENCES invitations(id) ON DELETE CASCADE,
   team_id       UUID NOT NULL REFERENCES teams(id)       ON DELETE CASCADE,
@@ -261,7 +343,11 @@ CREATE TABLE invitation_teams (
   PRIMARY KEY (invitation_id, team_id)
 );
 
--- SHAREABLE LINKS (stakeholder progress sharing)
+
+-- =============================================================================
+-- SECTION 20: SHAREABLE LINKS
+-- =============================================================================
+
 CREATE TABLE shareable_links (
   id               UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   token            VARCHAR NOT NULL UNIQUE,
@@ -271,9 +357,9 @@ CREATE TABLE shareable_links (
   workspace_id     UUID REFERENCES workspaces(id) ON DELETE CASCADE,
   team_id          UUID REFERENCES teams(id)      ON DELETE CASCADE,
   created_by       UUID REFERENCES users(id)      ON DELETE SET NULL,
-  scope            JSONB,             -- controls what is visible on public page
-  password_hash    VARCHAR,           -- optional BCrypt password protection
-  expires_at       TIMESTAMP,         -- null means never expires
+  scope            JSONB,
+  password_hash    VARCHAR,
+  expires_at       TIMESTAMP,
   last_accessed_at TIMESTAMP,
   access_count     INTEGER NOT NULL DEFAULT 0,
   is_active        BOOLEAN NOT NULL DEFAULT true,
@@ -285,7 +371,6 @@ CREATE TABLE shareable_links (
      CASE WHEN team_id      IS NOT NULL THEN 1 ELSE 0 END) = 1
   )
 );
-
 ==========================================================================
 ---------------------------------------------------------------------------
 ---------------------- NOT ADDED IN THE DB YET ----------------------------
