@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 // import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
-// import java.util.List;
+import java.util.List;
 
 @Service("rbac")
 @RequiredArgsConstructor
@@ -28,7 +28,7 @@ public class RbacService {
     private final TeamRepository teamRepository;
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
-    // private final ProjectTeamRepository projectTeamRepository;
+    private final ProjectTeamRepository projectTeamRepository;
     // private final TenantRepository tenantRepository;
 
     public User getCurrentUser() {
@@ -96,9 +96,15 @@ public class RbacService {
     public boolean hasProjectRoleForUser(UUID userId, UUID projectId, ProjectMemberRole requiredRole) {
         if (userId == null || projectId == null || requiredRole == null) return false;
 
-        return projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+        boolean hasExplicit = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .map(member -> projectRank(member.getRole()) >= projectRank(requiredRole))
                 .orElse(false);
+        if (hasExplicit) return true;
+
+        if (projectRank(requiredRole) <= projectRank(ProjectMemberRole.MEMBER)) {
+            return isUserInTeamAssignedToProject(userId, projectId);
+        }
+        return false;
     }
     
     public boolean isProjectLead(UUID projectId) {
@@ -171,13 +177,25 @@ public class RbacService {
                 .orElse(false);
     }
 
+    public boolean isUserInTeamAssignedToProject(UUID userId, UUID projectId) {
+        if (userId == null || projectId == null) return false;
+        List<TeamMember> teamMemberships = teamMemberRepository.findAllByUserId(userId);
+        if (teamMemberships.isEmpty()) return false;
+        java.util.Set<UUID> userTeamIds = teamMemberships.stream()
+                .map(tm -> tm.getTeam().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        return projectTeamRepository.findByProjectId(projectId).stream()
+                .anyMatch(pt -> userTeamIds.contains(pt.getTeam().getId()));
+    }
+
     public boolean canEditTask(UUID taskId) {
         User user = getCurrentUser();
         if (user == null || taskId == null) return false;
         return taskRepository.findById(taskId)
                 .map(task -> {
                     UUID projectId = task.getProject().getId();
-                    return hasProjectRole(projectId, ProjectMemberRole.MEMBER);
+                    if (hasProjectRole(projectId, ProjectMemberRole.MEMBER)) return true;
+                    return isUserInTeamAssignedToProject(user.getId(), projectId);
                 })
                 .orElse(false);
     }
@@ -186,6 +204,7 @@ public class RbacService {
         User user = getCurrentUser();
         if (user == null || projectId == null) return false;
         if (hasProjectRole(projectId, ProjectMemberRole.VIEWER)) return true;
+        if (isUserInTeamAssignedToProject(user.getId(), projectId)) return true;
         return projectRepository.findById(projectId)
                 .map(project -> canAdminWorkspace(project.getWorkspace().getId()))
                 .orElse(false);
@@ -200,7 +219,9 @@ public class RbacService {
     }
 
     public boolean canCreateTask(UUID projectId) {
-        return hasProjectRole(projectId, ProjectMemberRole.MEMBER);
+        if (hasProjectRole(projectId, ProjectMemberRole.MEMBER)) return true;
+        User user = getCurrentUser();
+        return user != null && isUserInTeamAssignedToProject(user.getId(), projectId);
     }
 
     public boolean canAssignTeamToProject(UUID projectId) {

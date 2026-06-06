@@ -214,4 +214,34 @@ class ProjectTeamAssignmentTests {
         assertEquals("Access denied: Only project leads and workspace admins can unassign teams", exception.getMessage());
         verify(projectTeamRepository, never()).deleteByProjectIdAndTeamId(any(), any());
     }
+
+    @Test
+    void testGetProjectsByWorkspace_Success_AsTeamMemberOfAssignedTeam() {
+        UUID otherUserId = UUID.randomUUID();
+        User otherUser = User.builder().id(otherUserId).build();
+        
+        when(rbacService.getCurrentUser()).thenReturn(otherUser);
+        when(rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.VIEWER)).thenReturn(true);
+        when(rbacService.canAdminWorkspace(workspaceId)).thenReturn(false);
+        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(workspace));
+        
+        when(projectRepository.findAllByWorkspace(workspace)).thenReturn(List.of(project));
+        
+        // Return empty explicit memberships
+        when(projectMemberRepository.findAllByUserId(otherUserId)).thenReturn(List.of());
+        
+        // Return team membership for otherUser
+        TeamMember teamMember = TeamMember.builder().team(team).user(otherUser).build();
+        when(teamMemberRepository.findAllByUserId(otherUserId)).thenReturn(List.of(teamMember));
+        
+        // Return project team assignment for that team
+        ProjectTeam projectTeam = ProjectTeam.builder().project(project).team(team).build();
+        when(projectTeamRepository.findByTeamId(teamId)).thenReturn(List.of(projectTeam));
+        
+        List<ProjectResponse> responses = projectService.getProjectsByWorkspace(workspaceId);
+        
+        assertNotNull(responses);
+        assertEquals(1, responses.size());
+        assertEquals(projectId, responses.get(0).getId());
+    }
 }

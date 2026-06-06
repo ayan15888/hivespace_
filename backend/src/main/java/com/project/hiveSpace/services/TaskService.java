@@ -20,6 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -35,6 +36,7 @@ public class TaskService {
     private final TaskAssigneeRepository taskAssigneeRepository;
     private final TaskActivityRepository taskActivityRepository;
     private final ProjectTeamRepository projectTeamRepository;
+    private final TeamMemberRepository teamMemberRepository;
     private final RbacService rbacService;
 
     @Transactional
@@ -176,13 +178,28 @@ public class TaskService {
         }
 
         List<ProjectMember> memberships = projectMemberRepository.findAllByUserId(currentUser.getId());
-        if (memberships.isEmpty()) {
-            return java.util.Collections.emptyList();
+        List<Project> projects = new java.util.ArrayList<>(
+            memberships.stream()
+                .map(ProjectMember::getProject)
+                .collect(Collectors.toList())
+        );
+
+        List<TeamMember> teamMemberships = teamMemberRepository.findAllByUserId(currentUser.getId());
+        Set<UUID> userTeamIds = teamMemberships.stream()
+                .map(tm -> tm.getTeam().getId())
+                .collect(Collectors.toSet());
+
+        for (UUID teamId : userTeamIds) {
+            projectTeamRepository.findByTeamId(teamId).forEach(pt -> {
+                if (projects.stream().noneMatch(p -> p.getId().equals(pt.getProject().getId()))) {
+                    projects.add(pt.getProject());
+                }
+            });
         }
 
-        List<Project> projects = memberships.stream()
-                .map(ProjectMember::getProject)
-                .collect(Collectors.toList());
+        if (projects.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
 
         return taskRepository.findAllByProjectInOrderByUpdatedAtDesc(projects)
                 .stream()
