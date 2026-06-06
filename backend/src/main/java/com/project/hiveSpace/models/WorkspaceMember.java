@@ -2,7 +2,6 @@ package com.project.hiveSpace.models;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.util.Date;
 import java.util.UUID;
 
@@ -12,11 +11,10 @@ import java.util.UUID;
 })
 @Getter
 @Setter
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
 public class WorkspaceMember {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -29,12 +27,21 @@ public class WorkspaceMember {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Enumerated(EnumType.STRING)
     @Builder.Default
-    @Column(name = "role", nullable = false)
-    private String role = "MEMBER"; // ADMIN, MEMBER, VIEWER
+    @Column(nullable = false)
+    private WorkspaceMemberRole role = WorkspaceMemberRole.MEMBER;
 
-    @Builder.Default
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "joined_at", nullable = false)
-    private Date joinedAt = new Date();
+    private Date joinedAt;
+
+    @PrePersist
+    void prePersist() {
+        if (joinedAt == null) {
+            joinedAt = new Date();
+        }
+        if (role == null) {
+            role = WorkspaceMemberRole.MEMBER;
+        }
+    }
 }

@@ -18,4 +18,5 @@ public class UserResponse {
     private String fullName;
     private String jobTitle;
     private String bio;
+    private String avatarColor;
 }

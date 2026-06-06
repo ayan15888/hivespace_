@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GitGraph as Github, Loader2 } from "lucide-react";
+import { GitGraph as Github, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,10 +11,12 @@ import { useAuthStore } from "@/store/authStore";
 export default function SignUpPage() {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
+  const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const githubClientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
@@ -28,7 +30,7 @@ export default function SignUpPage() {
     try {
       const response = await apiFetch("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ fullName, username, email, password }),
       });
 
       login(response.token, response);
@@ -78,6 +80,14 @@ export default function SignUpPage() {
           <form onSubmit={handleSignUp} className="flex flex-col gap-3">
             <input
               type="text"
+              placeholder="Full Name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              className="h-11 rounded-md border border-zinc-800 bg-zinc-900 px-3 text-sm outline-none focus:ring-2 focus:ring-[#7C5CFC]/50 transition-all"
+            />
+            <input
+              type="text"
               placeholder="Username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -92,14 +102,27 @@ export default function SignUpPage() {
               required
               className="h-11 rounded-md border border-zinc-800 bg-zinc-900 px-3 text-sm outline-none focus:ring-2 focus:ring-[#7C5CFC]/50 transition-all"
             />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="h-11 rounded-md border border-zinc-800 bg-zinc-900 px-3 text-sm outline-none focus:ring-2 focus:ring-[#7C5CFC]/50 transition-all"
-            />
+            <div className="relative w-full">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="h-11 w-full rounded-md border border-zinc-800 bg-zinc-900 pl-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-[#7C5CFC]/50 transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-500 hover:text-zinc-300 focus:outline-none"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
             {error && <p className="text-xs text-red-500 text-left">{error}</p>}
             <Button 
               type="submit" 

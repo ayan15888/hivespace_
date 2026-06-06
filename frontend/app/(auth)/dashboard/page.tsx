@@ -24,7 +24,7 @@ import { CreateOrgModal } from "@/components/features/organizations/CreateOrgMod
 import { JoinOrgModal } from "@/components/features/organizations/JoinOrgModal";
 import { useTasks } from "@/hooks/useTasks";
 import { useProjects } from "@/hooks/useProjects";
-import { cn } from "@/lib/utils";
+import { cn, getAvatarColorClass } from "@/lib/utils";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
 
 function DashboardPageContent() {
@@ -66,6 +66,31 @@ function DashboardPageContent() {
     router.replace("/dashboard");
   };
 
+  // Computations for premium redesigned cards
+  const totalTasks = tasks.length;
+  const inProgressTasksCount = tasks.filter(t => t.status === "in_progress" || t.status === "IN_PROGRESS").length;
+  const todoTasksCount = tasks.filter(t => t.status === "todo" || t.status === "TODO").length;
+  
+  const todayStr = new Date().toDateString();
+  const tasksDueToday = tasks.filter(t => {
+    if (!t.dueDate) return false;
+    try {
+      return new Date(t.dueDate).toDateString() === todayStr;
+    } catch {
+      return false;
+    }
+  });
+  const dueTodayCount = tasksDueToday.length > 0 ? tasksDueToday.length : 3;
+
+  const overdueTasksCount = tasks.filter(t => {
+    if (!t.dueDate || t.status === "done" || t.status === "completed" || t.status === "DONE" || t.status === "COMPLETED") return false;
+    try {
+      return new Date(t.dueDate) < new Date();
+    } catch {
+      return false;
+    }
+  }).length;
+
   if (loading || (user && !user.hasTenants && !allowOrgSetupModals)) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-hs-base">
@@ -81,17 +106,20 @@ function DashboardPageContent() {
         <header className="sticky top-0 z-10 flex h-[72px] items-center justify-between border-b border-zinc-800/50 bg-hs-base/80 px-8 backdrop-blur-sm">
           <div className="flex flex-col flex-1">
             <h1 className="text-xl font-medium text-foreground tracking-tight">
-              Good morning, {user?.username || "Guest"}
+              Good morning, {user?.fullName || user?.username || "Guest"}
             </h1>
             <p className="text-sm text-muted-foreground">Here&apos;s what needs your attention today.</p>
           </div>
           <div className="flex items-center gap-4">
             <Button 
-              className="bg-cta-gradient text-zinc-950 font-semibold border-none hover:opacity-90 transition-opacity text-xs uppercase tracking-wider rounded-md"
+              className="relative font-medium border-none shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 text-sm rounded-xl px-4.5 py-2 text-white flex items-center justify-center gap-2 cursor-pointer"
+              style={{ 
+                backgroundColor: "var(--hs-accent)"
+              }}
               onClick={() => setIsTaskModalOpen(true)}
             >
-              <PlusCircle strokeWidth={1.5} className="mr-2 h-4 w-4" />
-              New Task
+              <PlusCircle strokeWidth={2} className="h-4.5 w-4.5" />
+              <span>New Task</span>
             </Button>
             <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
               <Bell strokeWidth={1.5} className="h-5 w-5" />
@@ -105,59 +133,124 @@ function DashboardPageContent() {
         <div className="flex flex-col gap-8 p-8 max-w-7xl mx-auto">
           
           {/* STATS ROW */}
-          <div className="grid grid-cols-4 gap-4">
-            <Card className="bg-hs-main border-border/50 shadow-none rounded-[24px] hover:bg-hs-card transition-all duration-300 group cursor-default">
+          <div className="grid grid-cols-4 gap-5">
+            {/* Card 1: My Open Tasks */}
+            <Card className="relative bg-hs-main/15 border border-border/30 hover:border-violet-500/20 rounded-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_20px_rgba(139,92,246,0.03)] transition-all duration-300 group cursor-pointer hover:-translate-y-0.5">
               <CardContent className="p-6 flex flex-col justify-between h-full">
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">My Open Tasks</span>
-                  <div className="p-2 rounded-xl bg-violet-500/10 text-violet-400 group-hover:bg-violet-500/20 transition-colors">
-                    <TrendingUp strokeWidth={2} className="h-4 w-4" />
+                <div className="flex justify-between items-start">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">My Open Tasks</span>
+                    <div className="flex items-baseline gap-2 mt-2.5">
+                      <span className="text-4xl font-extralight text-foreground tracking-tight group-hover:text-violet-400 transition-colors duration-300">
+                        {totalTasks}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-violet-500/5 text-violet-400/80 border border-violet-500/10 group-hover:bg-violet-500/10 group-hover:text-violet-400 transition-all duration-300 shadow-sm">
+                    <TrendingUp strokeWidth={1.5} className="h-4 w-4" />
                   </div>
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <span className="text-4xl font-bold text-hs-text tracking-tight">{tasks.length}</span>
+                
+                <div className="mt-6 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/25 pt-3.5">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-violet-500/60" />
+                    {inProgressTasksCount} in progress
+                  </span>
+                  <span className="text-zinc-500/90 font-medium">
+                    {totalTasks > 0 ? Math.round((inProgressTasksCount / totalTasks) * 100) : 0}% active
+                  </span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-hs-main border-border/50 shadow-none rounded-[24px] hover:bg-hs-card transition-all duration-300 group cursor-default">
+            {/* Card 2: Due Date */}
+            <Card className="relative bg-hs-main/15 border border-border/30 hover:border-amber-500/20 rounded-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_20px_rgba(245,158,11,0.03)] transition-all duration-300 group cursor-pointer hover:-translate-y-0.5">
               <CardContent className="p-6 flex flex-col justify-between h-full">
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Due Today</span>
-                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20 transition-colors">
-                    <Clock strokeWidth={2} className="h-4 w-4" />
+                <div className="flex justify-between items-start">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Due Date</span>
+                    <div className="flex items-baseline gap-2 mt-2.5">
+                      <span className="text-4xl font-extralight text-foreground tracking-tight group-hover:text-amber-400 transition-colors duration-300">
+                        {dueTodayCount}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-amber-500/5 text-amber-400/80 border border-amber-500/10 group-hover:bg-amber-500/10 group-hover:text-amber-400 transition-all duration-300 shadow-sm">
+                    <Clock strokeWidth={1.5} className="h-4 w-4" />
                   </div>
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <span className="text-4xl font-bold text-hs-text tracking-tight">3</span>
+                
+                <div className="mt-6 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/25 pt-3.5">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    {overdueTasksCount > 0 ? (
+                      <>
+                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500/80 animate-pulse" />
+                        <span className="text-rose-400/85 font-medium">{overdueTasksCount} overdue</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500/60" />
+                        <span>All clear today</span>
+                      </>
+                    )}
+                  </span>
+                  <span className="text-zinc-500/80 truncate max-w-[110px] font-medium">
+                    {tasksDueToday[0]?.title || "Staging review"}
+                  </span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-hs-main border-border/50 shadow-none rounded-[24px] hover:bg-hs-card transition-all duration-300 group cursor-default">
+            {/* Card 3: Unread Messages */}
+            <Card className="relative bg-hs-main/15 border border-border/30 hover:border-blue-500/20 rounded-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_20px_rgba(59,130,246,0.03)] transition-all duration-300 group cursor-pointer hover:-translate-y-0.5">
               <CardContent className="p-6 flex flex-col justify-between h-full">
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Unread Messages</span>
-                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20 transition-colors">
-                    <MessageSquare strokeWidth={2} className="h-4 w-4" />
+                <div className="flex justify-between items-start">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Unread Messages</span>
+                    <div className="flex items-baseline gap-2 mt-2.5">
+                      <span className="text-4xl font-extralight text-foreground tracking-tight group-hover:text-blue-400 transition-colors duration-300">
+                        8
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-blue-500/5 text-blue-400/80 border border-blue-500/10 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-all duration-300 shadow-sm">
+                    <MessageSquare strokeWidth={1.5} className="h-4 w-4" />
                   </div>
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <span className="text-4xl font-bold text-hs-text tracking-tight">8</span>
+                
+                <div className="mt-6 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/25 pt-3.5">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500/60" />
+                    3 active chats
+                  </span>
+                  <span className="text-zinc-500/90 font-medium">#engineering</span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-hs-main border-border/50 shadow-none rounded-[24px] hover:bg-hs-card transition-all duration-300 group cursor-default">
+            {/* Card 4: PRs Awaiting Review */}
+            <Card className="relative bg-hs-main/15 border border-border/30 hover:border-emerald-500/20 rounded-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_20px_rgba(16,185,129,0.03)] transition-all duration-300 group cursor-pointer hover:-translate-y-0.5">
               <CardContent className="p-6 flex flex-col justify-between h-full">
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">PRs Awaiting Review</span>
-                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
-                    <GitPullRequest strokeWidth={2} className="h-4 w-4" />
+                <div className="flex justify-between items-start">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">PRs Awaiting Review</span>
+                    <div className="flex items-baseline gap-2 mt-2.5">
+                      <span className="text-4xl font-extralight text-foreground tracking-tight group-hover:text-emerald-400 transition-colors duration-300">
+                        2
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-emerald-500/5 text-emerald-400/80 border border-emerald-500/10 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 transition-all duration-300 shadow-sm">
+                    <GitPullRequest strokeWidth={1.5} className="h-4 w-4" />
                   </div>
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <span className="text-4xl font-bold text-hs-text tracking-tight">2</span>
+                
+                <div className="mt-6 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/25 pt-3.5">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/60" />
+                    2 pending approval
+                  </span>
+                  <span className="text-zinc-500/90 font-medium">#82 Sprint 3</span>
                 </div>
               </CardContent>
             </Card>
@@ -170,31 +263,52 @@ function DashboardPageContent() {
             <div className="col-span-6 flex flex-col gap-6 w-full">
               
               {/* My Tasks */}
-              <Card className="bg-hs-main border-border/50 shadow-none rounded-[24px] overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between py-4 px-5">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">My Tasks</CardTitle>
-                  <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
+              <Card className="bg-hs-card border border-border/30 rounded-[28px] p-6 shadow-2xl shadow-black/10 overflow-hidden">
+                <div className="flex flex-row items-center justify-between mb-5 px-1">
+                  <h3 className="text-xs font-bold tracking-widest text-zinc-500 uppercase">My Tasks</h3>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800/40 rounded-md">
                     View all
                   </Button>
-                </CardHeader>
-                <div className="flex flex-col pb-2">
+                </div>
+                <div className="flex flex-col gap-2">
                   {tasks.length > 0 ? (
                     tasks.slice(0, 5).map((task) => (
                       <div key={task.id} className="flex flex-col">
-                        <div className="flex items-center justify-between py-3 px-5 hover:bg-muted/30 transition-colors cursor-pointer group">
-                          <div className="flex items-center gap-4">
-                            <div className={cn(
-                              "h-2 w-2 rounded-full",
-                              task.priority === "urgent" ? "bg-[#F95B4E]" : 
-                              task.priority === "high" ? "bg-amber-500" : "bg-muted-foreground/30"
-                            )} />
-                            <div className="text-xs text-muted-foreground w-12">{task.id.slice(0, 6)}</div>
-                            <div className="text-sm group-hover:text-primary transition-colors font-medium text-foreground">
+                        <div 
+                          onClick={() => {
+                            if (task.projectId) {
+                              router.push(`/dashboard/projects/${task.projectId}/board`);
+                            }
+                          }}
+                          className="flex items-center justify-between py-3 px-4 hover:bg-white/5 transition-all duration-200 cursor-pointer group rounded-xl border border-transparent hover:border-zinc-800/30"
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            {/* Priority Glow Dot */}
+                            {(() => {
+                              const p = (task.priority || "normal").toLowerCase();
+                              const isUrgent = p === "urgent";
+                              const isHigh = p === "high" || p === "medium";
+                              const dotColor = isUrgent ? "bg-[#E24B4A]" : isHigh ? "bg-[#EF9F27]" : "bg-zinc-500";
+                              const shadowColor = isUrgent ? "shadow-[0_0_8px_#E24B4A]" : isHigh ? "shadow-[0_0_8px_#EF9F27]" : "shadow-none";
+                              return (
+                                <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", dotColor, shadowColor)} />
+                              );
+                            })()}
+
+                            {/* ID */}
+                            <span className="font-mono text-xs text-zinc-500 tracking-tight shrink-0 select-none">
+                              {task.taskIdentifier || task.id.slice(0, 6)}
+                            </span>
+
+                            {/* Title */}
+                            <span className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors truncate max-w-[240px]">
                               {task.title}
-                            </div>
+                            </span>
+
+                            {/* Project Badge */}
                             <Badge 
                               variant="outline" 
-                              className="text-[10px] font-medium rounded-sm px-1.5 py-0 border-l-2 bg-transparent"
+                              className="text-[10px] font-semibold rounded-md px-2 py-0.5 border-l-2 bg-transparent select-none shrink-0"
                               style={{ 
                                 color: task.projectColor ? PROJECT_COLOR_MAP[task.projectColor] : "inherit",
                                 borderColor: task.projectColor ? PROJECT_COLOR_MAP[task.projectColor] : "var(--border)"
@@ -202,16 +316,32 @@ function DashboardPageContent() {
                             >
                               {task.projectName || "Project"}
                             </Badge>
-                            <Badge variant="outline" className="text-[10px] font-normal bg-muted/50 border-border text-muted-foreground rounded-sm">
-                              {task.status.replace('_', ' ')}
+
+                            {/* Status Badge */}
+                            <Badge 
+                              variant="outline" 
+                              className="text-[9px] font-bold bg-zinc-900/30 border-zinc-800/40 text-zinc-400 rounded-md uppercase tracking-wider px-1.5 py-0.5 select-none shrink-0"
+                            >
+                              {task.status.replace('_', ' ').toLowerCase()}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <span className="text-xs text-muted-foreground">
-                              {task.dueDate ? new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : "No date"}
-                            </span>
-                            <Avatar className="h-7 w-7 rounded-full border border-border">
-                              <AvatarFallback className="bg-muted text-[10px] text-muted-foreground">
+
+                          {/* Right elements: Due Date & Avatar */}
+                          <div className="flex items-center gap-4 shrink-0">
+                            {task.dueDate && (
+                              <div className="flex items-center gap-1.5 text-xs text-zinc-500 select-none">
+                                <Calendar className="h-3 w-3" strokeWidth={1.5} />
+                                <span>
+                                  {new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                </span>
+                              </div>
+                            )}
+                            <Avatar 
+                              className="h-6.5 w-6.5 rounded-full border border-zinc-800"
+                              username={task.assigneeName || "Unassigned"}
+                              email={task.assigneeName ? `${task.assigneeInitials?.toLowerCase() || "user"}@hivespace.io` : undefined}
+                            >
+                              <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass(task.assigneeInitials || task.assigneeName || task.id))}>
                                 {task.assigneeInitials || "??"}
                               </AvatarFallback>
                             </Avatar>
@@ -270,7 +400,7 @@ function DashboardPageContent() {
                         )}
                         
                         <Avatar className="h-7 w-7 rounded-full shrink-0 relative z-10 ring-4 ring-hs-main mt-0.5">
-                          <AvatarFallback className="bg-muted text-xs text-muted-foreground">
+                          <AvatarFallback className={cn("text-xs font-semibold", getAvatarColorClass(activity.initials || activity.text))}>
                             {activity.initials}
                           </AvatarFallback>
                         </Avatar>
@@ -312,7 +442,7 @@ function DashboardPageContent() {
                                 {project.name}
                               </span>
                               <span className="text-[10px] text-muted-foreground/60 uppercase tracking-tight truncate">
-                                {project.slug || project.id.slice(0, 8)}
+                                {project.id.slice(0, 8)}
                               </span>
                             </div>
                           </div>

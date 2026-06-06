@@ -138,7 +138,7 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
   // Find project associated with this channel
   // For now, we'll mock this by checking a hypothetical channel-to-project mapping or just using a default
   // In a real app, the channel object would have a projectId
-  const currentProject = projects.find(p => p.id === "sprint-3" || p.slug === "sprint-3"); // Mock association
+  const currentProject = projects.find(p => p.id === "sprint-3"); // Mock association
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
 
   const [messages] = useState<Message[]>(MOCK_MESSAGES);

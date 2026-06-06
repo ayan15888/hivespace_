@@ -1,3 +1,52 @@
 invite fix 
 create leads option in project dialog 
 if no workspace no project allowed
+
+
+
+
+if member no invite memebr button should show
+
+WARNING
+In accordance with the discussion document, the inline Invite/Assign Form and the Remove Member (Revoke) action will be completely removed from this page. These actions belong exclusively to the dedicated "Members" settings tab.
+
+
+
+//ayan 23 
+
+memeber can create worksapce if permission given  from roles and permission 
+role and permission not working
+teneant is not  uniqye 
+assign memebers to task not working 
+wokspace page should be there to asign or to kickoutmemebr
+
+
+  when owner teams is cratee and and given to different team  lead  to other memeber owner also becomes member of that team not only team ui wise 
+
+
+there should be dedicated memeber page near org seeting functional  where team lead/owner/ admin can  do all the team management stuff for all member 
+team lead is not updating if owner 
+toast problem of team member removing by lead showing toast error in toast
+
+
+//need refactoring 
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\projects\[projectSlug]\board\page.tsx (960)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\ai\page.tsx (857)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\docs\page.tsx (731)
+D:\project\hiveSpace_final\frontend\app\(public)\invite\[orgSlug]\[token]\page.tsx (725)
+D:\project\hiveSpace_final\frontend\app\(public)\page.tsx (648)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\projects\[projectSlug]\page.tsx (612)
+D:\project\hiveSpace_final\frontend\components\common\WebGPUVisualizer.tsx (575)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\chat\[channel]\page.tsx (519)
+D:\project\hiveSpace_final\frontend\app\(auth)\settings\roles\page.tsx (501)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\page.tsx (499)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\tasks\page.tsx (490)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\inbox\page.tsx (441)
+D:\project\hiveSpace_final\frontend\components\features\docs\HivespaceEditor.tsx (431)
+D:\project\hiveSpace_final\frontend\components\layout\WorkspaceSidebar.tsx (431)
+D:\project\hiveSpace_final\frontend\app\(auth)\settings\members\page.tsx (420)
+D:\project\hiveSpace_final\frontend\components\features\teams\ManageTeamSheet.tsx (393)
+D:\project\hiveSpace_final\frontend\app\(auth)\onboarding\page.tsx (371)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\github\page.tsx (339)
+D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\mail\page.tsx (324)
+D:\project\hiveSpace_final\frontend\app\(auth)\settings\subscription\page.tsx (305)

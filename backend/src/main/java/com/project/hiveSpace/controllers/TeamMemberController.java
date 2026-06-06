@@ -2,6 +2,7 @@ package com.project.hiveSpace.controllers;
 
 import com.project.hiveSpace.dto.TeamMemberRequest;
 import com.project.hiveSpace.dto.TeamMemberResponse;
+import com.project.hiveSpace.models.TeamMemberRole;
 import com.project.hiveSpace.services.TeamMemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,7 @@ public class TeamMemberController {
     public ResponseEntity<TeamMemberResponse> updateMemberRole(
             @PathVariable UUID teamId,
             @PathVariable UUID userId,
-            @RequestParam String role) {
+            @RequestParam TeamMemberRole role) {
         return ResponseEntity.ok(teamMemberService.updateMemberRole(teamId, userId, role));
     }
 

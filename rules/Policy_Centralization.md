@@ -1,0 +1,1 @@
+Every time a new endpoint is added, the authorization check must be a named capability method in RbacService. No inline checks in new code. Existing inline checks get migrated to capability methods one service at a time when that service is being touched for another reason.

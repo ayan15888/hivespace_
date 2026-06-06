@@ -1,12 +1,15 @@
 import { apiFetch } from "./client";
+import { TeamResponse } from "./teams";
 
 export interface ProjectRequest {
   name: string;
   description?: string;
   status: string;
   workspaceId: string;
-  slug?: string; // Optional for frontend internal use
   color?: string; // Optional for frontend internal use
+  startDate?: string;
+  endDate?: string;
+  leadUserId?: string; // Designated lead user ID
 }
 
 export interface ProjectResponse {
@@ -16,10 +19,12 @@ export interface ProjectResponse {
   status: string;
   workspaceId: string;
   createdAt: string;
+  updatedAt: string;
   teamsCount: number;
   membersCount: number;
-  slug?: string; // Optional for UI use
   color?: string; // Optional for UI use
+  startDate?: string;
+  endDate?: string;
 }
 
 export async function createProject(workspaceId: string, data: ProjectRequest): Promise<ProjectResponse> {
@@ -43,10 +48,15 @@ export interface ProjectMemberResponse {
   avatarUrl: string;
   role: string; // LEAD, MEMBER, VIEWER
   joinedAt: string;
+  belongsToAssignedTeam?: boolean;
 }
 
 export async function getProjectMembers(projectId: string): Promise<ProjectMemberResponse[]> {
   return apiFetch(`/api/projects/${projectId}/members`);
+}
+
+export async function getProjectTeamMembers(projectId: string): Promise<ProjectMemberResponse[]> {
+  return apiFetch(`/api/projects/${projectId}/team-members`);
 }
 
 export async function addProjectMember(projectId: string, userId: string, role?: string): Promise<ProjectMemberResponse> {
@@ -64,6 +74,23 @@ export async function updateProjectMemberRole(projectId: string, userId: string,
 
 export async function removeProjectMember(projectId: string, userId: string): Promise<void> {
   return apiFetch(`/api/projects/${projectId}/members/${userId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getProjectTeams(projectId: string): Promise<TeamResponse[]> {
+  return apiFetch(`/api/projects/${projectId}/teams`);
+}
+
+export async function assignProjectTeam(projectId: string, teamId: string): Promise<ProjectResponse> {
+  return apiFetch(`/api/projects/${projectId}/teams`, {
+    method: "POST",
+    body: JSON.stringify({ teamId }),
+  });
+}
+
+export async function unassignProjectTeam(projectId: string, teamId: string): Promise<ProjectResponse> {
+  return apiFetch(`/api/projects/${projectId}/teams/${teamId}`, {
     method: "DELETE",
   });
 }

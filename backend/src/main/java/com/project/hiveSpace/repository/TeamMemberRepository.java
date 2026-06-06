@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.project.hiveSpace.models.TeamMemberRole;
+
 @Repository
 public interface TeamMemberRepository extends JpaRepository<TeamMember, UUID> {
     List<TeamMember> findAllByTeamId(UUID teamId);
@@ -17,4 +19,6 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, UUID> {
     Optional<TeamMember> findByTeamIdAndUserId(UUID teamId, UUID userId);
     boolean existsByTeamAndUser(Team team, User user);
     boolean existsByUserId(UUID userId);
+    long countByTeamIdAndRole(UUID teamId, TeamMemberRole role);
+    long countByTeamId(UUID teamId);
 }

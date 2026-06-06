@@ -3,6 +3,7 @@ package com.project.hiveSpace.controllers;
 import com.project.hiveSpace.dto.GitHubAuthRequest;
 import com.project.hiveSpace.dto.LoginRequest;
 import com.project.hiveSpace.dto.RegisterRequest;
+import com.project.hiveSpace.dto.SwitchTenantRequest;
 import com.project.hiveSpace.dto.UpdateProfileRequest;
 import com.project.hiveSpace.dto.UserResponse;
 import com.project.hiveSpace.models.User;
@@ -26,7 +27,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest req) {
-        return ResponseEntity.ok(authService.register(req.getEmail(), req.getUsername(), req.getPassword()));
+        return ResponseEntity.ok(authService.register(req.getEmail(), req.getUsername(), req.getPassword(), req.getFullName()));
     }
 
     @PostMapping("/login")
@@ -69,5 +70,16 @@ public class AuthController {
                 req.getBio(),
                 req.getAvatarUrl()
         ));
+    }
+
+    @PostMapping("/switch-tenant")
+    public ResponseEntity<UserResponse> switchTenant(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody SwitchTenantRequest req
+    ) {
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(authService.switchTenant(user, req.getTenantId()));
     }
 }

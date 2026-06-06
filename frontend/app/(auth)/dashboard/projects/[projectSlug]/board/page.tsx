@@ -7,90 +7,148 @@ import {
   LayoutList, 
   PlusCircle,
   MoreHorizontal,
-  Calendar,
-  GitPullRequest,
-  Plus,
-  GitCommit,
-  ArrowRight
+  Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Progress } from "@/components/ui/progress";
-import {
-  Sheet,
-  SheetContent,
-} from "@/components/ui/sheet";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { 
-  DropdownMenu, 
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem
-} from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useParams } from "next/navigation";
 
-import { cn } from "@/lib/utils";
+import { cn, getAvatarColorClass } from "@/lib/utils";
 import { useTasks } from "@/hooks/useTasks";
 import { useProjects } from "@/hooks/useProjects";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
 import { motion, AnimatePresence } from "framer-motion";
-import { TaskResponse } from "@/lib/api/tasks";
+import { 
+  createTask,
+  updateTaskStatus,
+  deleteTask,
+  TaskResponse
+} from "@/lib/api/tasks";
+import { columnNameToStatus, statusMatchesColumn } from "@/lib/taskUtils";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
+import { useTaskStore } from "@/store/taskStore";
 import { CreateTaskModal } from "@/components/features/tasks/CreateTaskModal";
 
-// --- TYPES & CONSTANTS ---
-
-const PRIORITIES = {
-  urgent: "#E24B4A",
-  high: "#EF9F27",
-  normal: "#71717A", // zinc-500
-};
-
-const ASSIGNEE_COLORS: Record<string, string> = {
-  "MV": "bg-amber-600",
-  "RK": "bg-blue-600",
-  "DK": "bg-green-600",
-  "SA": "bg-red-600",
-  "PL": "bg-purple-600",
-  "RS": "bg-indigo-600",
-};
-
-type Priority = keyof typeof PRIORITIES;
+import { useBoardStore } from "./store";
+import { TaskCard } from "./components/TaskCard";
+import { TaskDetailSheet } from "./components/TaskDetailSheet";
 
 const COLUMN_NAMES = ["Backlog", "Todo", "In Progress", "Review", "Done"];
 
 export default function SprintThreeBoardPage() {
   const params = useParams();
   const { projects } = useProjects();
-  const projectSlug = params?.projectSlug as string || "";
-  
+  const projectId = params?.projectSlug as string || "";
 
-  const currentProject = projects.find(p => p.slug === projectSlug || p.id === projectSlug);
+  const currentProject = projects.find(p => p.id === projectId);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
+  const displayTitle = currentProject?.name || "Project";
 
-  const displayTitle = currentProject?.name || projectSlug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  // Zustand Store for project board local UI state
+  const { 
+    selectedTaskId, 
+    setSelectedTaskId, 
+    isCreateModalOpen, 
+    setIsCreateModalOpen, 
+    defaultStatus, 
+    setDefaultStatus,
+    sortByPriority,
+    toggleSortByPriority
+  } = useBoardStore();
 
-  const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
-  const [editedTitle, setEditedTitle] = useState("");
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [defaultStatus, setDefaultStatus] = useState("Todo");
+  const { tasks, refresh } = useTasks(projectId);
+  const updateTaskInStore = useTaskStore((state) => state.updateTask);
+  const addTaskToStore = useTaskStore((state) => state.addTask);
+  const removeTaskFromStore = useTaskStore((state) => state.removeTask);
 
-  const { tasks, refresh } = useTasks();
+  const [activeDragColumn, setActiveDragColumn] = useState<string | null>(null);
+  const [quickAddColumn, setQuickAddColumn] = useState<string | null>(null);
+  const [quickAddTitle, setQuickAddTitle] = useState("");
+  const [quickAddLoading, setQuickAddLoading] = useState(false);
 
-  const handleTaskClick = (task: TaskResponse) => {
-    setSelectedTask(task);
-    setEditedTitle(task.title);
+  // Derive selectedTask directly from store tasks list so it updates reactively
+  const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteTask(taskId);
+      toast.success("Task deleted successfully");
+      removeTaskFromStore(taskId);
+      if (selectedTaskId === taskId) {
+        setSelectedTaskId(null);
+      }
+    } catch (err) {
+      toast.error("Failed to delete task");
+    }
+  };
+
+  const handleQuickCreate = async (columnName: string) => {
+    const title = quickAddTitle.trim();
+    if (!title || !projectId) {
+      setQuickAddColumn(null);
+      setQuickAddTitle("");
+      return;
+    }
+
+    const backendStatus = columnNameToStatus(columnName);
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: TaskResponse = {
+      id: tempId,
+      title,
+      description: "",
+      status: backendStatus,
+      priority: "MEDIUM",
+      labels: "",
+      dueDate: "",
+      points: 0,
+      projectId,
+      projectName: currentProject?.name || "",
+      projectColor: currentProject?.color,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    addTaskToStore(optimistic);
+    setQuickAddTitle("");
+    setQuickAddColumn(null);
+    setQuickAddLoading(true);
+
+    try {
+      const created = await createTask(projectId, {
+        title,
+        status: backendStatus,
+        priority: "MEDIUM",
+      });
+      removeTaskFromStore(tempId);
+      addTaskToStore(created);
+      toast.success("Task created");
+    } catch {
+      removeTaskFromStore(tempId);
+      toast.error("Failed to create task");
+    } finally {
+      setQuickAddLoading(false);
+    }
+  };
+
+  const handleTaskDrop = async (taskId: string, columnName: string) => {
+    const targetTask = tasks.find(t => t.id === taskId);
+    if (!targetTask || targetTask.id.startsWith("temp-")) return;
+    
+    const originalTask = { ...targetTask };
+    const backendStatus = columnNameToStatus(columnName);
+    const updatedTask = { ...targetTask, status: backendStatus };
+    
+    updateTaskInStore(updatedTask);
+    
+    try {
+      await updateTaskStatus(taskId, backendStatus);
+      toast.success(`Moved to ${columnName}`);
+      refresh();
+    } catch (err) {
+      updateTaskInStore(originalTask);
+      toast.error("Failed to move task");
+    }
   };
 
   const handleNewTask = (status?: string) => {
@@ -98,14 +156,23 @@ export default function SprintThreeBoardPage() {
     setIsCreateModalOpen(true);
   };
 
+  const PRIORITY_ORDER: Record<string, number> = {
+    urgent: 4,
+    high: 3,
+    medium: 2,
+    low: 1,
+  };
+
   // Group tasks by status
   const columns = COLUMN_NAMES.map(name => {
-    const normalizedName = name.toLowerCase().replace(/\s+/g, '_');
-    const filteredTasks = tasks.filter(t => {
-      const taskStatus = t.status.toLowerCase();
-      return taskStatus === normalizedName || taskStatus === name.toLowerCase();
-    });
-    
+    let filteredTasks = tasks.filter(t => statusMatchesColumn(String(t.status), name));
+    if (sortByPriority) {
+      filteredTasks = [...filteredTasks].sort((a, b) => {
+        const orderA = PRIORITY_ORDER[a.priority.toLowerCase()] || 0;
+        const orderB = PRIORITY_ORDER[b.priority.toLowerCase()] || 0;
+        return orderB - orderA;
+      });
+    }
     return {
       name,
       tasks: filteredTasks,
@@ -117,10 +184,8 @@ export default function SprintThreeBoardPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden font-sans">
-      
       {/* --- TOP BREADCRUMB BAR --- */}
       <header className="sticky top-0 z-30 flex h-[44px] shrink-0 items-center justify-between border-b border-border/50 bg-background/80 px-6 backdrop-blur-sm">
-        
         {/* Left: Breadcrumbs */}
         <div className="flex items-center gap-2 flex-1">
           <span className="text-xs text-muted-foreground">Hivespace</span>
@@ -164,11 +229,19 @@ export default function SprintThreeBoardPage() {
           </Button>
           
           <div className="flex items-center ml-2 mr-2">
-            {["MV", "RK", "PL", "RS"].map((initials, i) => (
-              <Avatar key={initials} className={`h-6 w-6 ring-2 ring-background -ml-1.5 first:ml-0 bg-muted border border-border/50`}>
-                <AvatarFallback className="bg-muted text-[9px] text-muted-foreground font-medium">{initials}</AvatarFallback>
-              </Avatar>
-            ))}
+            {["MV", "RK", "PL", "RS"].map((initials) => {
+              const details = {
+                "MV": { name: "Max Valenzuela", email: "max@hivespace.io" },
+                "RK": { name: "Rajesh Kumar", email: "rajesh@hivespace.io" },
+                "PL": { name: "Pierre Laurent", email: "pierre@hivespace.io" },
+                "RS": { name: "Reid Smith", email: "reid@hivespace.io" },
+              }[initials] || { name: initials, email: `${initials.toLowerCase()}@hivespace.io` };
+              return (
+                <Avatar key={initials} className={`h-6 w-6 ring-2 ring-background -ml-1.5 first:ml-0 border border-border/50`} username={details.name} email={details.email}>
+                  <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass(initials))}>{initials}</AvatarFallback>
+                </Avatar>
+              );
+            })}
           </div>
 
           <Button 
@@ -184,24 +257,41 @@ export default function SprintThreeBoardPage() {
 
       {/* --- CONTENT AREA --- */}
       <div className="flex-1 flex flex-col min-h-0 bg-hs-main">
-        
-        {/* Sprint Progress Bar */}
-        <div className="flex flex-col px-8 py-5 shrink-0 gap-2.5">
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-sm font-medium text-[#E5E1E4]">{displayTitle}</h1>
-            <span className="text-xs text-zinc-400">Apr 1 – Apr 15, 2026</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative h-1.5 flex-1 max-w-[400px] bg-muted rounded-full overflow-hidden">
-              <div className="absolute top-0 left-0 h-full rounded-full transition-all" style={{ width: '68%', backgroundColor: themeColor }} />
+        {/* Sprint Progress Bar Container */}
+        <div className="flex items-center justify-between px-8 py-5 shrink-0">
+          <div className="flex flex-col gap-2.5 flex-1">
+            <div className="flex items-baseline gap-3">
+              <h1 className="text-sm font-medium text-[#E5E1E4]">{displayTitle}</h1>
+              <span className="text-xs text-zinc-400">Apr 1 – Apr 15, 2026</span>
             </div>
-            <span className="text-[10px] font-medium text-muted-foreground">17/25 tasks complete</span>
+            <div className="flex items-center gap-4">
+              <div className="relative h-1.5 flex-1 max-w-[400px] bg-muted rounded-full overflow-hidden">
+                <div className="absolute top-0 left-0 h-full rounded-full transition-all" style={{ width: '68%', backgroundColor: themeColor }} />
+              </div>
+              <span className="text-[10px] font-medium text-muted-foreground">17/25 tasks complete</span>
+            </div>
+          </div>
+
+          {/* Sort Toggle Button */}
+          <div className="flex items-center gap-3 shrink-0 ml-4">
+            <Button 
+              onClick={toggleSortByPriority}
+              className={cn(
+                "h-8 text-xs gap-1.5 px-3 rounded-md border transition-all font-medium select-none cursor-pointer",
+                sortByPriority 
+                  ? "bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/15" 
+                  : "bg-[#1C1B1F] text-muted-foreground border-zinc-800 hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <SlidersHorizontal strokeWidth={1.5} className="h-3.5 w-3.5" />
+              {sortByPriority ? "High Priority First" : "Sort by Priority"}
+            </Button>
           </div>
         </div>
 
         {/* --- KANBAN BOARD --- */}
         <ScrollArea className="flex-1 w-full whitespace-nowrap px-8 pb-8">
-          <div className="flex gap-4 h-full min-h-[calc(100vh-160px)]" style={{ width: 'max-content' }}>
+          <div className="flex gap-4 h-[calc(100vh-220px)]" style={{ width: 'max-content' }}>
             <AnimatePresence>
               {columns.map((col) => (
                 <motion.div 
@@ -209,9 +299,30 @@ export default function SprintThreeBoardPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="flex flex-col w-[280px] shrink-0 bg-hs-nav rounded-lg h-full overflow-hidden shadow-sm"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (activeDragColumn !== col.name) {
+                      setActiveDragColumn(col.name);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (activeDragColumn === col.name) {
+                      setActiveDragColumn(null);
+                    }
+                  }}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    setActiveDragColumn(null);
+                    const taskId = e.dataTransfer.getData("text/plain");
+                    if (taskId) {
+                      handleTaskDrop(taskId, col.name);
+                    }
+                  }}
+                  className={cn(
+                    "flex flex-col w-[280px] shrink-0 bg-hs-nav rounded-lg h-full overflow-hidden shadow-sm transition-all duration-200 border border-transparent",
+                    activeDragColumn === col.name && "border-hs-accent/40 bg-hs-nav/80 ring-2 ring-hs-accent/10"
+                  )}
                 >
-                  
                   {/* Column Header */}
                   <div className="flex items-center justify-between p-3 shrink-0">
                     <div className="flex items-center">
@@ -250,12 +361,52 @@ export default function SprintThreeBoardPage() {
                           <TaskCard 
                             task={task} 
                             isMuted={col.muted} 
-                            onClick={() => handleTaskClick(task)} 
-                            themeColor={themeColor}
+                            onClick={() => setSelectedTaskId(task.id)} 
+                            onDelete={() => handleDeleteTask(task.id)}
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData("text/plain", task.id);
+                              e.dataTransfer.effectAllowed = "move";
+                            }}
                           />
                         </motion.div>
                       ))}
                     </AnimatePresence>
+
+                    {quickAddColumn === col.name ? (
+                      <div className="flex items-center gap-2 px-1 py-1">
+                        <input
+                          autoFocus
+                          disabled={quickAddLoading}
+                          placeholder="Task title..."
+                          value={quickAddTitle}
+                          onChange={(e) => setQuickAddTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void handleQuickCreate(col.name);
+                            if (e.key === "Escape") {
+                              setQuickAddColumn(null);
+                              setQuickAddTitle("");
+                            }
+                          }}
+                          onBlur={() => {
+                            if (quickAddTitle.trim()) void handleQuickCreate(col.name);
+                            else setQuickAddColumn(null);
+                          }}
+                          className="flex-1 bg-hs-card border border-border/50 rounded-md px-2 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-hs-accent/40"
+                        />
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuickAddColumn(col.name);
+                          setQuickAddTitle("");
+                        }}
+                        className="flex items-center gap-1.5 px-2 py-1.5 text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Add task
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               ))}
@@ -272,285 +423,24 @@ export default function SprintThreeBoardPage() {
       </div>
 
       {/* --- TASK DETAIL SHEET --- */}
-      <Sheet open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
-        <SheetContent side="right" className="w-[380px] p-0 bg-hs-nav border-l border-border/50 shadow-2xl flex flex-col gap-0 outline-none">
-          <ScrollArea className="flex-1">
-            <div className="p-6 flex flex-col gap-6">
-              
-              {/* Header Info */}
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs text-muted-foreground tracking-tight">{selectedTask?.id}</span>
-                <Select defaultValue="in-progress">
-                  <SelectTrigger className="w-auto h-7 text-xs bg-muted/50 border-none text-foreground focus:ring-0 shadow-none px-2 rounded-md hover:bg-muted transition-colors">
-                    <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
-                      <SelectValue placeholder="Status" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent className="bg-hs-main border-border text-foreground rounded-md">
-                    <SelectItem value="todo">Todo</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="review">Review</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Editable Title */}
-              <input 
-                type="text"
-                value={editedTitle}
-                onChange={(e) => setEditedTitle(e.target.value)}
-                className="text-lg font-medium bg-transparent border-none text-foreground focus:outline-none focus:ring-1 focus:ring-border rounded px-1 -ml-1 hover:bg-muted/20 transition-colors w-full cursor-text"
-              />
-
-              {/* Metadata Table */}
-              <div className="flex flex-col text-[13px]">
-                <MetadataRow label="Owner">
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-5 w-5 bg-muted border border-border/50">
-                      <AvatarFallback className="text-[9px] uppercase">{selectedTask?.assigneeInitials}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-foreground">{selectedTask?.assigneeName || "Unassigned"}</span>
-                  </div>
-                </MetadataRow>
-                
-                <MetadataRow label="Collaborators">
-                  <div className="flex items-center">
-                    {["RK", "PL"].map((initials, i) => (
-                      <Avatar key={initials} className="h-5 w-5 ring-2 ring-hs-nav -ml-1.5 first:ml-0 bg-muted border border-border/50">
-                        <AvatarFallback className="text-[8px] font-medium">{initials}</AvatarFallback>
-                      </Avatar>
-                    ))}
-                  </div>
-                </MetadataRow>
-
-                <MetadataRow label="Priority">
-                  <div className="flex items-center gap-2">
-                    <div className={`h-1.5 w-1.5 rounded-full ${selectedTask?.priority === 'urgent' ? 'bg-[#E24B4A]' : 'bg-muted-foreground'}`} />
-                    <span className="text-foreground capitalize">{selectedTask?.priority}</span>
-                  </div>
-                </MetadataRow>
-
-                <MetadataRow label="Due date">
-                  <div className="flex items-center gap-2 text-zinc-300">
-                    <Calendar className="h-3.5 w-3.5 text-zinc-500" strokeWidth={1.5} />
-                    <span>{selectedTask?.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : "None"}</span>
-                  </div>
-                </MetadataRow>
-
-                <MetadataRow label="Created">
-                  <span className="text-muted-foreground">
-                    {selectedTask?.createdAt ? new Date(selectedTask.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : "N/A"}
-                  </span>
-                </MetadataRow>
-
-                <MetadataRow label="Sprint">
-                  <span className="font-medium cursor-pointer hover:underline underline-offset-2 transition-all" style={{ color: themeColor }}>{displayTitle}</span>
-                </MetadataRow>
-
-                <MetadataRow label="Labels">
-                  <div className="flex flex-wrap gap-1.5">
-                    {(typeof selectedTask?.labels === 'string' ? selectedTask.labels.split(',') : selectedTask?.labels)?.map(label => label.trim()).filter(Boolean).map(label => (
-                      <Badge key={label} className="bg-zinc-800 text-zinc-400 border-zinc-700/50 h-5 px-1.5 font-normal text-[10px] rounded-sm hover:bg-zinc-800">
-                        {label}
-                      </Badge>
-                    ))}
-                  </div>
-                </MetadataRow>
-
-                <MetadataRow label="Estimate">
-                  <span className="text-foreground">{selectedTask?.points ? `${selectedTask.points} points` : "Unestimated"}</span>
-                </MetadataRow>
-              </div>
-
-              {/* GitHub Section */}
-              <div className="mt-2 flex flex-col gap-3">
-                <span className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase">Development</span>
-                <div className="flex flex-col bg-[#272629]/50 rounded-md border border-zinc-800/50 p-3 gap-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <GitPullRequest className="h-4 w-4 text-emerald-500" strokeWidth={1.5} />
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-foreground">PR #82</span>
-                          <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-1 rounded-sm border-none font-medium h-4 flex items-center">OPEN</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">feat/stomp-broadcast</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 pl-6 text-zinc-500">
-                    <GitCommit className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    <span className="font-mono text-[11px]">a4f2e91</span>
-                    <span className="text-[11px] text-zinc-400 truncate">Add STOMP broker config</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Activity Section */}
-              <div className="mt-2 flex flex-col gap-4">
-                <span className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase">Activity</span>
-                <div className="relative pl-7 flex flex-col gap-6">
-                  <div className="absolute left-3 top-2 bottom-0 w-[1px] bg-zinc-800" />
-                  <div className="relative flex flex-col gap-1">
-                    <Avatar className="absolute -left-7 top-0 h-6 w-6 ring-4 ring-[#1B1B1D]">
-                      <AvatarFallback className="bg-zinc-800 text-[9px]">DK</AvatarFallback>
-                    </Avatar>
-                    <div className="flex items-start justify-between">
-                      <p className="text-xs text-zinc-300 leading-tight">
-                        <span className="font-semibold text-white">David K.</span> identified the leak in the Hike config
-                      </p>
-                      <span className="text-[10px] text-zinc-500 shrink-0 ml-4">2d ago</span>
-                    </div>
-                  </div>
-
-                  <div className="relative flex flex-col gap-1">
-                    <Avatar className="absolute -left-7 top-0 h-6 w-6 ring-4 ring-[#1B1B1D]">
-                      <AvatarFallback className="bg-zinc-800 text-[9px]">SM</AvatarFallback>
-                    </Avatar>
-                    <div className="flex items-start justify-between">
-                      <p className="text-xs text-zinc-300 leading-tight">
-                        <span className="font-semibold text-white">Sarah M.</span> assigned the task to Alex R.
-                      </p>
-                      <span className="text-[10px] text-zinc-500 shrink-0 ml-4">3d ago</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </ScrollArea>
-
-          {/* Comment Input */}
-          <div className="p-4 bg-hs-nav border-t border-border/50 shrink-0">
-            <div className="relative flex items-center">
-              <input 
-                type="text" 
-                placeholder="Type a comment..." 
-                className="w-full bg-hs-card border border-border/50 rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 transition-all pr-10"
-                style={{ "--tw-ring-color": `${themeColor}80` } as React.CSSProperties}
-              />
-              <button className="absolute right-2 h-6 w-6 flex items-center justify-center text-white rounded hover:opacity-90 transition-opacity" style={{ backgroundColor: themeColor }}>
-                <ArrowRight strokeWidth={2} className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+      <TaskDetailSheet 
+        selectedTask={selectedTask}
+        onClose={() => setSelectedTaskId(null)}
+        projectId={projectId}
+        themeColor={themeColor}
+        displayTitle={displayTitle}
+        onUpdateTask={updateTaskInStore}
+        onDeleteTask={handleDeleteTask}
+      />
 
       {/* --- CREATE TASK MODAL --- */}
       <CreateTaskModal 
         isOpen={isCreateModalOpen} 
         onClose={() => setIsCreateModalOpen(false)} 
-        projectId={currentProject?.id || ""} 
+        projectId={projectId} 
         onSuccess={refresh}
         defaultStatus={defaultStatus}
       />
-    </div>
-  );
-}
-
-// --- SUB-COMPONENTS ---
-
-function TaskCard({ task, isMuted, onClick, themeColor }: { task: TaskResponse; isMuted?: boolean; onClick: () => void; themeColor: string }) {
-  const isDone = isMuted;
-
-  return (
-    <div 
-      onClick={onClick}
-      className={cn(
-        "group relative flex flex-col gap-2.5 bg-hs-card p-3 rounded-md border border-border/50 hover:bg-muted/20 cursor-pointer transition-all",
-        isDone && "opacity-50"
-      )}
-      style={task.status === "IN_PROGRESS" ? { borderLeftWidth: "2px", borderLeftColor: themeColor } : {}}
-    >
-      {/* Row 1: Priority & ID */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div 
-            className="h-1 w-1 rounded-full shrink-0" 
-            style={{ backgroundColor: PRIORITIES[task.priority.toLowerCase() as Priority] || PRIORITIES.normal }} 
-          />
-          <span className="font-mono text-[10px] text-zinc-500 tracking-tight">{task.id.slice(0, 8)}</span>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="opacity-0 group-hover:opacity-100 h-5 w-5 flex items-center justify-center text-zinc-600 hover:text-zinc-400 transition-all rounded">
-              <MoreHorizontal strokeWidth={1.5} className="h-4 w-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-hs-card border-border text-foreground">
-            <DropdownMenuItem className="focus:bg-muted focus:text-foreground">Edit Task</DropdownMenuItem>
-            <DropdownMenuItem className="focus:bg-muted text-destructive">Delete</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Row 2: Title */}
-      <p className={`text-sm leading-snug font-medium line-clamp-2 overflow-hidden text-ellipsis ${isDone ? 'line-through text-muted-foreground/60' : 'text-foreground'}`}>
-        {task.title}
-      </p>
-
-      {/* Row 3: Labels */}
-      {task.labels && (
-        <div className="flex flex-wrap gap-1.5">
-          {(typeof task.labels === 'string' ? task.labels.split(',') : task.labels).map(l => l.trim()).filter(Boolean).slice(0, 2).map(label => (
-            <Badge key={label} className="bg-muted/50 text-muted-foreground border border-border/50 h-5 px-1.5 py-0.5 font-normal text-xs rounded-sm hover:bg-muted shadow-none">
-              {label}
-            </Badge>
-          ))}
-          {(typeof task.labels === 'string' ? task.labels.split(',') : task.labels).filter(l => l.trim()).length > 2 && (
-            <Badge className="bg-zinc-800 text-zinc-400 border border-zinc-700 h-5 px-1.5 py-0.5 font-normal text-xs rounded-sm hover:bg-zinc-800 shadow-none">
-              +{(typeof task.labels === 'string' ? task.labels.split(',') : task.labels).filter(l => l.trim()).length - 2} more
-            </Badge>
-          )}
-        </div>
-      )}
-
-      {/* Row 4: Bottom Metadata */}
-      <div className="flex items-center justify-between mt-1">
-        <div className="flex items-center gap-3">
-          {task.dueDate && (
-            <div className="flex items-center gap-1 text-[10px] text-zinc-500">
-              <Calendar strokeWidth={1.5} className="h-3 w-3" />
-              <span className="font-medium">{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-            </div>
-          )}
-          {/* PR Info (Mocked if not in API) */}
-          {(task as any).pr && (
-            <div className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-emerald-500 transition-colors">
-              <GitPullRequest strokeWidth={1.5} className="h-3 w-3" />
-              <span className="font-mono">{(task as any).pr}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Assignee Avatar - Positioned Bottom Right */}
-        <div className="absolute bottom-3 right-3 shrink-0">
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Avatar className={`h-6 w-6 rounded-full border-none ${ASSIGNEE_COLORS[task.assigneeInitials || ''] || 'bg-muted'}`}>
-                  <AvatarFallback className="bg-transparent text-white text-xs font-bold">{task.assigneeInitials}</AvatarFallback>
-                </Avatar>
-              </TooltipTrigger>
-              <TooltipContent className="bg-black text-[10px] border-zinc-800">{task.assigneeName || "Unassigned"}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MetadataRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center py-2.5">
-      <span className="w-28 shrink-0 text-zinc-500 font-normal">{label}</span>
-      <div className="flex-1 min-w-0">
-        {children}
-      </div>
     </div>
   );
 }

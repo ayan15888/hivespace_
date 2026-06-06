@@ -2,7 +2,6 @@ package com.project.hiveSpace.models;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.util.Date;
 import java.util.UUID;
 
@@ -12,11 +11,10 @@ import java.util.UUID;
 })
 @Getter
 @Setter
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
 public class TeamMember {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -29,12 +27,21 @@ public class TeamMember {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Enumerated(EnumType.STRING)
     @Builder.Default
-    @Column(name = "role", nullable = false)
-    private String role = "MEMBER"; // LEAD, MEMBER
+    @Column(nullable = false)
+    private TeamMemberRole role = TeamMemberRole.MEMBER;
 
-    @Builder.Default
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "joined_at", nullable = false)
-    private Date joinedAt = new Date();
+    private Date joinedAt;
+
+    @PrePersist
+    void prePersist() {
+        if (joinedAt == null) {
+            joinedAt = new Date();
+        }
+        if (role == null) {
+            role = TeamMemberRole.MEMBER;
+        }
+    }
 }

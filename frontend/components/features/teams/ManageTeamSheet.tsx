@@ -18,21 +18,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { X, Plus, Loader2 } from "lucide-react"
+import { X, Plus, Loader2, Users, Crown, Shield, Trash2, Save, UserPlus, ChevronDown } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { 
-  getTeamMembers, 
-  addTeamMember, 
-  removeTeamMember, 
-  updateTeamMemberRole, 
-  updateTeam, 
-  deleteTeam, 
-  TeamMemberResponse 
+import {
+  getTeamMembers,
+  addTeamMember,
+  removeTeamMember,
+  updateTeamMemberRole,
+  updateTeam,
+  deleteTeam,
+  TeamMemberResponse
 } from "@/lib/api/teams"
-import { getOrganizationMembers, MemberResponse } from "@/lib/api/orgs"
+import { getWorkspaceMembers, WorkspaceMemberResponse } from "@/lib/api/workspaces"
 import { useWorkspaceStore } from "@/store/workspaceStore"
 import { gooeyToast as toast } from "@/components/ui/goey-toaster"
+import { useAuthStore } from "@/store/authStore"
+import { usePermission } from "@/hooks/usePermission"
 
 interface ManageTeamSheetProps {
   teamId?: string
@@ -43,48 +45,91 @@ interface ManageTeamSheetProps {
   refresh?: () => void
 }
 
-export function ManageTeamSheet({ 
-  teamId, 
-  projectId, 
-  teamName: initialName = "", 
-  teamDescription: initialDescription = "", 
-  trigger, 
-  refresh = () => {} 
+const ROLE_CONFIG = {
+  LEAD: {
+    label: "Lead",
+    icon: Crown,
+    className: "bg-amber-500/15 text-amber-400 border-amber-500/25",
+    dotColor: "bg-amber-400",
+  },
+  MEMBER: {
+    label: "Member",
+    icon: Shield,
+    className: "bg-hs-accent/15 text-hs-accent border-hs-accent/25",
+    dotColor: "bg-hs-accent",
+  },
+}
+
+function RoleBadge({ role }: { role: string }) {
+  const cfg = ROLE_CONFIG[role as keyof typeof ROLE_CONFIG] ?? ROLE_CONFIG.MEMBER
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase", cfg.className)}>
+      <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dotColor)} />
+      {cfg.label}
+    </span>
+  )
+}
+
+function getInitials(name: string) {
+  return name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()
+}
+
+const AVATAR_COLORS = [
+  "from-violet-500 to-indigo-600",
+  "from-blue-500 to-cyan-600",
+  "from-emerald-500 to-teal-600",
+  "from-orange-500 to-rose-600",
+  "from-pink-500 to-purple-600",
+]
+
+function getAvatarColor(userId: string) {
+  let hash = 0
+  for (let i = 0; i < userId.length; i++) hash = userId.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useTeamPageStore } from "@/app/(auth)/dashboard/teams/store"
+
+export function ManageTeamSheet({
+  teamId,
+  projectId,
+  teamName: initialName = "",
+  teamDescription: initialDescription = "",
+  trigger,
+  refresh = () => {}
 }: ManageTeamSheetProps) {
+  const queryClient = useQueryClient()
   const { activeWorkspace } = useWorkspaceStore()
-  const [open, setOpen] = useState(false)
+  const workspaceId = activeWorkspace?.id ?? ""
+  
+  const { isManageSheetOpen: open, setIsManageSheetOpen: setOpen } = useTeamPageStore()
   const [name, setName] = useState(initialName)
   const [description, setDescription] = useState(initialDescription)
-  const [members, setMembers] = useState<TeamMemberResponse[]>([])
-  const [allOrgMembers, setAllOrgMembers] = useState<MemberResponse[]>([])
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [addingMemberId, setAddingMemberId] = useState<string | null>(null)
+  const [showAddMember, setShowAddMember] = useState(false)
 
-  // Fetch live team members and org members when the sheet opens
-  const loadData = useCallback(async () => {
-    if (!open || !teamId) return
-    setLoading(true)
-    try {
-      const teamMembersList = await getTeamMembers(teamId)
-      setMembers(teamMembersList)
+  const { user } = useAuthStore()
+  const { canManageTeam } = usePermission()
 
-      if (activeWorkspace?.tenantId) {
-        const orgMembersList = await getOrganizationMembers(activeWorkspace.tenantId)
-        setAllOrgMembers(orgMembersList)
-      }
-    } catch (err: unknown) {
-      toast.error((err as Error).message || "Failed to load team data")
-    } finally {
-      setLoading(false)
-    }
-  }, [open, teamId, activeWorkspace?.tenantId])
+  const { data: members = [], isLoading: loadingMembers } = useQuery({
+    queryKey: ["teamMembers", teamId],
+    queryFn: () => getTeamMembers(teamId!),
+    enabled: open && !!teamId,
+  })
 
-  useEffect(() => {
-    loadData()
-  }, [loadData])
+  const { data: allWorkspaceMembers = [], isLoading: loadingWorkspaceMembers } = useQuery({
+    queryKey: ["workspaceMembers", workspaceId],
+    queryFn: () => getWorkspaceMembers(workspaceId),
+    enabled: open && !!workspaceId,
+  })
 
-  // Initialize input fields when team settings open
+  const loading = loadingMembers || loadingWorkspaceMembers
+
+  const currentUserTeamRole = members.find(m => m.userId === user?.id)?.role || null
+  const hasTeamManagement = canManageTeam(currentUserTeamRole)
+
   useEffect(() => {
     if (open) {
       setName(initialName)
@@ -92,13 +137,13 @@ export function ManageTeamSheet({
     }
   }, [open, initialName, initialDescription])
 
-  // Add a user to the team
   const handleAddMember = async (userId: string) => {
     if (!teamId) return
     setAddingMemberId(userId)
     try {
-      const added = await addTeamMember(teamId, userId, "MEMBER")
-      setMembers((prev) => [...prev, added])
+      await addTeamMember(teamId, userId, "MEMBER")
+      queryClient.invalidateQueries({ queryKey: ["teamMembers", teamId] })
+      setShowAddMember(false)
       toast.success("Member added to team")
       refresh()
     } catch (err: unknown) {
@@ -108,12 +153,11 @@ export function ManageTeamSheet({
     }
   }
 
-  // Remove a user from the team
   const handleRemoveMember = async (userId: string) => {
     if (!teamId) return
     try {
       await removeTeamMember(teamId, userId)
-      setMembers((prev) => prev.filter((m) => m.userId !== userId))
+      queryClient.invalidateQueries({ queryKey: ["teamMembers", teamId] })
       toast.success("Member removed from team")
       refresh()
     } catch (err: unknown) {
@@ -121,34 +165,24 @@ export function ManageTeamSheet({
     }
   }
 
-  // Update a team member's role (Lead vs Member)
   const handleRoleChange = async (userId: string, newRole: string) => {
     if (!teamId) return
     try {
       await updateTeamMemberRole(teamId, userId, newRole)
-      setMembers((prev) =>
-        prev.map((m) => (m.userId === userId ? { ...m, role: newRole } : m))
-      )
+      queryClient.invalidateQueries({ queryKey: ["teamMembers", teamId] })
       toast.success(`Role updated to ${newRole}`)
     } catch (err: unknown) {
       toast.error((err as Error).message || "Failed to update role")
     }
   }
 
-  // Save changes (Team details: name & description)
   const handleSaveChanges = async () => {
     if (!teamId || !projectId) return
-    if (!name.trim()) {
-      toast.error("Team name cannot be empty")
-      return
-    }
+    if (!name.trim()) { toast.error("Team name cannot be empty"); return }
     setSaving(true)
     try {
-      await updateTeam(projectId, teamId, {
-        name: name.trim(),
-        description: description.trim(),
-        projectId
-      })
+      await updateTeam(workspaceId, teamId, { name: name.trim(), description: description.trim(), workspaceId })
+      queryClient.invalidateQueries({ queryKey: ["workspaceTeams", workspaceId] })
       toast.success("Team settings saved successfully")
       refresh()
       setOpen(false)
@@ -159,12 +193,12 @@ export function ManageTeamSheet({
     }
   }
 
-  // Delete the team cleanly
   const handleDeleteTeam = async () => {
     if (!teamId || !projectId) return
     if (!confirm(`Are you sure you want to delete the team "${name}"?`)) return
     try {
-      await deleteTeam(projectId, teamId)
+      await deleteTeam(workspaceId, teamId)
+      queryClient.invalidateQueries({ queryKey: ["workspaceTeams", workspaceId] })
       toast.success("Team deleted successfully")
       refresh()
       setOpen(false)
@@ -173,192 +207,228 @@ export function ManageTeamSheet({
     }
   }
 
-  // Find candidate users in organization who are not already in this team
-  const availableOrgMembers = allOrgMembers.filter(
-    (orgM) => !members.some((teamM) => teamM.userId === orgM.id)
+  const availableWorkspaceMembers = allWorkspaceMembers.filter(
+    workspaceM => !members.some(teamM => teamM.userId === workspaceM.userId)
   )
-
-  const currentLead = members.find((m) => m.role === "LEAD")
+  const currentLead = members.find(m => m.role === "LEAD")
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        {trigger}
-      </SheetTrigger>
-      <SheetContent className="flex w-[420px] flex-col border-zinc-800 bg-[#1B1B1D] p-0 text-[#E5E1E4] shadow-2xl">
-        <SheetHeader className="border-b border-zinc-800/50 p-6">
-          <SheetTitle className="text-lg font-semibold text-[#E5E1E4]">
-            Manage Team: {name}
-          </SheetTitle>
+      <SheetTrigger asChild>{trigger}</SheetTrigger>
+      <SheetContent
+        className="flex w-[440px] flex-col border-0 bg-hs-card p-0 text-foreground shadow-2xl"
+        style={{ borderLeft: "1px solid var(--border)" }}
+      >
+        {/* ── Header ── */}
+        <SheetHeader className="relative overflow-hidden border-b border-border/5 px-6 pb-5 pt-6">
+          {/* gradient glow backdrop */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-hs-accent/10 via-transparent to-transparent" />
+          <div className="relative flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-hs-accent/15 ring-1 ring-hs-accent/30">
+              <Users className="h-4 w-4 text-hs-accent" />
+            </div>
+            <div>
+              <SheetTitle className="text-base font-semibold text-foreground">
+                {name || "Manage Team"}
+              </SheetTitle>
+              <p className="mt-0.5 text-[11px] text-zinc-500">
+                {members.length} member{members.length !== 1 ? "s" : ""}
+                {currentLead ? ` · Lead: ${currentLead.fullName || currentLead.username}` : ""}
+              </p>
+            </div>
+          </div>
         </SheetHeader>
 
+        {/* ── Body ── */}
         {loading ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+          <div className="flex flex-1 flex-col items-center justify-center gap-3">
+            <div className="relative">
+              <div className="h-10 w-10 rounded-full border border-hs-accent/20 bg-hs-accent/5" />
+              <Loader2 className="absolute inset-0 m-auto h-5 w-5 animate-spin text-hs-accent" />
+            </div>
+            <p className="text-xs text-zinc-600">Loading team data…</p>
           </div>
         ) : (
-          <div className="flex-1 space-y-8 overflow-y-auto p-6 pb-20">
-            {/* TEAM DETAILS */}
-            <section className="space-y-4">
-              <h3 className="text-[10px] font-bold tracking-widest text-zinc-600 uppercase">
-                Team Details
-              </h3>
-              <div className="space-y-4">
+          <div className="flex-1 space-y-1 overflow-y-auto px-3 py-3 pb-24 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-800">
+
+            {/* ── Section: Team Details ── */}
+            <div className="rounded-xl border border-border/5 bg-hs-main/10 p-4">
+              <p className="mb-3 text-[10px] font-bold tracking-widest text-zinc-600 uppercase">Team Details</p>
+              <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-500">
-                    Team Name
-                  </label>
+                  <label className="text-[11px] font-medium text-zinc-500">Name</label>
                   <Input
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="h-9 border-zinc-800 bg-[#0E0E10] text-sm focus:border-violet-500/50 focus:ring-0 text-[#E5E1E4]"
+                    onChange={e => setName(e.target.value)}
+                    placeholder="Team name"
+                    disabled={!hasTeamManagement || saving || loading}
+                    className="h-9 border-border/50 bg-hs-main text-sm text-foreground placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-hs-accent/50 focus-visible:ring-offset-0 disabled:opacity-50"
+                    style={{ borderColor: "var(--border)" }}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-500">
-                    Description
-                  </label>
+                  <label className="text-[11px] font-medium text-zinc-500">Description</label>
                   <Textarea
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="min-h-[100px] resize-none border-zinc-800 bg-[#0E0E10] text-sm focus:border-violet-500/50 focus:ring-0 text-[#E5E1E4]"
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="What does this team do?"
+                    disabled={!hasTeamManagement || saving || loading}
+                    className="min-h-[80px] resize-none border-border/50 bg-hs-main text-sm text-foreground placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-hs-accent/50 focus-visible:ring-offset-0 disabled:opacity-50"
+                    style={{ borderColor: "var(--border)" }}
                   />
                 </div>
-                {members.length > 0 && (
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-500">
-                      Team Lead
-                    </label>
-                    <Select 
-                      value={currentLead?.userId || "none"}
-                      onValueChange={(userId) => {
-                        if (userId !== "none") {
-                          handleRoleChange(userId, "LEAD")
-                          // Demote other leads
-                          members.forEach((m) => {
-                            if (m.role === "LEAD" && m.userId !== userId) {
-                              handleRoleChange(m.userId, "MEMBER")
-                            }
-                          })
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="h-9 border-zinc-800 bg-[#0E0E10] text-sm text-[#E5E1E4]">
-                        <SelectValue placeholder="Select Team Lead" />
-                      </SelectTrigger>
-                      <SelectContent className="border-zinc-800 bg-[#1B1B1D] text-[#E5E1E4]">
-                        <SelectItem value="none">No Team Lead Assigned</SelectItem>
-                        {members.map((m) => (
-                          <SelectItem key={m.userId} value={m.userId}>
-                            {m.fullName || m.username}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
               </div>
-            </section>
+            </div>
 
-            {/* MEMBERS */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[10px] font-bold tracking-widest text-zinc-600 uppercase">
-                  Members ({members.length})
-                </h3>
-                {availableOrgMembers.length > 0 && (
-                  <Select onValueChange={(userId) => handleAddMember(userId)}>
-                    <SelectTrigger className="h-7 w-32 border-zinc-800 bg-transparent text-[10px] text-violet-400 hover:text-violet-300">
-                      <SelectValue placeholder="+ Add Member" />
-                    </SelectTrigger>
-                    <SelectContent className="border-zinc-800 bg-[#1B1B1D] text-[#E5E1E4]">
-                      {availableOrgMembers.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.fullName || user.username}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            {/* ── Section: Members ── */}
+            <div className="rounded-xl border border-border/5 bg-hs-main/10 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-[10px] font-bold tracking-widest text-zinc-600 uppercase">
+                  Members <span className="ml-1 rounded-full bg-zinc-800 px-1.5 py-0.5 text-[9px] text-zinc-400">{members.length}</span>
+                </p>
+                {hasTeamManagement && availableWorkspaceMembers.length > 0 && (
+                  <button
+                    onClick={() => setShowAddMember(v => !v)}
+                    className="flex items-center gap-1 rounded-lg border border-hs-accent/20 bg-hs-accent/10 px-2.5 py-1 text-[10px] font-semibold text-hs-accent transition-all hover:bg-hs-accent/20"
+                  >
+                    <UserPlus className="h-3 w-3" />
+                    Add
+                    <ChevronDown className={cn("h-2.5 w-2.5 transition-transform", showAddMember && "rotate-180")} />
+                  </button>
                 )}
               </div>
-              <div className="space-y-3">
-                {members.length > 0 ? members.map((member) => (
+
+              {/* Add member dropdown */}
+              {showAddMember && availableWorkspaceMembers.length > 0 && (
+                <div className="mb-3 rounded-lg border border-border/5 bg-hs-main p-1">
+                  {availableWorkspaceMembers.map(user => (
+                    <button
+                      key={user.userId}
+                      disabled={addingMemberId === user.userId}
+                      onClick={() => handleAddMember(user.userId)}
+                      className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm transition-colors hover:bg-white/5 disabled:opacity-50"
+                    >
+                      <div className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[9px] font-bold text-white", getAvatarColor(user.userId))}>
+                        {getInitials(user.fullName || user.username || "?")}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-zinc-200">{user.fullName || user.username}</p>
+                        <p className="truncate text-[10px] text-zinc-600">{user.email}</p>
+                      </div>
+                      {addingMemberId === user.userId ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-hs-accent" />
+                      ) : (
+                        <Plus className="h-3 w-3 text-zinc-600" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Member list */}
+              <div className="space-y-1">
+                {members.length > 0 ? members.map(member => (
                   <div
                     key={member.userId}
-                    className="group flex items-center justify-between"
+                    className="group flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-white/[0.03]"
                   >
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-7 w-7 border border-zinc-700/50">
-                        <AvatarFallback className="bg-zinc-800 text-[10px] text-zinc-400 font-bold">
-                          {(member.fullName || member.username || "M").substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col">
-                        <span className="text-sm text-zinc-300">{member.fullName || member.username}</span>
-                        <span className="text-[9px] text-zinc-600 font-mono">{member.email}</span>
-                      </div>
+                    <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[10px] font-bold text-white ring-2 ring-black", getAvatarColor(member.userId))}>
+                      {getInitials(member.fullName || member.username || "?")}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold text-zinc-200">{member.fullName || member.username}</p>
+                      <p className="truncate text-[10px] text-zinc-600">{member.email}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
                       <Select
                         value={member.role}
-                        onValueChange={(val) => handleRoleChange(member.userId, val)}
+                        onValueChange={val => handleRoleChange(member.userId, val)}
+                        disabled={!hasTeamManagement}
                       >
-                        <SelectTrigger className="h-7 w-24 border-zinc-800 bg-transparent text-[10px] text-[#E5E1E4]">
-                          <SelectValue />
+                        <SelectTrigger className="h-6 w-auto gap-1 border-0 bg-transparent p-0 text-[10px] shadow-none focus:ring-0">
+                          <RoleBadge role={member.role} />
                         </SelectTrigger>
-                        <SelectContent className="border-zinc-800 bg-[#1B1B1D] text-[#E5E1E4]">
-                          <SelectItem value="LEAD">Lead</SelectItem>
-                          <SelectItem value="MEMBER">Member</SelectItem>
+                        <SelectContent className="border-border/50 bg-hs-card text-foreground">
+                          <SelectItem value="LEAD">
+                            <span className="flex items-center gap-1.5">
+                              <Crown className="h-3 w-3 text-amber-500" /> Lead
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="MEMBER">
+                            <span className="flex items-center gap-1.5">
+                              <Shield className="h-3 w-3 text-hs-accent" /> Member
+                            </span>
+                          </SelectItem>
                         </SelectContent>
                       </Select>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveMember(member.userId)}
-                        className="h-7 w-7 text-zinc-600 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-400"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
+                      {hasTeamManagement && (
+                        <button
+                          onClick={() => handleRemoveMember(member.userId)}
+                          className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-700 opacity-0 transition-all hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )) : (
-                  <p className="text-xs text-zinc-600 text-center py-4 border border-dashed border-zinc-800/80 rounded-xl">
-                    No members on this team yet. Add one from above!
-                  </p>
+                  <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-zinc-800/60 py-8">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900">
+                      <Users className="h-4 w-4 text-zinc-700" />
+                    </div>
+                    <p className="text-xs text-zinc-600">No members yet</p>
+                    <p className="text-[10px] text-zinc-700">Add someone using the button above</p>
+                  </div>
                 )}
               </div>
-            </section>
+            </div>
 
-            {/* DANGER ZONE */}
-            <section className="space-y-4 rounded-[20px] border border-red-500/10 bg-red-500/5 p-4">
-              <div className="space-y-1">
-                <h3 className="text-xs font-semibold text-red-400">
-                  Danger Zone
-                </h3>
-                <p className="text-[11px] text-zinc-500">
-                  Deleting this team will completely remove it from the project workspace. Members will still belong to the organization.
-                </p>
+            {/* ── Section: Danger Zone ── */}
+            {hasTeamManagement && (
+              <div className="rounded-xl border border-red-500/10 bg-red-500/[0.03] p-4">
+                <div className="mb-3 flex items-start gap-2">
+                  <Trash2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500/60" />
+                  <div>
+                    <p className="text-xs font-semibold text-red-400">Delete Team</p>
+                    <p className="mt-0.5 text-[10px] leading-relaxed text-zinc-600">
+                      This will permanently remove the team. Members will remain in the organization.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleDeleteTeam}
+                  className="w-full rounded-lg border border-red-500/15 bg-red-500/5 py-2 text-xs font-semibold text-red-500/80 transition-all hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
+                >
+                  Delete this team
+                </button>
               </div>
-              <Button
-                variant="outline"
-                onClick={handleDeleteTeam}
-                className="h-8 w-full border-red-400/30 text-xs text-red-400 transition-colors hover:bg-red-400 hover:text-white"
-              >
-                Delete Team
-              </Button>
-            </section>
+            )}
+
           </div>
         )}
 
-        <div className="mt-auto border-t border-zinc-800/50 bg-[#1B1B1D] p-6">
-          <Button 
-            onClick={handleSaveChanges}
-            disabled={saving || loading}
-            className="w-full rounded-md bg-gradient-to-br from-violet-500 to-violet-600 py-5 text-xs font-bold tracking-wider text-white uppercase shadow-lg shadow-violet-500/20 transition-all duration-300 hover:from-violet-600 hover:to-violet-700 flex items-center justify-center gap-2"
-          >
-            {saving ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : "Save Changes"}
-          </Button>
-        </div>
+        {/* ── Footer: Save Button ── */}
+        {hasTeamManagement && (
+          <div className="absolute bottom-0 left-0 right-0 border-t border-border/5 bg-hs-card/90 p-4 backdrop-blur-sm">
+            <Button
+              onClick={handleSaveChanges}
+              disabled={saving || loading}
+              className="relative w-full overflow-hidden rounded-xl bg-hs-accent py-5 text-xs font-bold tracking-widest text-white uppercase shadow-lg shadow-hs-accent/20 transition-all hover:opacity-90 hover:shadow-hs-accent/30 disabled:opacity-50"
+            >
+              {saving ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving…
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Save className="h-3.5 w-3.5" />
+                  Save Changes
+                </span>
+              )}
+            </Button>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   )

@@ -38,6 +38,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/register", "/login").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/share/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/i/*").permitAll()
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/error").permitAll()
@@ -74,7 +75,9 @@ public class SecurityConfig {
             "X-Requested-With", 
             "Origin",
             "Access-Control-Request-Method",
-            "Access-Control-Request-Headers"
+            "Access-Control-Request-Headers",
+            "X-Tenant-Id",
+            "x-tenant-id"
         ));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
         configuration.setAllowCredentials(true);

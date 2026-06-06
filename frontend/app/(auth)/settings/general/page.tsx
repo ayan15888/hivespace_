@@ -49,7 +49,7 @@ export default function GeneralSettings() {
               </Label>
               <div className="flex h-9">
                 <div className="flex items-center bg-zinc-700 text-zinc-500 text-sm px-3 border border-zinc-700 rounded-l-md border-r-0">
-                  hivespace.io/acme/
+                  {process.env.NEXT_PUBLIC_APP_DOMAIN || "hivespace.app"}/acme/
                 </div>
                 <Input
                   defaultValue="engineering"

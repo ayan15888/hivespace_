@@ -22,11 +22,15 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { createTask, TaskRequest } from "@/lib/api/tasks";
+import { getProjectMembers, getProjectTeamMembers, ProjectMemberResponse, getProjectTeams, addProjectMember } from "@/lib/api/projects";
+import { getTeamMembers, TeamResponse } from "@/lib/api/teams";
+import { columnNameToStatus, priorityToBackend } from "@/lib/taskUtils";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useProjects } from "@/hooks/useProjects";
 import { useTaskStore } from "@/store/taskStore";
+import { useAuthStore } from "@/store/authStore";
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -43,20 +47,158 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
   const [projectId, setProjectId] = useState(initialProjectId || "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState(defaultStatus || "Todo");
+  const [status, setStatus] = useState("Todo");
   const [priority, setPriority] = useState("normal");
   const [dueDate, setDueDate] = useState("");
+  const [labels, setLabels] = useState("");
+  const [points, setPoints] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState(false);
 
-  // Reset fields when modal opens or initialProjectId changes
+  // Teams-related state
+  const [projectTeams, setProjectTeams] = useState<TeamResponse[]>([]);
+  const [teamId, setTeamId] = useState("");
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [addingTeamMembers, setAddingTeamMembers] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !projectId) {
+      setProjectMembers([]);
+      setMembersLoading(false);
+      setMembersError(false);
+      return;
+    }
+    setMembersLoading(true);
+    setMembersError(false);
+    Promise.all([
+      getProjectMembers(projectId),
+      getProjectTeamMembers(projectId).catch(() => [])
+    ])
+      .then(([directMembers, teamMembers]) => {
+        const merged = [...directMembers];
+        teamMembers.forEach((tm) => {
+          if (!merged.some((dm) => dm.userId === tm.userId)) {
+            merged.push(tm);
+          }
+        });
+        setProjectMembers(merged);
+        setMembersLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load project members:", err);
+        setProjectMembers([]);
+        setMembersLoading(false);
+        setMembersError(true);
+      });
+  }, [isOpen, projectId]);
+
+  useEffect(() => {
+    if (!isOpen || !projectId) {
+      setProjectTeams([]);
+      setTeamId("");
+      setTeamMembers([]);
+      return;
+    }
+    getProjectTeams(projectId)
+      .then((data) => {
+        setProjectTeams(data);
+      })
+      .catch((err) => {
+        console.error("Failed to load project teams:", err);
+        setProjectTeams([]);
+      });
+  }, [isOpen, projectId]);
+
+  useEffect(() => {
+    if (!teamId) {
+      setTeamMembers([]);
+      return;
+    }
+    getTeamMembers(teamId)
+      .then((data) => {
+        setTeamMembers(data);
+      })
+      .catch((err) => {
+        console.error("Failed to load team members:", err);
+        setTeamMembers([]);
+      });
+  }, [teamId]);
+
+  const nonProjectTeamMembers = teamMembers.filter(
+    (tm) => !projectMembers.some((pm) => pm.userId === tm.userId)
+  );
+
+  const handleAddTeamMembersToProject = async () => {
+    if (nonProjectTeamMembers.length === 0) return;
+    setAddingTeamMembers(true);
+    try {
+      await Promise.all(
+        nonProjectTeamMembers.map((tm) =>
+          addProjectMember(projectId, tm.userId, "MEMBER")
+        )
+      );
+      toast.success("Added team members to project");
+      const updatedMembers = await getProjectMembers(projectId);
+      setProjectMembers(updatedMembers);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add some team members to project");
+    } finally {
+      setAddingTeamMembers(false);
+    }
+  };
+
+  const { user } = useAuthStore();
+  const currentUserProjectMember = projectMembers.find(m => m.userId === user?.id);
+  const projectRole = currentUserProjectMember?.role || null;
+
+  // Resolve dynamic task creation permission configured by admin
+  let allowedRoles = ["MEMBER", "LEAD"];
+  if (typeof window !== "undefined") {
+    try {
+      const saved = window.localStorage.getItem("hivespace_roles_permissions");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const projectMatrix = parsed?.project?.matrix;
+        if (projectMatrix) {
+          const createRow = projectMatrix.find((row: any) => row.action === "Create & Dispatch Tasks");
+          if (createRow) {
+            allowedRoles = createRow.rolesGranted;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse roles permissions in CreateTaskModal", e);
+    }
+  }
+
+  const canCreate = !projectId || membersLoading || 
+                    (!membersError && projectMembers.length === 0) || 
+                    (projectRole ? allowedRoles.includes(projectRole) : false);
+
+  // Reset fields when modal opens or initialProjectId/defaultStatus changes
   useEffect(() => {
     if (isOpen) {
+      setTitle("");
+      setDescription("");
+      setStatus(defaultStatus || "Todo");
+      setPriority("normal");
+      setDueDate("");
+      setLabels("");
+      setPoints("");
+      setAssigneeId("");
+      setTeamId("");
+      setTeamMembers([]);
+      
       if (initialProjectId) {
         setProjectId(initialProjectId);
-      } else if (projects.length > 0 && !projectId) {
+      } else if (projects.length > 0) {
         setProjectId(projects[0].id);
       }
     }
-  }, [isOpen, initialProjectId, projects, projectId]);
+  }, [isOpen, initialProjectId, projects, defaultStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,11 +210,15 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
     setLoading(true);
     try {
       const taskData: TaskRequest = {
-        title,
-        description,
-        status,
-        priority,
-        dueDate: dueDate || undefined,
+        title: title.trim(),
+        description: description.trim() || undefined,
+        status: columnNameToStatus(status),
+        priority: priorityToBackend(priority),
+        dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+        labels: labels.trim() || undefined,
+        points: points ? Number(points) : undefined,
+        assigneeId: assigneeId || undefined,
+        teamId: teamId || undefined,
       };
 
       const newTask = await createTask(projectId, taskData);
@@ -86,11 +232,16 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       setStatus(defaultStatus || "Todo");
       setPriority("normal");
       setDueDate("");
+      setLabels("");
+      setPoints("");
+      setAssigneeId("");
+      setTeamId("");
+      setTeamMembers([]);
       onSuccess?.();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create task:", error);
-      toast.error("Failed to create task. Please try again.");
+      toast.error(error instanceof Error ? error.message : "Failed to create task. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -115,6 +266,11 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                 </DialogHeader>
 
                 <div className="grid gap-4 p-6">
+                  {!canCreate && (
+                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl flex items-center gap-2 mb-2 animate-pulse">
+                      <span>⚠️ You do not have permission to create tasks in this project.</span>
+                    </div>
+                  )}
                   {!initialProjectId && (
                     <div className="grid gap-2">
                       <Label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Project</Label>
@@ -193,6 +349,105 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                       disabled={loading}
                     />
                   </div>
+                  {projectId && projectTeams.length > 0 && (
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Team (optional)</Label>
+                      <Select value={teamId || "default"} onValueChange={(v) => setTeamId(v === "default" ? "" : v)} disabled={loading}>
+                        <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
+                          <SelectValue placeholder="Select team label" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-hs-main border-border text-foreground">
+                          <SelectItem value="default">No team</SelectItem>
+                          {projectTeams.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {teamId && nonProjectTeamMembers.length > 0 && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs p-3 rounded-xl flex flex-col gap-2 animate-fade-in">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">
+                          {projectTeams.find(t => t.id === teamId)?.name} is assigned to this project.
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-amber-500/80">
+                        Team members not yet added to this project:{" "}
+                        <span className="font-semibold text-amber-400">
+                          {nonProjectTeamMembers.map(tm => tm.fullName || tm.username).join(", ")}
+                        </span>
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddTeamMembersToProject}
+                        disabled={addingTeamMembers}
+                        className="bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-300 font-semibold self-start text-[10px] h-7 px-3 rounded-lg"
+                      >
+                        {addingTeamMembers ? (
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        ) : null}
+                        Add all to project
+                      </Button>
+                    </div>
+                  )}
+
+                  {projectId && projectMembers.length > 0 && (
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Owner (optional)</Label>
+                      <Select value={assigneeId || "default"} onValueChange={(v) => setAssigneeId(v === "default" ? "" : v)} disabled={loading}>
+                        <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
+                          <SelectValue placeholder="Assign to yourself" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-hs-main border-border text-foreground">
+                          <SelectItem value="default">Me (creator)</SelectItem>
+                          {[...projectMembers]
+                            .sort((a, b) => a.belongsToAssignedTeam === b.belongsToAssignedTeam ? 0 : a.belongsToAssignedTeam ? -1 : 1)
+                            .map((m) => (
+                              <SelectItem key={m.userId} value={m.userId}>
+                                <div className="flex items-center justify-between w-full gap-2">
+                                  <span>{m.fullName}</span>
+                                  {m.belongsToAssignedTeam && (
+                                    <span className="text-[8px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider ml-2">Team</span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="labels" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Labels</Label>
+                      <Input
+                        id="labels"
+                        value={labels}
+                        onChange={(e) => setLabels(e.target.value)}
+                        placeholder="frontend, bug"
+                        className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground"
+                        disabled={loading}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="points" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Points</Label>
+                      <Input
+                        id="points"
+                        type="number"
+                        min={0}
+                        value={points}
+                        onChange={(e) => setPoints(e.target.value)}
+                        placeholder="3"
+                        className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <DialogFooter className="p-6 pt-2">
@@ -208,7 +463,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                   <Button 
                     type="submit" 
                     className="bg-primary hover:opacity-90 text-primary-foreground rounded-xl px-8"
-                    disabled={loading}
+                    disabled={loading || !canCreate}
                   >
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Task"}
                   </Button>

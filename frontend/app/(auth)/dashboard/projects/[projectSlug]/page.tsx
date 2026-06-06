@@ -32,12 +32,26 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
-import { useTeams } from "@/hooks/useTeams";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
 import { useState, useEffect, useCallback } from "react";
-import { CreateTeamModal } from "@/components/features/teams/CreateTeamModal";
-import { ManageTeamSheet } from "@/components/features/teams/ManageTeamSheet";
-import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
+import { 
+  getProjectMembers, 
+  ProjectMemberResponse,
+  getProjectTeams,
+  assignProjectTeam,
+  unassignProjectTeam
+} from "@/lib/api/projects";
+import { getTeamsByWorkspace, TeamResponse } from "@/lib/api/teams";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useShareStore } from "@/store/shareStore";
+import { useOrgStore } from "@/store/orgStore";
 
 // --- MOCK DATA ---
 
@@ -64,15 +78,108 @@ const RECENT_PRs = [
 
 export default function ProjectOverviewPage() {
   const params = useParams();
-  const { projects } = useProjects();
-  const projectSlug = params?.projectSlug as string || "sprint-3";
+  const { projects, refreshProjects } = useProjects();
+  const projectId = params?.projectSlug as string || "";
 
-  const currentProject = projects.find(p => p.slug === projectSlug || p.id === projectSlug);
+  const currentProject = projects.find(p => p.id === projectId);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
-  
-  const { teams, refresh: refreshTeams } = useTeams();
-  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+
+  // Share store integration
+  const { shareLinks, fetchOrCreateShareLink, revokeProjectShareLink } = useShareStore();
+  const { activeOrg } = useOrgStore();
+
+  const activeLink = currentProject ? shareLinks[currentProject.id] : null;
+
+  useEffect(() => {
+    if (currentProject?.id) {
+      fetchOrCreateShareLink(currentProject.id);
+    }
+  }, [currentProject?.id, fetchOrCreateShareLink]);
+
+  const handleCopyLink = () => {
+    if (!activeLink || !activeOrg) return;
+    const shareUrl = `${window.location.origin}/share/${activeOrg.slug}/project/${activeLink.token}`;
+    navigator.clipboard.writeText(shareUrl);
+    toast.success("Public share link copied to clipboard!");
+  };
+
+  const handleRevoke = async () => {
+    if (!currentProject?.id || !activeLink) return;
+    try {
+      await revokeProjectShareLink(currentProject.id, activeLink.id);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!currentProject?.id) return;
+    try {
+      await fetchOrCreateShareLink(currentProject.id);
+      toast.success("Share link generated successfully!");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Dialog State
+  const [isTeamsDialogOpen, setIsTeamsDialogOpen] = useState(false);
+  const [assignedTeams, setAssignedTeams] = useState<TeamResponse[]>([]);
+  const [allWorkspaceTeams, setAllWorkspaceTeams] = useState<TeamResponse[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [selectedTeamToAssign, setSelectedTeamToAssign] = useState("");
+
+  const loadTeamsInfo = useCallback(async () => {
+    if (!currentProject?.id || !currentProject?.workspaceId) return;
+    setLoadingTeams(true);
+    try {
+      const [assigned, all] = await Promise.all([
+        getProjectTeams(currentProject.id),
+        getTeamsByWorkspace(currentProject.workspaceId)
+      ]);
+      setAssignedTeams(assigned);
+      setAllWorkspaceTeams(all);
+    } catch (err) {
+      console.error("Failed to load teams", err);
+      toast.error("Failed to load team assignments");
+    } finally {
+      setLoadingTeams(false);
+    }
+  }, [currentProject?.id, currentProject?.workspaceId]);
+
+  useEffect(() => {
+    if (isTeamsDialogOpen) {
+      loadTeamsInfo();
+    }
+  }, [isTeamsDialogOpen, loadTeamsInfo]);
+
+  const handleAssignTeam = async () => {
+    if (!currentProject?.id || !selectedTeamToAssign) return;
+    try {
+      await assignProjectTeam(currentProject.id, selectedTeamToAssign);
+      toast.success("Team assigned successfully");
+      setSelectedTeamToAssign("");
+      loadTeamsInfo();
+      refreshProjects();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to assign team");
+    }
+  };
+
+  const handleUnassignTeam = async (teamId: string) => {
+    if (!currentProject?.id) return;
+    try {
+      await unassignProjectTeam(currentProject.id, teamId);
+      toast.success("Team unassigned successfully");
+      loadTeamsInfo();
+      refreshProjects();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to unassign team");
+    }
+  };
 
   const fetchProjectMembers = useCallback(async () => {
     if (!currentProject?.id) return;
@@ -88,10 +195,11 @@ export default function ProjectOverviewPage() {
     fetchProjectMembers();
   }, [fetchProjectMembers]);
 
-  const displayTitle = currentProject?.name || projectSlug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const displayTitle = currentProject?.name || "Project";
+
+  const unassignedTeams = allWorkspaceTeams.filter(
+    (wt) => !assignedTeams.some((at) => at.id === wt.id)
+  );
 
   return (
     <ScrollArea className="h-screen w-full bg-background text-foreground">
@@ -106,11 +214,11 @@ export default function ProjectOverviewPage() {
         </div>
 
         <nav className="flex h-full items-center gap-6">
-          <Link href={`/dashboard/projects/${projectSlug}`} className="relative flex h-full items-center px-1 text-sm font-medium text-foreground">
+          <Link href={`/dashboard/projects/${projectId}`} className="relative flex h-full items-center px-1 text-sm font-medium text-foreground">
             Overview
             <div className="absolute bottom-0 left-0 h-[2px] w-full" style={{ backgroundColor: themeColor }} />
           </Link>
-          <Link href={`/dashboard/projects/${projectSlug}/board`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <Link href={`/dashboard/projects/${projectId}/board`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Board
           </Link>
           <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -125,7 +233,10 @@ export default function ProjectOverviewPage() {
           <Link href="/dashboard/docs" className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Docs
           </Link>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <button 
+            onClick={() => setIsTeamsDialogOpen(true)}
+            className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
             Settings
           </button>
         </nav>
@@ -173,15 +284,20 @@ export default function ProjectOverviewPage() {
               {projectMembers.length > 0 ? (
                 <>
                   {projectMembers.slice(0, 5).map((member, i) => (
-                    <Avatar key={member.id} className={cn(
-                      "h-8 w-8 ring-4 ring-background -ml-2.5 first:ml-0 bg-muted border border-border/50 relative group",
-                      i === 0 && "z-10",
-                      i === 1 && "z-20",
-                      i === 2 && "z-30",
-                      i === 3 && "z-40",
-                      i === 4 && "z-50",
-                      member.role === "LEAD" && "border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
-                    )}>
+                    <Avatar 
+                      key={member.id} 
+                      className={cn(
+                        "h-8 w-8 ring-4 ring-background -ml-2.5 first:ml-0 bg-muted border border-border/50 relative group",
+                        i === 0 && "z-10",
+                        i === 1 && "z-20",
+                        i === 2 && "z-30",
+                        i === 3 && "z-40",
+                        i === 4 && "z-50",
+                        member.role === "LEAD" && "border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                      )}
+                      username={member.fullName || member.username}
+                      email={member.email || `${member.username.toLowerCase()}@hivespace.io`}
+                    >
                       <AvatarFallback className={cn("bg-muted text-[10px] text-muted-foreground font-bold", member.role === "LEAD" && "text-amber-500")}>
                         {member.fullName ? member.fullName.substring(0, 2).toUpperCase() : member.username.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
@@ -208,9 +324,14 @@ export default function ProjectOverviewPage() {
                 <Share2 className="h-3.5 w-3.5 mr-2" strokeWidth={1.5} />
                 Share
               </Button>
-              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+                onClick={() => setIsTeamsDialogOpen(true)}
+              >
                 <Settings className="h-3.5 w-3.5 mr-2" strokeWidth={1.5} />
-                Edit Project
+                Manage Teams
               </Button>
             </div>
           </div>
@@ -270,7 +391,7 @@ export default function ProjectOverviewPage() {
           <section className="flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold tracking-widest text-zinc-600 uppercase">Recent Tasks</h3>
-              <Link href={`/dashboard/projects/${projectSlug}/board`} className="text-[11px] font-semibold hover:opacity-80 transition-opacity flex items-center gap-1 group" style={{ color: themeColor }}>
+              <Link href={`/dashboard/projects/${projectId}/board`} className="text-[11px] font-semibold hover:opacity-80 transition-opacity flex items-center gap-1 group" style={{ color: themeColor }}>
                 View board <ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
@@ -290,9 +411,20 @@ export default function ProjectOverviewPage() {
                     <Badge className={cn("border-none text-[10px] font-bold h-5 uppercase tracking-wide", task.statusColor)}>
                       {task.status}
                     </Badge>
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-400 font-bold">{task.assignee}</AvatarFallback>
-                    </Avatar>
+                    {(() => {
+                      const details = {
+                        "MV": { name: "Meera Valenzuela", email: "meera@hivespace.io" },
+                        "RS": { name: "Reid Smith", email: "reid@hivespace.io" },
+                        "RK": { name: "Rajesh Kumar", email: "rajesh@hivespace.io" },
+                        "SA": { name: "Sarah Adams", email: "sarah@hivespace.io" },
+                        "DK": { name: "David K.", email: "david@hivespace.io" }
+                      }[task.assignee] || { name: task.assignee, email: `${task.assignee.toLowerCase()}@hivespace.io` };
+                      return (
+                        <Avatar className="h-6 w-6" username={details.name} email={details.email}>
+                          <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-400 font-bold">{task.assignee}</AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -325,9 +457,20 @@ export default function ProjectOverviewPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-xs text-zinc-500 font-mono italic">edited {doc.edited}</span>
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-400 font-bold">{doc.author}</AvatarFallback>
-                    </Avatar>
+                    {(() => {
+                      const details = {
+                        "MV": { name: "Meera Valenzuela", email: "meera@hivespace.io" },
+                        "RS": { name: "Reid Smith", email: "reid@hivespace.io" },
+                        "RK": { name: "Rajesh Kumar", email: "rajesh@hivespace.io" },
+                        "SA": { name: "Sarah Adams", email: "sarah@hivespace.io" },
+                        "DK": { name: "David K.", email: "david@hivespace.io" }
+                      }[doc.author] || { name: doc.author, email: `${doc.author.toLowerCase()}@hivespace.io` };
+                      return (
+                        <Avatar className="h-6 w-6" username={details.name} email={details.email}>
+                          <AvatarFallback className="bg-zinc-800 text-[9px] text-zinc-400 font-bold">{doc.author}</AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -341,7 +484,7 @@ export default function ProjectOverviewPage() {
               <div className="absolute left-3.5 top-2 bottom-4 w-px bg-zinc-800" />
               
               <div className="relative flex gap-4">
-                <Avatar className="h-7 w-7 ring-4 ring-[#000000] absolute -left-10 z-10">
+                <Avatar className="h-7 w-7 ring-4 ring-[#000000] absolute -left-10 z-10" username="Meera Valenzuela" email="meera@hivespace.io">
                   <AvatarFallback className="bg-zinc-800 text-[10px] text-zinc-400">MV</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col gap-1">
@@ -365,7 +508,7 @@ export default function ProjectOverviewPage() {
               </div>
 
               <div className="relative flex gap-4">
-                 <Avatar className="h-7 w-7 ring-4 ring-[#000000] absolute -left-10 z-10">
+                 <Avatar className="h-7 w-7 ring-4 ring-[#000000] absolute -left-10 z-10" username="David K." email="david@hivespace.io">
                   <AvatarFallback className="bg-zinc-800 text-[10px] text-zinc-400">DK</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col gap-1">
@@ -427,9 +570,20 @@ export default function ProjectOverviewPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5">
-                          <AvatarFallback className="bg-zinc-800 text-[8px] text-zinc-400 font-bold">{pr.author}</AvatarFallback>
-                        </Avatar>
+                        {(() => {
+                          const details = {
+                            "MV": { name: "Meera Valenzuela", email: "meera@hivespace.io" },
+                            "RS": { name: "Reid Smith", email: "reid@hivespace.io" },
+                            "RK": { name: "Rajesh Kumar", email: "rajesh@hivespace.io" },
+                            "SA": { name: "Sarah Adams", email: "sarah@hivespace.io" },
+                            "DK": { name: "David K.", email: "david@hivespace.io" }
+                          }[pr.author] || { name: pr.author, email: `${pr.author.toLowerCase()}@hivespace.io` };
+                          return (
+                            <Avatar className="h-5 w-5" username={details.name} email={details.email}>
+                              <AvatarFallback className="bg-zinc-800 text-[8px] text-zinc-400 font-bold">{pr.author}</AvatarFallback>
+                            </Avatar>
+                          );
+                        })()}
                         <span className="text-[10px] text-zinc-600 font-mono">{pr.time}</span>
                       </div>
                     </div>
@@ -442,78 +596,55 @@ export default function ProjectOverviewPage() {
             </div>
           </section>
 
-          {/* Teams */}
-          <section className="flex flex-col">
-            <div className="flex items-center justify-between mb-4 px-2">
-              <h3 className="text-xs font-bold tracking-widest text-zinc-600 uppercase">Teams</h3>
-              <PlusCircle 
-                onClick={() => setIsCreateTeamOpen(true)}
-                className="h-4 w-4 text-zinc-500 hover:text-white cursor-pointer transition-colors" 
-                strokeWidth={1.5} 
-              />
-            </div>
-            <div className="flex flex-col gap-2.5">
-              {teams.length > 0 ? teams.map(team => (
-                <ManageTeamSheet
-                  key={team.id}
-                  teamId={team.id}
-                  projectId={currentProject?.id || ""}
-                  teamName={team.name}
-                  teamDescription={team.description}
-                  refresh={refreshTeams}
-                  trigger={
-                    <div className="bg-[#1C1B1F] p-4 rounded-[20px] border border-zinc-800/30 hover:bg-[#252429] transition-all cursor-pointer group">
-                       <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                              <div className="h-9 w-9 rounded-lg bg-background border border-border flex items-center justify-center text-muted-foreground group-hover:opacity-80 transition-colors" style={{ color: themeColor }}>
-                                <Users className="h-4 w-4" strokeWidth={1.5} />
-                              </div>
-                             <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-foreground">{team.name}</span>
-                                <span className="text-[10px] text-zinc-500">{team.membersCount} members</span>
-                             </div>
-                          </div>
-                          <div className="flex items-center">
-                             <div className="h-8 w-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] text-zinc-500 font-medium">
-                               {team.membersCount}
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                  }
-                />
-              )) : (
-                <div className="text-center p-6 border border-dashed border-zinc-800/80 rounded-[20px] text-zinc-500 text-xs">
-                   No teams found. Click the + icon to create one.
-                </div>
-              )}
-            </div>
-          </section>
+
 
           {/* Stakeholder Share */}
-          <section className="flex flex-col bg-[#1C1B1F] rounded-[28px] border border-zinc-800/30 p-6 shadow-2xl shadow-black/40">
+          <section className="flex flex-col bg-[#1C1B1F] rounded-[28px] border border-zinc-800/30 p-6 shadow-2xl shadow-black/40 animate-in fade-in duration-300">
              <div className="flex items-center justify-between mb-4 px-2">
                 <h3 className="text-xs font-bold tracking-widest text-zinc-600 uppercase">Stakeholder Share</h3>
-                <Share2 className="h-4 w-4 text-zinc-500 hover:text-white cursor-pointer transition-colors" strokeWidth={1.5} />
+                <Share2 className="h-4 w-4 text-zinc-500 hover:text-white cursor-pointer transition-colors" strokeWidth={1.5} onClick={handleCopyLink} />
              </div>
              <div className="flex flex-col">
-                <div className="flex items-center gap-2 mb-4">
-                   <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                   <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">Public link active</span>
-                </div>
-                <div className="bg-zinc-950/50 border border-zinc-800 rounded px-3 py-2 flex items-center justify-between mb-4">
-                   <span className="font-mono text-xs text-zinc-600 truncate mr-4">hivespace.io/share/abc123xyz789</span>
-                   <button className="text-zinc-500 hover:text-white transition-colors">
-                      <PlusCircle className="h-3.5 w-3.5 rotate-45" strokeWidth={1.5} />
-                   </button>
-                </div>
-                <div className="flex items-center justify-between">
-                   <span className="text-[10px] text-zinc-600 font-medium">Viewed 12 times in last 7 days</span>
-                   <div className="flex gap-3">
-                      <button className="text-[11px] font-semibold text-zinc-400 hover:text-white transition-colors">Revoke</button>
-                       <button className="text-[11px] font-semibold hover:opacity-80 transition-colors" style={{ color: themeColor }}>Copy link</button>
-                   </div>
-                </div>
+                {activeLink && activeLink.isActive ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                       <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                       <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">Public link active</span>
+                    </div>
+                    <div className="bg-zinc-950/50 border border-zinc-800 rounded px-3 py-2 flex items-center justify-between mb-4">
+                       <span className="font-mono text-xs text-zinc-400 truncate mr-4">
+                         {typeof window !== "undefined" ? `${window.location.origin}/share/${activeOrg?.slug}/project/${activeLink.token}` : ""}
+                       </span>
+                       <button className="text-zinc-500 hover:text-white transition-colors" onClick={handleCopyLink}>
+                          <Link2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                       </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                       <span className="text-[10px] text-zinc-600 font-medium">Expires: Never (active)</span>
+                       <div className="flex gap-3">
+                          <button className="text-[11px] font-semibold text-zinc-400 hover:text-white transition-colors" onClick={handleRevoke}>Revoke</button>
+                          <button className="text-[11px] font-semibold hover:opacity-80 transition-colors" style={{ color: themeColor }} onClick={handleCopyLink}>Copy link</button>
+                       </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                       <div className="h-2 w-2 rounded-full bg-zinc-600" />
+                       <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">No active share link</span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+                      Generate a public, read-only link for external stakeholders to track this project's sprint progress and task status.
+                    </p>
+                    <Button 
+                      className="h-8 font-bold border-none text-[11px] uppercase tracking-wider rounded-md w-full"
+                      style={{ backgroundColor: themeColor, color: "#111113" }}
+                      onClick={handleGenerate}
+                    >
+                      Generate Share Link
+                    </Button>
+                  </>
+                )}
              </div>
           </section>
 
@@ -530,15 +661,80 @@ export default function ProjectOverviewPage() {
         </div>
       </div>
       
-      {currentProject && (
-        <CreateTeamModal 
-          isOpen={isCreateTeamOpen} 
-          projectId={currentProject.id} 
-          themeColor={themeColor}
-          onClose={() => setIsCreateTeamOpen(false)} 
-          onSuccess={refreshTeams} 
-        />
-      )}
+      <Dialog open={isTeamsDialogOpen} onOpenChange={setIsTeamsDialogOpen}>
+        <DialogContent className="bg-[#1B1B1D] border-zinc-800/80 text-foreground max-w-md rounded-2xl p-6 shadow-2xl shadow-black/40">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-foreground">Manage Project Teams</DialogTitle>
+            <DialogDescription className="text-xs text-zinc-400">
+              Assign or remove teams working on this project. Team members are automatically suggested for task assignment.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingTeams ? (
+            <div className="flex h-32 items-center justify-center">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" style={{ borderColor: themeColor, borderTopColor: "transparent" }} />
+            </div>
+          ) : (
+            <div className="mt-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1 font-semibold">Assigned Teams ({assignedTeams.length})</h4>
+                {assignedTeams.length > 0 ? (
+                  assignedTeams.map((team) => (
+                    <div key={team.id} className="flex items-center justify-between p-3 rounded-xl border border-zinc-800/60 bg-zinc-900/40 hover:bg-zinc-900/60 transition-colors">
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1 mr-2">
+                        <span className="text-sm font-semibold text-zinc-100 truncate">{team.name}</span>
+                        <span className="text-xs text-zinc-500 truncate">{team.description || "No description"}</span>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-[9px] text-zinc-400 font-mono uppercase bg-zinc-800 px-2 py-0.5 rounded-full">{team.membersCount} members</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          onClick={() => handleUnassignTeam(team.id)}
+                        >
+                          <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-zinc-500 italic py-2">No teams assigned to this project yet.</p>
+                )}
+              </div>
+
+              <div className="mt-2 border-t border-zinc-800/80 pt-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 font-semibold">Assign Team</h4>
+                {unassignedTeams.length > 0 ? (
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedTeamToAssign}
+                      onChange={(e) => setSelectedTeamToAssign(e.target.value)}
+                      className="flex-1 h-9 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 text-xs text-foreground outline-none focus:border-zinc-700 transition-colors"
+                    >
+                      <option value="">Select a team to assign...</option>
+                      {unassignedTeams.map((team) => (
+                        <option key={team.id} value={team.id}>{team.name}</option>
+                      ))}
+                    </select>
+                    <Button
+                      onClick={handleAssignTeam}
+                      disabled={!selectedTeamToAssign}
+                      className="h-9 bg-primary hover:opacity-95 text-zinc-950 font-bold rounded-xl text-xs px-4 border-none transition-all"
+                      style={{ backgroundColor: themeColor }}
+                    >
+                      Assign
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-500 italic">All workspace teams are assigned to this project.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
     </ScrollArea>
   );
 }

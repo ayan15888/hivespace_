@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,5 +43,23 @@ public class TenantController {
     @GetMapping("/{tenantId}/members")
     public ResponseEntity<List<MemberResponse>> getTenantMembers(@PathVariable UUID tenantId) {
         return ResponseEntity.ok(tenantService.getMembersByTenantId(tenantId));
+    }
+
+    @PutMapping("/{tenantId}/members/{userId}/role")
+    @PreAuthorize("@rbac.canManageInvite(#tenantId)")
+    public ResponseEntity<MemberResponse> updateMemberRole(
+            @PathVariable UUID tenantId,
+            @PathVariable UUID userId,
+            @RequestParam String role) {
+        return ResponseEntity.ok(tenantService.updateMemberRole(tenantId, userId, role));
+    }
+
+    @DeleteMapping("/{tenantId}/members/{userId}")
+    @PreAuthorize("@rbac.canManageInvite(#tenantId)")
+    public ResponseEntity<Void> removeMember(
+            @PathVariable UUID tenantId,
+            @PathVariable UUID userId) {
+        tenantService.removeMember(tenantId, userId);
+        return ResponseEntity.noContent().build();
     }
 }

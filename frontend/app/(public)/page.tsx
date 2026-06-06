@@ -1,41 +1,227 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
+import { useAuthStore } from "@/store/authStore"
 import {
   Terminal,
-  Cpu,
   ArrowRight,
   Workflow,
-  Activity,
-  Check,
-  Command,
-  Database,
-  Sparkles,
-  Layers,
   ChevronDown,
   ChevronUp,
   MessageSquare,
   GitBranch,
   FileText,
   Users,
+  Quote,
+  Sparkles,
 } from "lucide-react"
-import WebGPUVisualizer from "@/components/common/WebGPUVisualizer"
+import { motion } from "framer-motion"
 import ScrollReveal from "@/components/common/ScrollReveal"
+import { GradientBackground } from "@/components/common/GradientBackground"
+
+const ICONS = [
+  "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/gatsby-icon.svg",
+  "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/github-icon.svg",
+  "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/google-icon.svg",
+  "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/sketch-icon.svg",
+  "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/slack-icon.svg",
+  "https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/spotify-icon.svg",
+]
+
+interface SemiCircleOrbitProps {
+  radius: number
+  centerX: number
+  centerY: number
+  count: number
+  iconSize: number
+}
+
+function SemiCircleOrbit({ radius, centerX, centerY, count, iconSize }: SemiCircleOrbitProps) {
+  return (
+    <>
+      {/* Semi-circle glow background */}
+      <div className="absolute inset-0 flex justify-center">
+        <div
+          className="
+            w-[1000px] h-[1000px] rounded-full 
+            bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.05),transparent_70%)]
+            dark:bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05),transparent_70%)]
+            blur-3xl 
+            -mt-40 
+            pointer-events-none
+          "
+          style={{ zIndex: 0 }}
+        />
+      </div>
+
+      {/* Orbit icons */}
+      {Array.from({ length: count }).map((_, index) => {
+        const angle = (index / (count - 1)) * 180
+        const x = radius * Math.cos((angle * Math.PI) / 180)
+        const y = radius * Math.sin((angle * Math.PI) / 180)
+        const icon = ICONS[index % ICONS.length]
+
+        // Tooltip positioning — above or below based on angle
+        const tooltipAbove = angle > 90
+
+        return (
+          <div
+            key={index}
+            className="absolute flex flex-col items-center group"
+            style={{
+              left: `${centerX + x - iconSize / 2}px`,
+              top: `${centerY - y - iconSize / 2}px`,
+              zIndex: 5,
+            }}
+          >
+            <img
+              src={icon}
+              alt={`icon-${index}`}
+              width={iconSize}
+              height={iconSize}
+              className="object-contain cursor-pointer transition-transform hover:scale-110"
+              style={{ minWidth: iconSize, minHeight: iconSize }} // fix accidental shrink
+            />
+
+            {/* Tooltip */}
+            <div
+              className={`absolute ${
+                tooltipAbove ? "bottom-[calc(100%+8px)]" : "top-[calc(100%+8px)]"
+              } hidden group-hover:block w-28 rounded-lg bg-black px-2 py-1 text-xs text-white shadow-lg text-center`}
+            >
+              App {index + 1}
+              <div
+                className={`absolute left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-black ${
+                  tooltipAbove ? "top-full" : "bottom-full"
+                }`}
+              ></div>
+            </div>
+          </div>
+        )
+      })}
+    </>
+  )
+}
 
 interface FAQItem {
   question: string
   answer: string
 }
 
+const testimonials = [
+  {
+    text: "HiveSpace eliminated the chaos of juggling Jira, Slack, and Notion. Our velocity doubled in two sprints.",
+    name: "Priya Mehta",
+    role: "Engineering Lead @ Synthwave Labs",
+    avatar: "PM",
+    color: "#7C5CFC",
+  },
+  {
+    text: "The GitHub bidirectional sync is magic. Commits close tasks automatically — no more status meetings just to update boards.",
+    name: "Olusegun Balogun",
+    role: "Staff Engineer @ Krypton Systems",
+    avatar: "OB",
+    color: "#0ea5e9",
+  },
+  {
+    text: "The TipTap docs with graph-linked backlinks are a game-changer for our architecture reviews. Notion can't do this.",
+    name: "Léa Fontaine",
+    role: "Tech Architect @ Meridian AI",
+    avatar: "LF",
+    color: "#10b981",
+  },
+  {
+    text: "Real-time channels with WebSocket delivery at 12ms latency. Our distributed team feels like we're in the same room.",
+    name: "Haruto Yamada",
+    role: "CTO @ Neonframe Corp",
+    avatar: "HY",
+    color: "#f59e0b",
+  },
+  {
+    text: "Role-based invite system is incredibly well thought-out. Org Admins, Team Leads, Project Leads — all the right scoping.",
+    name: "Amara Osei",
+    role: "Platform Ops @ Cascade IO",
+    avatar: "AO",
+    color: "#ec4899",
+  },
+  {
+    text: "The knowledge graph view blew our minds. Every document linked visually — we can finally trace architecture decisions.",
+    name: "Dmitri Volkov",
+    role: "Principal Dev @ NordStack",
+    avatar: "DV",
+    color: "#c96442",
+  },
+]
+
+const testimonialsCol1 = testimonials.slice(0, 3)
+const testimonialsCol2 = testimonials.slice(3, 6)
+
 export default function LandingPage() {
   const { theme, setTheme } = useTheme()
+  const { isAuthenticated, loading, fetchUser } = useAuthStore()
+  const router = useRouter()
+  const [isRedirecting, setIsRedirecting] = useState(true)
   const [activeFaq, setActiveFaq] = useState<number | null>(null)
+  const [titleNumber, setTitleNumber] = useState(0)
+  const heroTitles = useMemo(
+    () => ["blazing-fast", "developer-first", "GitHub-native", "AI-powered", "unified"],
+    []
+  )
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setTitleNumber((prev) => (prev === heroTitles.length - 1 ? 0 : prev + 1))
+    }, 2200)
+    return () => clearTimeout(id)
+  }, [titleNumber, heroTitles])
+
+  useEffect(() => {
+    const hasToken = typeof document !== "undefined" && document.cookie.includes("token=")
+    if (!isAuthenticated && !hasToken) {
+      setIsRedirecting(false)
+    } else {
+      fetchUser()
+    }
+  }, [fetchUser, isAuthenticated])
+
+  useEffect(() => {
+    const hasToken = typeof document !== "undefined" && document.cookie.includes("token=")
+    if (!loading) {
+      if (isAuthenticated) {
+        router.push("/dashboard")
+      } else if (!hasToken) {
+        setIsRedirecting(false)
+      }
+    }
+  }, [isAuthenticated, loading, router])
+
+  const [size, setSize] = useState({ width: 0, height: 0 })
+
+  useEffect(() => {
+    const updateSize = () => setSize({ width: window.innerWidth, height: window.innerHeight })
+    updateSize()
+    window.addEventListener("resize", updateSize)
+    return () => window.removeEventListener("resize", updateSize)
+  }, [])
+
+  const baseWidth = Math.min(size.width * 0.8, 700)
+  const centerX = baseWidth / 2
+  const centerY = baseWidth * 0.5
+
+  const iconSize =
+    size.width < 480
+      ? Math.max(24, baseWidth * 0.05)
+      : size.width < 768
+      ? Math.max(28, baseWidth * 0.06)
+      : Math.max(32, baseWidth * 0.07)
 
   const cycleTheme = () => {
     if (theme === "light") setTheme("dark")
     else if (theme === "dark") setTheme("dark-blue")
+    else if (theme === "dark-blue") setTheme("claude")
     else setTheme("light")
   }
 
@@ -70,8 +256,17 @@ export default function LandingPage() {
     { name: "HV-102: Invite Flow Auth", unread: false, type: "task" },
   ]
 
+  if (isRedirecting) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#0E0E10]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#7C5CFC] border-t-transparent" />
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-500 selection:bg-primary/20">
+    <div className="min-h-screen bg-transparent text-foreground transition-colors duration-500 selection:bg-primary/20 relative dark-blue">
+      <GradientBackground theme="dark-blue" />
 
       {/* 1. HEADER / NAVIGATION */}
       <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border/10 transition-colors duration-300">
@@ -79,9 +274,6 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <span className="font-serif text-xl font-normal tracking-tight">
               HiveSpace
-            </span>
-            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-              [HV.10]
             </span>
           </div>
 
@@ -99,10 +291,10 @@ export default function LandingPage() {
               Product Modules
             </Link>
             <Link
-              href="#gpu-playground"
+              href="#testimonials"
               className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
             >
-              WebGPU Playground
+              Team Signal
             </Link>
             <Link
               href="#faq"
@@ -113,59 +305,77 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={cycleTheme}
-              className="flex items-center gap-1.5 rounded-md border border-border/40 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider hover:bg-muted transition-colors cursor-pointer"
-            >
-              <Sparkles className="size-3 text-primary" strokeWidth={1.75} />
-              Theme: {theme === "system" ? "light" : theme}
-            </button>
-
-            <Link
-              href="/signup"
-              className="hidden sm:inline-flex h-8 items-center justify-center rounded bg-primary px-3.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground hover:opacity-90 active:scale-98 transition-all"
-            >
-              Launch Workspace
-            </Link>
+            <div className="relative group/btn-wrap hidden sm:block">
+              <div className="glowing-border-btn-glow !inset-[-2px] !blur-[4px] opacity-25" />
+              <div className="glowing-border-btn-wrap !rounded-[4px]">
+                <Link
+                  href="/signup"
+                  className="inline-flex h-8 items-center justify-center rounded bg-transparent px-3.5 text-[10px] font-bold uppercase tracking-wider text-foreground hover:text-white transition-all border-none rounded-[inherit]"
+                >
+                  Launch Workspace
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
       {/* 2. HERO SECTION */}
-      <section className="relative overflow-hidden pt-20 pb-16 md:pt-28 md:pb-24">
-        <div className="absolute inset-0 -z-10 pointer-events-none opacity-20 dark:opacity-30">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-radial from-primary/10 via-transparent to-transparent blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
-        </div>
+      <section className="relative overflow-hidden pt-20 pb-16 md:pt-28 md:pb-24 border-b border-border/10">
 
-        <div className="mx-auto max-w-4xl px-6 text-center">
+        <div className="mx-auto max-w-4xl px-6 text-center relative z-10">
           <ScrollReveal delay={0}>
-            <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 bg-sky-100 dark:bg-sky-950/40 border border-sky-200/50 dark:border-sky-800/20 text-sky-800 dark:text-sky-300 font-mono text-[10px] uppercase tracking-widest mb-6">
-              <span className="size-1.5 rounded-full bg-sky-500 animate-ping" />
+            <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 bg-primary/10 border border-primary/20 text-primary font-mono text-[10px] uppercase tracking-widest mb-6">
+              <span className="size-1.5 rounded-full bg-primary animate-ping" />
               Unified Team Spaces: Stable v1.0.2
             </div>
           </ScrollReveal>
 
           <ScrollReveal delay={150}>
-            <h1 className="font-serif text-5xl sm:text-7xl font-normal leading-[1.05] tracking-tight mb-8 max-w-3xl mx-auto text-balance">
-              Unified workspace for high-performance engineering.
+            <h1 className="font-serif text-5xl sm:text-7xl font-normal leading-[1.1] tracking-tight mb-4 max-w-3xl mx-auto">
+              <span className="block text-foreground">The workspace that is</span>
+              <span className="relative flex w-full justify-center overflow-hidden text-center py-2" style={{ minHeight: '1.2em' }}>
+                &nbsp;
+                {heroTitles.map((title, index) => (
+                  <motion.span
+                    key={title}
+                    className="absolute font-serif font-normal text-primary"
+                    initial={{ opacity: 0, y: 60 }}
+                    transition={{ type: "spring", stiffness: 60, damping: 14 }}
+                    animate={
+                      titleNumber === index
+                        ? { y: 0, opacity: 1 }
+                        : { y: titleNumber > index ? -80 : 80, opacity: 0 }
+                    }
+                  >
+                    {title}
+                  </motion.span>
+                ))}
+              </span>
+              <span className="block text-foreground">for your entire org.</span>
             </h1>
           </ScrollReveal>
 
           <ScrollReveal delay={250}>
-            <p className="body-md text-[15px] sm:text-lg text-muted-foreground leading-relaxed max-w-2.5xl mx-auto mb-10 text-balance font-normal" style={{ maxWidth: '72ch' }}>
-              HiveSpace brings together Slack-velocity developer channels, Linear-precision task pipelines, Notion-fidelity collaborative docs, and native GitHub integrations into a single, high-density clinical console.
+            <p className="body-md text-[15px] sm:text-lg text-muted-foreground leading-relaxed mx-auto mb-10 text-balance font-normal" style={{ maxWidth: '68ch' }}>
+              HiveSpace unifies Slack-velocity channels, Linear-precision task boards, Notion-fidelity docs, and bidirectional GitHub sync — all in one blazing-fast console built for serious engineering teams.
             </p>
           </ScrollReveal>
 
           <ScrollReveal delay={350}>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                href="/signup"
-                className="w-full sm:w-auto h-11 inline-flex items-center justify-center rounded bg-primary px-6 text-xs font-bold uppercase tracking-wider text-primary-foreground hover:opacity-90 active:scale-98 transition-all"
-              >
-                Launch Console
-                <ArrowRight className="ml-2 size-3.5" strokeWidth={2} />
-              </Link>
+              <div className="relative group/btn-wrap w-full sm:w-auto">
+                <div className="glowing-border-btn-glow" />
+                <div className="glowing-border-btn-wrap !rounded-[6px]">
+                  <Link
+                    href="/signup"
+                    className="w-full sm:w-auto h-11 inline-flex items-center justify-center px-6 text-xs font-bold uppercase tracking-wider text-foreground hover:text-white transition-all bg-transparent border-none rounded-[inherit]"
+                  >
+                    Launch Your Console
+                    <ArrowRight className="ml-2 size-3.5" strokeWidth={2} />
+                  </Link>
+                </div>
+              </div>
               <Link
                 href="#bento"
                 className="w-full sm:w-auto h-11 inline-flex items-center justify-center rounded border border-border/80 px-6 text-xs font-mono uppercase tracking-wider text-foreground hover:bg-muted transition-colors"
@@ -179,11 +389,7 @@ export default function LandingPage() {
           </ScrollReveal>
 
           <ScrollReveal delay={450} className="mt-6 flex justify-center items-center gap-2 text-xs font-mono text-muted-foreground/80">
-            <span>Press</span>
-            <kbd className="rounded border border-border/80 bg-muted px-1.5 py-0.5 text-[10px] font-mono font-bold text-foreground">
-              D
-            </kbd>
-            <span>anywhere to toggle dark mode instantly</span>
+            <span>GitHub-native space · Next-gen dev workflow console</span>
           </ScrollReveal>
         </div>
       </section>
@@ -211,7 +417,7 @@ export default function LandingPage() {
               </div>
 
               {/* Faux Interface Split Layout */}
-              <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-border/10 h-[480px]">
+              <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border/10 h-[480px]">
 
                 {/* Panel 1: Team Space Navigator Sidebar */}
                 <div className="md:col-span-1 bg-muted/10 p-4 flex flex-col justify-between font-mono text-[10px]">
@@ -305,20 +511,6 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* Panel 4: WebGPU Live Signal visualizer inside the platform */}
-                <div className="md:col-span-1 h-full relative bg-muted/5 flex flex-col justify-between">
-                  <div className="absolute inset-0">
-                    <WebGPUVisualizer intensity={0.8} speed={0.9} />
-                  </div>
-                  <div className="relative z-10 p-4 font-mono text-[9px] uppercase tracking-wider text-muted-foreground/80 pointer-events-none select-none">
-                    Websocket Signals
-                  </div>
-                  <div className="relative z-10 p-4 bg-background/60 backdrop-blur-sm border-t border-border/10 font-mono text-[8px] text-muted-foreground select-none pointer-events-none">
-                    <div>Hardware: WebGPU Pipeline</div>
-                    <div>FPS: 60 / State: Syncing</div>
-                  </div>
-                </div>
-
               </div>
             </div>
           </ScrollReveal>
@@ -334,28 +526,28 @@ export default function LandingPage() {
                 ENGINE PRIMITIVES
               </span>
               <h2 className="font-serif text-4xl sm:text-5xl font-normal tracking-tight mt-2.5 mb-4 text-balance">
-                High-density features designed for serious builders.
+                Every tool your team needs — nothing it doesn't.
               </h2>
               <p className="text-muted-foreground text-sm leading-relaxed max-w-xl">
-                HiveSpace rejects bloated SaaS templates. We offer an editorial layout constructed around raw information, speed, and hardware-accelerated orchestration.
+                HiveSpace replaces Jira, Slack, and Notion with one high-density, engineering-grade console. Each module is purpose-built, deeply interconnected, and fast.
               </p>
             </ScrollReveal>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6" id="modules">
 
             {/* Card 1: Large Bento Area (Slack-velocity Developer Channels) */}
             <div className="md:col-span-2 rounded-lg border border-border/60 bg-card p-8 flex flex-col justify-between h-80 relative overflow-hidden group hover:border-primary/40 transition-colors">
               <ScrollReveal delay={100} className="h-full flex flex-col justify-between z-10">
                 <div>
-                  <div className="size-8 rounded bg-sky-100 dark:bg-sky-950/40 flex items-center justify-center text-sky-700 dark:text-sky-400 mb-6">
+                  <div className="size-8 rounded bg-primary/10 flex items-center justify-center text-primary mb-6">
                     <MessageSquare className="size-4" strokeWidth={1.75} />
                   </div>
                   <h3 className="font-serif text-2xl font-normal mb-2 text-foreground">
-                    Slack-Velocity Real-time Channels
+                    Real-time Channels at Slack velocity
                   </h3>
                   <p className="text-muted-foreground text-xs leading-relaxed max-w-md">
-                    Discuss architecture, share code blocks, and coordinate tasks instantly. Powered by secure WebSocket gateways, team channels stream communications with zero latency, complete with live code previews and markdown execution.
+                    Developer-grade channels powered by STOMP WebSocket. Share code blocks, thread discussions, send DMs, and stream live commit feeds — all with unread badges, typing indicators, and push notifications.
                   </p>
                 </div>
 
@@ -381,14 +573,14 @@ export default function LandingPage() {
             <div className="rounded-lg border border-border/60 bg-card p-8 flex flex-col justify-between h-80 hover:border-primary/40 transition-colors">
               <ScrollReveal delay={200} className="h-full flex flex-col justify-between">
                 <div>
-                  <div className="size-8 rounded bg-indigo-100 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-700 dark:text-indigo-400 mb-6">
-                    <Database className="size-4" strokeWidth={1.75} />
+                  <div className="size-8 rounded bg-primary/10 flex items-center justify-center text-primary mb-6">
+                    <Users className="size-4" strokeWidth={1.75} />
                   </div>
                   <h3 className="font-serif text-2xl font-normal mb-2 text-foreground">
-                    Zustand Global State
+                    Secure Role-Based Invites
                   </h3>
                   <p className="text-muted-foreground text-xs leading-relaxed">
-                    Complete state synchronization built on Zustand architecture. Active terminal logs, task updates, and collaborative document edits persist dynamically across page hotkey switches instantly.
+                    Org Admins send cryptographically signed email invites. New members auto-join their scoped workspace, team, or project with zero manual setup. Roles cascade: Org Owner → Admin → Lead → Member.
                   </p>
                 </div>
 
@@ -409,23 +601,23 @@ export default function LandingPage() {
             <div className="rounded-lg border border-border/60 bg-card p-8 flex flex-col justify-between h-80 hover:border-primary/40 transition-colors">
               <ScrollReveal delay={300} className="h-full flex flex-col justify-between">
                 <div>
-                  <div className="size-8 rounded bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-700 dark:text-emerald-400 mb-6">
+                  <div className="size-8 rounded bg-primary/10 flex items-center justify-center text-primary mb-6">
                     <FileText className="size-4" strokeWidth={1.75} />
                   </div>
                   <h3 className="font-serif text-2xl font-normal mb-2 text-foreground">
-                    Notion-Fidelity TipTap Docs
+                    Notion-fidelity Docs + Knowledge Graph
                   </h3>
                   <p className="text-muted-foreground text-xs leading-relaxed">
-                    Real-time collaborative editing using native Tippy-Tap rich text primitives. Write documentation, compile architecture guidelines, and manage invite flows in clean markdown-native interfaces.
+                    TipTap-powered collaborative editor with nested pages, version history, and [[page linking]]. Linked pages form a visual React Flow knowledge graph — a feature Notion, Jira, and Linear all lack.
                   </p>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 pt-4">
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 font-mono text-[9px] uppercase tracking-wider">
+                  <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono text-[9px] uppercase tracking-wider">
                     Markdown-Native
                   </span>
-                  <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[9px] uppercase tracking-wider">
-                    Tippy-Tap Core
+                  <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-mono text-[9px] uppercase tracking-wider">
+                    TipTap Core
                   </span>
                 </div>
               </ScrollReveal>
@@ -435,14 +627,14 @@ export default function LandingPage() {
             <div className="md:col-span-2 rounded-lg border border-border/60 bg-card p-8 flex flex-col justify-between h-80 hover:border-primary/40 transition-colors relative overflow-hidden">
               <ScrollReveal delay={400} className="h-full flex flex-col justify-between z-10">
                 <div>
-                  <div className="size-8 rounded bg-rose-100 dark:bg-rose-950/40 flex items-center justify-center text-rose-700 dark:text-rose-400 mb-6">
+                  <div className="size-8 rounded bg-primary/10 flex items-center justify-center text-primary mb-6">
                     <GitBranch className="size-4" strokeWidth={1.75} />
                   </div>
                   <h3 className="font-serif text-2xl font-normal mb-2 text-foreground">
-                    Linear-Precision Tasks & Git Sync
+                    Linear-precision Tasks &amp; GitHub Sync
                   </h3>
                   <p className="text-muted-foreground text-xs leading-relaxed max-w-md">
-                    Seamless organization task management synchronized with GitHub repository pipelines. Track issue status, manage team project boards, and trigger automated webhook syncs from commits directly to tasks.
+                    Kanban boards with sprint support, custom fields, and milestone tracking. Bidirectional GitHub sync links commits and PRs to tasks — merged PR auto-closes the linked issue with zero manual effort.
                   </p>
                 </div>
 
@@ -472,60 +664,114 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 5. DEDICATED WEBGPU PLAYGROUND / INTERACTIVE CUSTOMIZER */}
-      <section className="py-24 bg-background border-t border-border/10 transition-colors duration-300" id="gpu-playground">
-        <div className="mx-auto max-w-5xl px-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-12 items-center">
+      {/* 4.25 INTEGRATIONS SECTION */}
+      <section className="py-24 bg-muted/10 border-t border-border/10 overflow-hidden relative" id="integrations">
+        <div className="relative flex flex-col items-center text-center z-10 mx-auto max-w-5xl px-6">
+          <ScrollReveal delay={0}>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">
+              CONNECTED ECOSYSTEM
+            </span>
+            <h2 className="font-serif text-4xl sm:text-5xl font-normal tracking-tight mt-2.5 mb-3 text-balance">
+              Integrations
+            </h2>
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-md mx-auto mb-12 text-balance">
+              Connect your favourite apps to your workflow.
+            </p>
+          </ScrollReveal>
 
-            {/* Playground Info */}
-            <div className="md:col-span-2">
-              <ScrollReveal delay={0}>
-                <span className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">
-                  HARDWARE ACCELERATION
-                </span>
-                <h2 className="font-serif text-4xl sm:text-5xl font-normal tracking-tight mt-2.5 mb-5 text-balance">
-                  Orchestrate the communication shader.
-                </h2>
-                <p className="text-muted-foreground text-xs leading-relaxed mb-6">
-                  Tune the real-time payload flow simulator. Drag the sliders in the GPU Simulation Controller panel to manipulate the coordinate wave calculations representing live websocket communications across organization workspace nodes.
-                </p>
-                <div className="space-y-3.5">
-                  <div className="flex items-start gap-3">
-                    <div className="size-4.5 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-800 dark:text-emerald-400 font-mono text-[9px] font-bold mt-0.5">
-                      ✓
+          <ScrollReveal delay={150}>
+            <div
+              className="relative mx-auto mt-6"
+              style={{ width: baseWidth, height: baseWidth * 0.6 }}
+            >
+              <SemiCircleOrbit radius={baseWidth * 0.22} centerX={centerX} centerY={centerY} count={6} iconSize={iconSize} />
+              <SemiCircleOrbit radius={baseWidth * 0.36} centerX={centerX} centerY={centerY} count={8} iconSize={iconSize} />
+              <SemiCircleOrbit radius={baseWidth * 0.5} centerX={centerX} centerY={centerY} count={10} iconSize={iconSize} />
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* 4.5 TESTIMONIALS SECTION */}
+      <section className="py-24 bg-transparent border-t border-border/10 overflow-hidden" id="testimonials">
+        <div className="mx-auto max-w-5xl px-6">
+          <div className="mb-14 text-center">
+            <ScrollReveal delay={0}>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">
+                TEAM SIGNAL
+              </span>
+              <h2 className="font-serif text-4xl sm:text-5xl font-normal tracking-tight mt-2.5 mb-3 text-balance">
+                Engineering teams already love it.
+              </h2>
+              <p className="text-muted-foreground text-sm leading-relaxed max-w-md mx-auto">
+                From startups to distributed enterprise teams — HiveSpace replaces the tools sprawl with one console that actually ships.
+              </p>
+            </ScrollReveal>
+          </div>
+
+          {/* Dual-column infinite scroll */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-h-[540px] overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,black_10%,black_90%,transparent)]">
+            {/* Column 1 — scrolls up */}
+            <motion.div
+              animate={{ translateY: "-50%" }}
+              transition={{ duration: 28, repeat: Infinity, ease: "linear", repeatType: "loop" }}
+              className="flex flex-col gap-5"
+            >
+              {[...testimonialsCol1, ...testimonialsCol1].map(({ text, name, role, avatar, color }, i) => (
+                <div
+                  key={i}
+                  className="p-6 rounded-xl border border-border/60 bg-card shadow-sm flex flex-col gap-4 hover:border-primary/30 transition-colors"
+                >
+                  <Quote className="size-4 text-muted-foreground/40" strokeWidth={1.5} />
+                  <p className="text-sm text-foreground/80 leading-relaxed">{text}</p>
+                  <div className="flex items-center gap-3 mt-auto pt-3 border-t border-border/10">
+                    <div
+                      className="size-8 rounded-full flex items-center justify-center text-white font-bold text-[10px] shrink-0"
+                      style={{ backgroundColor: color }}
+                    >
+                      {avatar}
                     </div>
-                    <div className="text-[11px] text-muted-foreground leading-snug">
-                      <strong className="text-foreground">WebGPU Pipelines:</strong> Compiles real-time Fractional Brownian Motion (fBm) shader algorithms natively.
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="size-4.5 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-800 dark:text-emerald-400 font-mono text-[9px] font-bold mt-0.5">
-                      ✓
-                    </div>
-                    <div className="text-[11px] text-muted-foreground leading-snug">
-                      <strong className="text-foreground">Interactive Gravity Wells:</strong> Move your cursor across the canvas to attract and repel the mathematical vectors dynamically.
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="size-4.5 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-800 dark:text-emerald-400 font-mono text-[9px] font-bold mt-0.5">
-                      ✓
-                    </div>
-                    <div className="text-[11px] text-muted-foreground leading-snug">
-                      <strong className="text-foreground">Fallback Constellation:</strong> Auto-detects hardware support to render an elegant Canvas 2D swarm network.
+                    <div>
+                      <div className="text-xs font-semibold text-foreground">{name}</div>
+                      <div className="text-[10px] text-muted-foreground">{role}</div>
                     </div>
                   </div>
                 </div>
-              </ScrollReveal>
-            </div>
+              ))}
+            </motion.div>
 
-            {/* Playground Live Canvas Element */}
-            <div className="md:col-span-3 h-[420px] rounded-lg border border-border/80 overflow-hidden relative shadow-lg">
-              <WebGPUVisualizer showControls={true} intensity={1.2} speed={1.0} />
-            </div>
-
+            {/* Column 2 — scrolls up offset */}
+            <motion.div
+              animate={{ translateY: "-50%" }}
+              transition={{ duration: 22, repeat: Infinity, ease: "linear", repeatType: "loop" }}
+              className="flex flex-col gap-5 mt-8"
+            >
+              {[...testimonialsCol2, ...testimonialsCol2].map(({ text, name, role, avatar, color }, i) => (
+                <div
+                  key={i}
+                  className="p-6 rounded-xl border border-border/60 bg-card shadow-sm flex flex-col gap-4 hover:border-primary/30 transition-colors"
+                >
+                  <Quote className="size-4 text-muted-foreground/40" strokeWidth={1.5} />
+                  <p className="text-sm text-foreground/80 leading-relaxed">{text}</p>
+                  <div className="flex items-center gap-3 mt-auto pt-3 border-t border-border/10">
+                    <div
+                      className="size-8 rounded-full flex items-center justify-center text-white font-bold text-[10px] shrink-0"
+                      style={{ backgroundColor: color }}
+                    >
+                      {avatar}
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-foreground">{name}</div>
+                      <div className="text-[10px] text-muted-foreground">{role}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
           </div>
         </div>
       </section>
+
 
       {/* 6. SYSTEM FAQ (Editorial Accordion) */}
       <section className="py-24 bg-muted/10 border-t border-border/10 transition-colors duration-300" id="faq">
@@ -593,8 +839,8 @@ export default function LandingPage() {
           </div>
 
           {/* Operational Status Spot pastel badge */}
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-emerald-50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30">
-            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-primary/10 text-primary border border-primary/20">
+            <span className="size-1.5 rounded-full bg-primary animate-pulse" />
             <span className="tracking-wider uppercase text-[8px] font-bold">ALL SERVICES OPERATIONAL</span>
           </div>
 

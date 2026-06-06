@@ -26,6 +26,10 @@ function buildUpstreamHeaders(request: NextRequest): Headers {
   if (accept) {
     out.set("Accept", accept);
   }
+  const tenantId = request.headers.get("x-tenant-id") ?? request.headers.get("X-Tenant-Id");
+  if (tenantId) {
+    out.set("X-Tenant-Id", tenantId);
+  }
   return out;
 }
 

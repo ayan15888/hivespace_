@@ -1,0 +1,15 @@
+# services:
+#   - type: web
+#     name: hivespace-backend
+#     env: docker
+#     region: oregon # Optimal region for Render's free tier
+#     plan: free     # Use the free tier plan
+#     dockerContext: backend
+#     dockerfilePath: backend/Dockerfile
+#     envVars:
+#       - key: DATABASE_URL
+#         sync: false # 📍 Set your Supabase JDBC connection string in the Render Dashboard (e.g. jdbc:postgresql://...)
+#       - key: DB_USERNAME
+#         sync: false # 📍 Set 'postgres' in the Render Dashboard
+#       - key: DB_PASSWORD
+#         sync: false # 📍 Set your Supabase Database Password in the Render Dashboard

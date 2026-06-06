@@ -31,21 +31,29 @@ public class Invitation {
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant; // Direct organization invitation
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "workspace_id")
-    private Workspace workspace; // Optional workspace scope
+
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "team_id")
-    private Team team; // Optional team scope
+    @JoinColumn(name = "project_id")
+    private Project project; // Optional project scope
+
+    @ManyToMany
+    @JoinTable(name = "invitation_workspaces", joinColumns = @JoinColumn(name = "invitation_id"), inverseJoinColumns = @JoinColumn(name = "workspace_id"))
+    @Builder.Default
+    private java.util.Set<Workspace> workspaces = new java.util.HashSet<>();
+
+    @ManyToMany
+    @JoinTable(name = "invitation_teams", joinColumns = @JoinColumn(name = "invitation_id"), inverseJoinColumns = @JoinColumn(name = "team_id"))
+    @Builder.Default
+    private java.util.Set<Team> teams = new java.util.HashSet<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "inviter_id", nullable = false)
     private User inviter;
 
     @Builder.Default
-    @Column(name = "role", nullable = false)
-    private String role = "MEMBER";
+    @Column(name = "tenant_role", nullable = false)
+    private String tenantRole = "MEMBER";
 
     @Builder.Default
     @Column(name = "max_uses", nullable = false)
@@ -56,8 +64,9 @@ public class Invitation {
     private int currentUses = 0;
 
     @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private String status = "ACTIVE"; // ACTIVE, EXPIRED, EXHAUSTED, REVOKED
+    private InvitationStatus status = InvitationStatus.ACTIVE;
 
     @Column(name = "expires_at", nullable = false)
     private Date expiresAt;

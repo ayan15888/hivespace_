@@ -1,147 +1,105 @@
 "use client";
 
-import { MessageSquare, Users } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { MessageSquare, Users, Loader2, Crown, Shield, Mail } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, getAvatarColorClass } from "@/lib/utils";
+import { getTeamMembers, TeamMemberResponse } from "@/lib/api/teams";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 
-const MEMBERS = [
-  { 
-    name: "Meera V.", 
-    initials: "MV", 
-    role: "Team Lead", 
-    status: "online", 
-    workingOn: { id: "HS-044", title: "STOMP WebSocket chat broadcast", priority: "bg-red-500" },
-    stats: { open: 8, completed: 12, prs: 3 }
-  },
-  { 
-    name: "Rahul K.", 
-    initials: "RK", 
-    role: "Member", 
-    status: "online", 
-    workingOn: { id: "HS-041", title: "Invite token expiry edge cases", priority: "bg-amber-500" },
-    stats: { open: 5, completed: 8, prs: 1 }
-  },
-  { 
-    name: "David K.", 
-    initials: "DK", 
-    role: "Member", 
-    status: "away", 
-    workingOn: { id: "HS-039", title: "GitHub webhook HMAC validation", priority: "bg-zinc-400" },
-    stats: { open: 3, completed: 15, prs: 5 }
-  },
-  { 
-    name: "Sanjay A.", 
-    initials: "SA", 
-    role: "Member", 
-    status: "online", 
-    overloaded: true,
-    workingOn: { id: "HS-058", title: "Command palette overhaul", priority: "bg-violet-500" },
-    stats: { open: 11, completed: 6, prs: 0 }
-  },
-  { 
-    name: "Priya L.", 
-    initials: "PL", 
-    role: "Member", 
-    status: "offline", 
-    workingOn: null,
-    stats: { open: 2, completed: 20, prs: 2 }
-  },
-  { 
-    name: "Robert S.", 
-    initials: "RS", 
-    role: "Member", 
-    status: "online", 
-    workingOn: { id: "HS-035", title: "Supabase RLS policies", priority: "bg-blue-500" },
-    stats: { open: 6, completed: 9, prs: 1 }
+import { useQuery } from "@tanstack/react-query";
+
+interface MembersTabProps {
+  teamId?: string;
+}
+
+export function MembersTab({ teamId }: MembersTabProps) {
+  const { data: members = [], isLoading: loading } = useQuery({
+    queryKey: ["teamMembers", teamId],
+    queryFn: () => getTeamMembers(teamId!),
+    enabled: !!teamId,
+  });
+
+  const toInitials = (name: string) => {
+    if (!name) return "?";
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <div className="relative">
+          <div className="h-10 w-10 rounded-full border border-hs-accent/20 bg-hs-accent/5" />
+          <Loader2 className="absolute inset-0 m-auto h-5 w-5 animate-spin text-hs-accent" />
+        </div>
+        <p className="text-xs text-zinc-500">Loading team members...</p>
+      </div>
+    );
   }
-];
 
-export function MembersTab() {
-  if (MEMBERS.length === 0) {
+  if (members.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <div className="h-16 w-16 bg-zinc-800/50 rounded-full flex items-center justify-center mb-4">
           <Users className="h-8 w-8 text-zinc-600" strokeWidth={1.5} />
         </div>
         <h3 className="text-sm font-medium text-zinc-400">No members yet</h3>
-        <p className="text-xs text-zinc-500 mt-1 max-w-[200px]">Invite people to join this team and start collaborating.</p>
-        <Button className="mt-6 bg-gradient-to-br from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 text-white text-xs uppercase tracking-wider font-bold h-9">
-          Invite Members
-        </Button>
+        <p className="text-xs text-zinc-500 mt-1 max-w-[200px]">Add people to join this team using the Manage Team button above.</p>
       </div>
     );
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-      {MEMBERS.map((member) => (
-        <div 
-          key={member.name} 
-          className={cn(
-            "group bg-[#272629] border border-zinc-800/50 rounded-lg p-4 hover:border-zinc-700 transition-all duration-300 flex flex-col",
-            member.overloaded && "border-red-500/30"
-          )}
-        >
-          {/* TOP ROW */}
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Avatar className="h-10 w-10 border border-zinc-800">
-                <AvatarFallback className="bg-zinc-800 text-zinc-400 text-xs font-medium">{member.initials}</AvatarFallback>
-              </Avatar>
+      {members.map((member) => {
+        const displayName = member.fullName || member.username;
+        const initials = toInitials(displayName);
+        const isLead = member.role === "LEAD";
+        return (
+          <div 
+            key={member.userId} 
+            className="group bg-hs-card border border-border/50 rounded-lg p-4 hover:border-border transition-all duration-300 flex flex-col justify-between"
+          >
+            {/* TOP ROW */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10 border border-border/40">
+                  <AvatarFallback className={cn("text-xs font-semibold text-white", getAvatarColorClass(initials || displayName))}>
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-foreground leading-none mb-1">{displayName}</span>
+                  <span className="text-[10px] text-zinc-500 leading-none">@{member.username}</span>
+                </div>
+              </div>
+              
               <div className={cn(
-                "absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[#272629]",
-                member.status === "online" ? "bg-green-400" : member.status === "away" ? "bg-amber-400" : "bg-zinc-600"
-              )} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-[#E5E1E4] leading-none mb-0.5">{member.name}</span>
-              <div className={cn(
-                "w-fit px-1.5 py-0.5 rounded-sm text-[10px] font-medium tracking-wide uppercase",
-                member.role === "Team Lead" ? "bg-violet-500/20 text-violet-400" : "bg-zinc-800 text-zinc-500"
+                "flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-semibold tracking-wider uppercase",
+                isLead 
+                  ? "bg-amber-500/15 text-amber-400 border-amber-500/25" 
+                  : "bg-hs-accent/15 text-hs-accent border-hs-accent/25"
               )}>
-                {member.role}
+                {isLead ? <Crown className="h-2.5 w-2.5" /> : <Shield className="h-2.5 w-2.5" />}
+                {isLead ? "Lead" : "Member"}
               </div>
             </div>
-          </div>
 
-          {/* MIDDLE: CURRENT TASK */}
-          <div className="mt-4 mb-4">
-            <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest block mb-2">Working On</span>
-            {member.workingOn ? (
-              <div className="flex items-center gap-2">
-                <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", member.workingOn.priority)} />
-                <span className="text-[10px] font-mono text-zinc-600 shrink-0">{member.workingOn.id}</span>
-                <span className="text-xs text-zinc-400 truncate leading-none">{member.workingOn.title}</span>
-              </div>
-            ) : (
-              <span className="text-xs text-zinc-600 italic">No active task</span>
-            )}
-          </div>
+            {/* EMAIL SECTION */}
+            <div className="mt-4 flex items-center gap-1.5 text-zinc-400">
+              <Mail className="h-3.5 w-3.5 text-zinc-600" />
+              <span className="text-xs truncate">{member.email}</span>
+            </div>
 
-          {/* STATS ROW */}
-          <div className="grid grid-cols-3 border-t border-zinc-800 pt-4 mt-auto">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium text-[#E5E1E4]">{member.stats.open}</span>
-              <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-medium">Open Tasks</span>
-            </div>
-            <div className="flex flex-col gap-0.5 border-x border-zinc-800/10 px-2">
-              <span className="text-sm font-medium text-[#E5E1E4]">{member.stats.completed}</span>
-              <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-medium">Completed</span>
-            </div>
-            <div className="flex flex-col gap-0.5 pl-2">
-              <span className="text-sm font-medium text-[#E5E1E4]">{member.stats.prs}</span>
-              <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-medium">PRs</span>
-            </div>
+            {/* MESSAGE BUTTON */}
+            <Button variant="ghost" className="mt-4 w-full h-8 text-[11px] text-zinc-400 hover:text-foreground hover:bg-muted/50 gap-2 border border-border/10 group-hover:border-border/30">
+              <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.5} />
+              Message
+            </Button>
           </div>
-
-          {/* MESSAGE BUTTON */}
-          <Button variant="ghost" className="mt-4 w-full h-8 text-[11px] text-zinc-400 hover:text-white hover:bg-zinc-800/50 gap-2 border border-zinc-700/10 group-hover:border-zinc-700/30">
-            <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Message
-          </Button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

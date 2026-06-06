@@ -2,6 +2,7 @@
 
 import { Users, MessageSquare, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 const CHANNELS = [
   { name: "backend-ops", members: 24, unread: 4, lastMsg: "Are we deploying today?", time: "10:24 AM" },
@@ -14,14 +15,15 @@ export function ChannelsTab() {
     <div className="p-6 space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {CHANNELS.map((channel) => (
-          <div 
+          <Link 
+            href={`/dashboard/chat/${channel.name}`}
             key={channel.name} 
-            className="group relative bg-[#272629] border border-zinc-800/50 rounded-md p-4 hover:border-zinc-700 transition-all duration-300 cursor-pointer flex flex-col h-[140px]"
+            className="group relative bg-hs-card border border-border/50 rounded-md p-4 hover:border-border transition-all duration-300 cursor-pointer flex flex-col h-[140px] block"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-1.5">
                 <span className="text-zinc-600 font-light text-xl leading-none">#</span>
-                <span className="text-sm font-medium text-[#E5E1E4]">{channel.name}</span>
+                <span className="text-sm font-medium text-foreground">{channel.name}</span>
               </div>
               {channel.unread > 0 && (
                 <div className="bg-[#f95b4e] text-white text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center">
@@ -45,11 +47,11 @@ export function ChannelsTab() {
             <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
                <MessageSquare className="h-4 w-4 text-zinc-600" />
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
-      <Button variant="ghost" className="w-full flex items-center justify-center gap-2 h-10 border border-zinc-800/50 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30 text-xs">
+      <Button variant="ghost" className="w-full flex items-center justify-center gap-2 h-10 border border-border/50 text-zinc-500 hover:text-foreground hover:bg-muted/50 text-xs">
         <PlusCircle className="h-4 w-4" />
         Create Channel
       </Button>

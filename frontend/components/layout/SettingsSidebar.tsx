@@ -17,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { usePermission } from "@/hooks/usePermission"
 
 import React from "react"
 interface NavItem {
@@ -70,6 +71,27 @@ const navGroups: NavGroup[] = [
 
 export function SettingsSidebar() {
   const pathname = usePathname()
+  const { canAccessBilling, canManageMembers } = usePermission()
+
+  const filteredGroups = navGroups
+    .map((group) => {
+      let items = group.items
+      if (group.label === "WORKSPACE") {
+        items = items.filter((item) => {
+          if (item.id === "roles") {
+            return canManageMembers
+          }
+          return true
+        })
+      }
+      return { ...group, items }
+    })
+    .filter((group) => {
+      if (group.label === "BILLING") {
+        return canAccessBilling
+      }
+      return group.items.length > 0
+    })
 
   return (
     <aside className="fixed left-[56px] top-0 h-full w-[240px] bg-sidebar px-3 py-4 border-none">
@@ -78,7 +100,7 @@ export function SettingsSidebar() {
       </div>
 
       <div className="space-y-4">
-        {navGroups.map((group) => (
+        {filteredGroups.map((group) => (
           <div key={group.label}>
             <h3 className="px-3 mb-1 text-[10px] uppercase tracking-wider text-zinc-600 font-semibold">
               {group.label}

@@ -6,6 +6,7 @@ import lombok.*;
 import java.util.Date;
 import java.util.UUID;
 
+/** Maps to HIveSpaceSchema.sql tenant_members (role: OWNER, ADMIN, BILLING_ADMIN, MEMBER). */
 @Entity
 @Table(name = "tenant_members", uniqueConstraints = {
         @UniqueConstraint(columnNames = { "tenant_id", "user_id" })
@@ -31,7 +32,8 @@ public class TenantMember {
 
     @Builder.Default
     @Column(name = "role", nullable = false)
-    private String role = "MEMBER"; // OWNER, ADMIN, BILLING_ADMIN, MEMBER
+    @Enumerated(EnumType.STRING)
+    private TenantMemberRole role = TenantMemberRole.MEMBER;
 
     @Builder.Default
     @Temporal(TemporalType.TIMESTAMP)

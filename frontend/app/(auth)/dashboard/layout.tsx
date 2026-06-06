@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { NavRail } from "@/components/layout/NavRail";
 import { WorkspaceSidebar } from "@/components/layout/WorkspaceSidebar";
+import { PageTransition } from "@/components/common/PageTransition";
 import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({
@@ -24,7 +25,9 @@ export default function DashboardLayout({
         "flex-1 transition-all duration-300 min-w-0 overflow-hidden", 
         hideSidebar ? "pl-[56px]" : "pl-[276px]"
       )}>
-        {children}
+        <PageTransition className="h-full w-full">
+          {children}
+        </PageTransition>
       </main>
     </div>
   );

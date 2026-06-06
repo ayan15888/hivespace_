@@ -3,12 +3,25 @@ import { apiFetch } from "./client";
 export interface TaskRequest {
   title: string;
   description?: string;
-  status: string;
-  priority: string;
+  status?: string;
+  priority?: string;
   labels?: string;
   dueDate?: string;
   points?: number;
   assigneeId?: string;
+  teamId?: string;
+  parentId?: string;
+}
+
+export interface TaskAssigneeResponse {
+  id: string;
+  taskId: string;
+  userId: string;
+  fullName: string;
+  username: string;
+  avatarUrl?: string;
+  role: string;
+  assignedAt: string;
 }
 
 export interface TaskResponse {
@@ -26,6 +39,14 @@ export interface TaskResponse {
   assigneeId?: string;
   assigneeName?: string;
   assigneeInitials?: string;
+  teamId?: string;
+  createdByName?: string;
+  parentId?: string;
+  taskIdentifier?: string;
+  subtaskCount?: number;
+  completedSubtaskCount?: number;
+  assignees?: TaskAssigneeResponse[];
+  subtasks?: TaskResponse[];
   createdAt: string;
   updatedAt: string;
 }
@@ -43,4 +64,85 @@ export async function getTasksByProject(projectId: string): Promise<TaskResponse
 
 export async function getAllTasks(): Promise<TaskResponse[]> {
   return apiFetch("/api/tasks");
+}
+
+export async function getTaskAssignees(taskId: string): Promise<TaskAssigneeResponse[]> {
+  return apiFetch(`/api/tasks/${taskId}/assignees`);
+}
+
+export async function addTaskAssignee(taskId: string, userId: string, role: string): Promise<TaskAssigneeResponse> {
+  return apiFetch(`/api/tasks/${taskId}/assignees`, {
+    method: "POST",
+    body: JSON.stringify({ userId, role }),
+  });
+}
+
+export async function changeTaskOwner(taskId: string, userId: string): Promise<TaskAssigneeResponse> {
+  return apiFetch(`/api/tasks/${taskId}/assignees/owner`, {
+    method: "PATCH",
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export async function removeTaskAssignee(taskId: string, userId: string): Promise<void> {
+  return apiFetch(`/api/tasks/${taskId}/assignees/${userId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function updateTaskStatus(taskId: string, status: string): Promise<TaskResponse> {
+  return apiFetch(`/api/tasks/${taskId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export type TaskUpdatePayload = Partial<
+  Pick<
+    TaskRequest,
+    | "title"
+    | "description"
+    | "status"
+    | "priority"
+    | "labels"
+    | "dueDate"
+    | "points"
+    | "assigneeId"
+    | "teamId"
+  >
+>;
+
+export async function updateTask(
+  taskId: string,
+  data: TaskUpdatePayload
+): Promise<TaskResponse> {
+  return apiFetch(`/api/tasks/${taskId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+  return apiFetch(`/api/tasks/${taskId}`, {
+    method: "DELETE",
+  });
+}
+
+// ── Task Activity Log ─────────────────────────────────────────────────────────
+
+export interface TaskActivityResponse {
+  id: string;
+  taskId: string;
+  userId: string | null;
+  username: string | null;
+  fullName: string | null;
+  avatarUrl: string | null;
+  type: string; // CREATED | STATUS_CHANGED | PRIORITY_CHANGED | TITLE_CHANGED | DESCRIPTION_CHANGED | LABELS_CHANGED | POINTS_CHANGED | DUE_DATE_CHANGED | OWNER_CHANGED | ASSIGNEE_ADDED | ASSIGNEE_REMOVED
+  oldValue: string | null;
+  newValue: string | null;
+  createdAt: string;
+}
+
+export async function getTaskActivities(taskId: string): Promise<TaskActivityResponse[]> {
+  return apiFetch(`/api/tasks/${taskId}/activities`);
 }
