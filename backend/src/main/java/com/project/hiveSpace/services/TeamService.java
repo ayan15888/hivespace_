@@ -99,35 +99,30 @@ public class TeamService {
 
         Team savedTeam = teamRepository.save(team);
 
-        if (leadUserId != null) {
-            User leadUser = userRepository.findById(leadUserId)
-                    .orElseThrow(() -> new NotFoundException("Lead user not found"));
+        UUID currentUserId = creator.getId();
+        UUID leadId = request.getLeadUserId() != null
+                ? request.getLeadUserId()
+                : currentUserId;
 
-            TeamMember leadMember = TeamMember.builder()
-                    .team(savedTeam)
-                    .user(leadUser)
-                    .role(TeamMemberRole.LEAD)
-                    .joinedAt(new Date())
-                    .build();
-            teamMemberRepository.save(leadMember);
+        User leadUser = userRepository.findById(leadId)
+                .orElseThrow(() -> new NotFoundException("Lead user not found"));
 
-            if (!leadUserId.equals(creator.getId())) {
-                TeamMember creatorMember = TeamMember.builder()
-                        .team(savedTeam)
-                        .user(creator)
-                        .role(TeamMemberRole.MEMBER)
-                        .joinedAt(new Date())
-                        .build();
-                teamMemberRepository.save(creatorMember);
-            }
-        } else {
-            TeamMember lead = TeamMember.builder()
+        TeamMember leadMember = TeamMember.builder()
+                .team(savedTeam)
+                .user(leadUser)
+                .role(TeamMemberRole.LEAD)
+                .joinedAt(new Date())
+                .build();
+        teamMemberRepository.save(leadMember);
+
+        if (!leadId.equals(currentUserId)) {
+            TeamMember creatorMember = TeamMember.builder()
                     .team(savedTeam)
                     .user(creator)
-                    .role(TeamMemberRole.LEAD)
+                    .role(TeamMemberRole.MEMBER)
                     .joinedAt(new Date())
                     .build();
-            teamMemberRepository.save(lead);
+            teamMemberRepository.save(creatorMember);
         }
 
         if (associatedProject != null) {

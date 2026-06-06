@@ -10,7 +10,7 @@ import com.project.hiveSpace.models.TaskActivity;
 import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.repository.TaskRepository;
 import com.project.hiveSpace.repository.TaskAssigneeRepository;
-//import com.project.hiveSpace.repository.ProjectMemberRepository;
+import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.TaskActivityRepository;
 import com.project.hiveSpace.security.RbacService;
@@ -36,7 +36,7 @@ public class TaskAssigneeService {
 
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
-    //private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
     private final TaskActivityRepository taskActivityRepository;
     private final RbacService rbacService;
@@ -81,7 +81,7 @@ public class TaskAssigneeService {
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
         // RULE: User must be a member of the project
-        if (!rbacService.hasProjectRoleForUser(targetUser.getId(), projectId, ProjectMemberRole.VIEWER)) {
+        if (!projectMemberRepository.existsByProjectIdAndUserId(projectId, targetUser.getId())) {
             throw new DomainValidationException("Assignee must be a member of this project");
         }
 
@@ -199,7 +199,10 @@ public class TaskAssigneeService {
 
         // RULE: Cannot remove OWNER if they are the only assignee (or you cannot delete OWNER via standard remove)
         if (assignment.getRole() == TaskAssigneeRole.OWNER) {
-            throw new DomainValidationException("Cannot delete primary OWNER. Use changeOwner instead.");
+            throw new DomainValidationException(
+                "Cannot remove the task owner. " +
+                "Use the change-owner endpoint to transfer ownership first."
+            );
         }
 
         taskAssigneeRepository.delete(assignment);

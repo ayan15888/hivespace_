@@ -72,10 +72,7 @@ public class TaskService {
         }
 
         // 5. Increment project task sequence and create the task
-        projectRepository.incrementAndGetTaskSequence(projectId);
-        Project updatedProject = projectRepository.findById(projectId)
-                .orElseThrow(() -> new NotFoundException("Project not found"));
-        int seq = updatedProject.getTaskSequence();
+        int seq = projectRepository.incrementAndGetTaskSequence(projectId);
 
         Task task = Task.builder()
                 .title(request.getTitle())
@@ -85,13 +82,13 @@ public class TaskService {
                 .labels(request.getLabels())
                 .dueDate(request.getDueDate())
                 .points(request.getPoints())
-                .project(updatedProject)
+                .project(project)
                 .parentTask(parentTask)
                 .team(team)
                 .createdBy(creator)
                 .createdAt(new Date())
-                .sequenceNumber(seq)
                 .build();
+        task.setSequenceNumber(seq);
 
         // 6. Assign the owner
         User ownerUser = creator;
@@ -459,9 +456,7 @@ public class TaskService {
             response.setParentId(task.getParentTask().getId());
         }
 
-        // Use stored atomic task sequence for task identifier (e.g. HS-001)
-        int seq = task.getSequenceNumber() != null ? task.getSequenceNumber() : 0;
-        response.setTaskIdentifier("HS-" + String.format("%03d", seq));
+        response.setTaskIdentifier("HS-" + String.format("%03d", task.getSequenceNumber()));
 
 
         // Subtask counts
@@ -522,15 +517,18 @@ public class TaskService {
         if (currentStatus == newStatus) {
             return;
         }
-        if (newStatus == TaskStatus.CANCELLED) {
-            return;
-        }
         boolean valid = switch (currentStatus) {
-            case TODO -> newStatus == TaskStatus.IN_PROGRESS;
-            case IN_PROGRESS -> newStatus == TaskStatus.IN_REVIEW || newStatus == TaskStatus.TODO;
-            case IN_REVIEW -> newStatus == TaskStatus.DONE || newStatus == TaskStatus.IN_PROGRESS || newStatus == TaskStatus.TODO;
-            case DONE -> newStatus == TaskStatus.IN_PROGRESS;
-            case CANCELLED -> newStatus == TaskStatus.TODO;
+            case TODO        -> newStatus == TaskStatus.IN_PROGRESS
+                             || newStatus == TaskStatus.CANCELLED;
+            case IN_PROGRESS -> newStatus == TaskStatus.IN_REVIEW
+                             || newStatus == TaskStatus.TODO
+                             || newStatus == TaskStatus.CANCELLED;
+            case IN_REVIEW   -> newStatus == TaskStatus.DONE
+                             || newStatus == TaskStatus.IN_PROGRESS
+                             || newStatus == TaskStatus.TODO
+                             || newStatus == TaskStatus.CANCELLED;
+            case DONE        -> newStatus == TaskStatus.IN_PROGRESS;
+            case CANCELLED   -> newStatus == TaskStatus.TODO;
         };
         if (!valid) {
             throw new DomainValidationException("Cannot transition task from " + currentStatus + " to " + newStatus);
