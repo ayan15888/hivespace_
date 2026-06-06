@@ -11,6 +11,7 @@ import { useAuthStore } from "@/store/authStore";
 export default function SignUpPage() {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
+  const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,7 +30,7 @@ export default function SignUpPage() {
     try {
       const response = await apiFetch("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ fullName, username, email, password }),
       });
 
       login(response.token, response);
@@ -77,6 +78,14 @@ export default function SignUpPage() {
           </div>
 
           <form onSubmit={handleSignUp} className="flex flex-col gap-3">
+            <input
+              type="text"
+              placeholder="Full Name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              className="h-11 rounded-md border border-zinc-800 bg-zinc-900 px-3 text-sm outline-none focus:ring-2 focus:ring-[#7C5CFC]/50 transition-all"
+            />
             <input
               type="text"
               placeholder="Username"

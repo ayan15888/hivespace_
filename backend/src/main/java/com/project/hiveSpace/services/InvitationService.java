@@ -193,7 +193,7 @@ public class InvitationService {
                 workspace != null ? workspace.getName() : null,
                 team != null ? team.getName() : null,
                 request.getTenantRole() != null ? request.getTenantRole() : "MEMBER",
-                currentUser.getUsername(),
+                currentUser.getActualUsername(),
                 inviteUrl,
                 rawPin
             );
@@ -465,7 +465,7 @@ public class InvitationService {
                 .projectName(invite.getProject() != null ? invite.getProject().getName() : null)
                 .workspaceIds(invite.getWorkspaces().stream().map(Workspace::getId).collect(java.util.stream.Collectors.toList()))
                 .teamIds(invite.getTeams().stream().map(Team::getId).collect(java.util.stream.Collectors.toList()))
-                .inviterUsername(invite.getInviter().getUsername())
+                .inviterUsername(invite.getInviter().getActualUsername())
                 .tenantRole(invite.getTenantRole())
                 .maxUses(invite.getMaxUses())
                 .currentUses(invite.getCurrentUses())

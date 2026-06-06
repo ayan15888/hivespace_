@@ -158,7 +158,7 @@ public class TeamMemberService {
                 .id(member.getId())
                 .teamId(member.getTeam().getId())
                 .userId(member.getUser().getId())
-                .username(member.getUser().getUsername())
+                .username(member.getUser().getActualUsername())
                 .email(member.getUser().getEmail())
                 .fullName(member.getUser().getFullName())
                 .avatarUrl(member.getUser().getAvatarUrl())
