@@ -97,7 +97,7 @@ export default function InviteAcceptancePage() {
       })
   }, [token])
 
-  // Listen to physical keyboard events for PIN entry
+  // Listen to physical keyboard events for PIN entry & global paste
   React.useEffect(() => {
     if (uiState !== "PIN_ENTRY" || pinVerifying) return
 
@@ -122,9 +122,46 @@ export default function InviteAcceptancePage() {
       }
     }
 
+    const handlePaste = (e: ClipboardEvent) => {
+      const pastedText = e.clipboardData?.getData("text") || ""
+      const digitsMatch = pastedText.replace(/\D/g, "").slice(0, 6)
+      if (digitsMatch.length === 6) {
+        const newPin = digitsMatch.split("")
+        setPin(newPin)
+        setPinError(null)
+        e.preventDefault()
+
+        if (isAuthenticated) {
+          setPinVerifying(true)
+          setPinError(null)
+          joinInvite({ token, pin: digitsMatch })
+            .then(async () => {
+              await fetchUser(true)
+              toast.success("Successfully joined the workspace!")
+              setUiState("SUCCESS")
+            })
+            .catch((err: any) => {
+              const msg = err.message || "Invalid security PIN"
+              setPinError(msg)
+              toast.error(msg)
+            })
+            .finally(() => {
+              setPinVerifying(false)
+            })
+        } else {
+          setStoredPin(digitsMatch)
+          setUiState("VALID_LOGGED_OUT")
+        }
+      }
+    }
+
     window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [pin, uiState, pinVerifying])
+    window.addEventListener("paste", handlePaste)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("paste", handlePaste)
+    }
+  }, [pin, uiState, pinVerifying, isAuthenticated, token, fetchUser])
 
   // Handle Holographic Keyboard Press
   const handleKeyPress = (val: string) => {
@@ -413,7 +450,7 @@ export default function InviteAcceptancePage() {
                         pinError && "border-red-500/50 text-red-400 animate-shake"
                       )}
                     >
-                      {digit ? "●" : ""}
+                      {digit || ""}
                     </div>
                   ))}
                 </div>

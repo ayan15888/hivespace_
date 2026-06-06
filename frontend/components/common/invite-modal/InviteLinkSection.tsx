@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Copy, Info, RefreshCw } from "lucide-react"
 import { useInviteModalContext } from "@/components/common/invite-modal/InviteModalContext"
+import { gooeyToast as toast } from "@/components/ui/goey-toaster"
 
 export function InviteLinkSection() {
   const { activeOrg, shareableInvite, copyInviteLink, generateShareableInvite } =
@@ -39,6 +40,17 @@ export function InviteLinkSection() {
             <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono text-xs rounded-sm px-2 py-0.5 tracking-widest">
               {shareableInvite.pin}
             </span>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(shareableInvite.pin);
+                toast.success("Security PIN copied!");
+              }}
+              className="text-zinc-400 hover:text-zinc-200 p-1 rounded hover:bg-zinc-800 transition-all flex items-center justify-center cursor-pointer"
+              title="Copy Security PIN"
+            >
+              <Copy className="h-3 w-3" />
+            </button>
             <span className="cursor-help" title="Recipients need this PIN to accept the invite">
               <Info className="h-3 w-3 text-zinc-600" />
             </span>

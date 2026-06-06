@@ -42,6 +42,7 @@ import { cn, getAvatarColorClass } from "@/lib/utils";
 import { useTasks } from "@/hooks/useTasks";
 import { useProjects } from "@/hooks/useProjects";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
+import { useAuthStore } from "@/store/authStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   TaskResponse, 
@@ -57,7 +58,8 @@ import {
 } from "@/lib/api/tasks";
 import { TaskActivityFeed } from "@/components/features/tasks/TaskActivityFeed";
 import { columnNameToStatus, statusMatchesColumn } from "@/lib/taskUtils";
-import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
+import { getProjectMembers, ProjectMemberResponse, getProjectTeams } from "@/lib/api/projects";
+import { getTeamMembers, TeamResponse, TeamMemberResponse } from "@/lib/api/teams";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { useTaskStore } from "@/store/taskStore";
 import { CreateTaskModal } from "@/components/features/tasks/CreateTaskModal";
@@ -86,6 +88,7 @@ const COLUMN_NAMES = ["Backlog", "Todo", "In Progress", "Review", "Done"];
 export default function SprintThreeBoardPage() {
   const params = useParams();
   const { projects } = useProjects();
+  const { user } = useAuthStore();
   const projectId = params?.projectSlug as string || "";
   
 
@@ -101,6 +104,14 @@ export default function SprintThreeBoardPage() {
 
   const [assignees, setAssignees] = useState<TaskAssigneeResponse[]>([]);
   const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+  const [projectTeams, setProjectTeams] = useState<TeamResponse[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([]);
+  const [teamMembersLoading, setTeamMembersLoading] = useState(false);
+
+  const isProjectLead = projectMembers.some(pm => pm.userId === user?.id && pm.role === "LEAD");
+  const isTeamLead = teamMembers.some(tm => tm.userId === user?.id && tm.role === "LEAD");
+  const isSystemAdmin = user?.role === "ADMIN" || user?.role === "OWNER";
+  const canAssign = isProjectLead || isTeamLead || isSystemAdmin;
 
   const { tasks, refresh } = useTasks(projectId);
   const updateTaskInStore = useTaskStore((state) => state.updateTask);
@@ -197,23 +208,80 @@ export default function SprintThreeBoardPage() {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  const fetchAssigneesAndMembers = async (taskId: string) => {
+  const fetchAssigneesAndMembers = async (task: TaskResponse) => {
     try {
-      const [assigneeData, memberData] = await Promise.all([
-        getTaskAssignees(taskId),
-        getProjectMembers(projectId)
+      const [assigneeData, memberData, teamsData] = await Promise.all([
+        getTaskAssignees(task.id),
+        getProjectMembers(projectId),
+        getProjectTeams(projectId)
       ]);
       setAssignees(assigneeData);
       setProjectMembers(memberData);
+      setProjectTeams(teamsData);
+
+      if (task.teamId) {
+        setTeamMembersLoading(true);
+        try {
+          const members = await getTeamMembers(task.teamId);
+          setTeamMembers(members);
+        } catch (err) {
+          console.error("Failed to fetch team members", err);
+        } finally {
+          setTeamMembersLoading(false);
+        }
+      } else {
+        setTeamMembers([]);
+      }
     } catch (err) {
-      console.error("Failed to fetch assignees or project members", err);
+      console.error("Failed to fetch assignees, project members, or teams", err);
     }
   };
 
   const handleTaskClick = (task: TaskResponse) => {
     setSelectedTask(task);
     setEditedTitle(task.title);
-    fetchAssigneesAndMembers(task.id);
+    fetchAssigneesAndMembers(task);
+  };
+
+  const handleTeamChange = async (teamId: string) => {
+    if (!selectedTask) return;
+    try {
+      const updated = await updateTask(selectedTask.id, { teamId });
+      setSelectedTask(updated);
+      updateTaskInStore(updated);
+      
+      setTeamMembersLoading(true);
+      const members = await getTeamMembers(teamId);
+      setTeamMembers(members);
+      toast.success("Task team updated successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update task team");
+    } finally {
+      setTeamMembersLoading(false);
+    }
+  };
+
+  const handleOwnerChange = async (newOwnerId: string) => {
+    if (!selectedTask) return;
+    try {
+      await changeTaskOwner(selectedTask.id, newOwnerId);
+      toast.success("Owner changed successfully");
+      
+      const ownerMember = teamMembers.find(m => m.userId === newOwnerId);
+      const updatedTask = {
+        ...selectedTask,
+        assigneeId: newOwnerId,
+        assigneeName: ownerMember ? ownerMember.fullName : "Unassigned",
+        assigneeInitials: ownerMember ? toInitials(ownerMember.fullName) : "U"
+      };
+      setSelectedTask(updatedTask);
+      updateTaskInStore(updatedTask);
+      
+      const assigneeData = await getTaskAssignees(selectedTask.id);
+      setAssignees(assigneeData);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to change owner");
+    }
   };
 
   const handleNewTask = (status?: string) => {
@@ -328,7 +396,7 @@ export default function SprintThreeBoardPage() {
 
         {/* --- KANBAN BOARD --- */}
         <ScrollArea className="flex-1 w-full whitespace-nowrap px-8 pb-8">
-          <div className="flex gap-4 h-full min-h-[calc(100vh-160px)]" style={{ width: 'max-content' }}>
+          <div className="flex gap-4 h-[calc(100vh-220px)]" style={{ width: 'max-content' }}>
             <AnimatePresence>
               {columns.map((col) => (
                 <motion.div 
@@ -562,126 +630,53 @@ export default function SprintThreeBoardPage() {
                 />
               </div>
 
-              {/* Metadata Table */}
               <div className="flex flex-col text-[13px]">
-                <MetadataRow label="Owner">
-                  <div className="flex items-center gap-2">
-                    <Avatar 
-                      className="h-5 w-5 border border-border/50"
-                      username={selectedTask?.assigneeName || "Unassigned"}
-                      email={selectedTask?.assigneeName ? `${selectedTask?.assigneeInitials?.toLowerCase() || "user"}@hivespace.io` : undefined}
-                    >
-                      <AvatarFallback className={cn("text-[9px] font-semibold uppercase", getAvatarColorClass(selectedTask?.assigneeInitials || ""))}>
-                        {selectedTask?.assigneeInitials || "U"}
-                      </AvatarFallback>
-                    </Avatar>
+                <MetadataRow label="Team & Assignee">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <select
-                      value={selectedTask?.assigneeId || ""}
-                      onChange={async (e) => {
-                        const newOwnerId = e.target.value;
-                        if (!newOwnerId || !selectedTask) return;
-                        try {
-                          await changeTaskOwner(selectedTask.id, newOwnerId);
-                          toast.success("Owner changed successfully");
-                          const ownerMember = projectMembers.find(m => m.userId === newOwnerId);
-                          if (ownerMember) {
-                            const updatedTask = {
-                              ...selectedTask,
-                              assigneeId: newOwnerId,
-                              assigneeName: ownerMember.fullName,
-                              assigneeInitials: toInitials(ownerMember.fullName)
-                            };
-                            // Update local detail panel state
-                            setSelectedTask(updatedTask);
-                            // Sync to global Zustand store so board cards update immediately
-                            updateTaskInStore(updatedTask);
-                          }
-                          fetchAssigneesAndMembers(selectedTask.id);
-                        } catch (err) {
-                          toast.error("Failed to change owner");
-                        }
-                      }}
-                      className="bg-transparent border-none text-foreground outline-none text-xs cursor-pointer font-medium hover:underline bg-[#1B1B1D]"
+                      value={selectedTask?.teamId || ""}
+                      onChange={(e) => handleTeamChange(e.target.value)}
+                      disabled={!(isProjectLead || isSystemAdmin)}
+                      className="bg-transparent border-none text-foreground outline-none text-xs cursor-pointer font-medium hover:underline bg-[#1B1B1D] disabled:opacity-50 disabled:cursor-not-allowed max-w-[120px] truncate"
                     >
-                      <option value="" disabled className="bg-[#1B1B1D]">Unassigned</option>
-                      {[...projectMembers]
-                        .sort((a, b) => a.belongsToAssignedTeam === b.belongsToAssignedTeam ? 0 : a.belongsToAssignedTeam ? -1 : 1)
-                        .map((m) => (
+                      <option value="" disabled className="bg-[#1B1B1D]">Select Team</option>
+                      {projectTeams.map((team) => (
+                        <option key={team.id} value={team.id} className="bg-[#1B1B1D]">
+                          {team.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <span className="text-zinc-600 text-xs">·</span>
+
+                    <div className="flex items-center gap-1.5">
+                      {selectedTask?.teamId && (
+                        <Avatar 
+                          className="h-4 w-4 border border-border/50"
+                          username={selectedTask?.assigneeName || "Unassigned"}
+                          email={selectedTask?.assigneeName ? `${selectedTask?.assigneeInitials?.toLowerCase() || "user"}@hivespace.io` : undefined}
+                        >
+                          <AvatarFallback className={cn("text-[8px] font-semibold uppercase", getAvatarColorClass(selectedTask?.assigneeInitials || ""))}>
+                            {selectedTask?.assigneeInitials || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      <select
+                        value={selectedTask?.assigneeId || ""}
+                        onChange={(e) => handleOwnerChange(e.target.value)}
+                        disabled={!selectedTask?.teamId || !(isProjectLead || isSystemAdmin || isTeamLead)}
+                        className="bg-transparent border-none text-foreground outline-none text-xs cursor-pointer font-medium hover:underline bg-[#1B1B1D] disabled:opacity-50 disabled:cursor-not-allowed max-w-[120px] truncate"
+                      >
+                        <option value="" disabled={!!selectedTask?.teamId} className="bg-[#1B1B1D]">
+                          {selectedTask?.teamId ? "Select Assignee" : "Select Team First"}
+                        </option>
+                        {teamMembers.map((m) => (
                           <option key={m.id} value={m.userId} className="bg-[#1B1B1D]">
-                            {m.fullName}{m.belongsToAssignedTeam ? " (Team Member)" : ""}
+                            {m.fullName}
                           </option>
                         ))}
                       </select>
-                  </div>
-                </MetadataRow>
-                
-                <MetadataRow label="Collaborators">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {assignees.filter(a => a.role !== 'OWNER').map((assignee) => {
-                      const initials = toInitials(assignee.fullName);
-                      return (
-                        <div key={assignee.id} className="group relative flex items-center bg-hs-card border border-border/50 rounded-full pl-1.5 pr-2 py-0.5 text-xs gap-1.5 hover:bg-muted/30">
-                          <Avatar 
-                            className="h-4.5 w-4.5 border border-border/50"
-                            username={assignee.fullName}
-                            email={`${initials.toLowerCase()}@hivespace.io`}
-                          >
-                            <AvatarFallback className={cn("text-[8px] font-semibold", getAvatarColorClass(initials))}>
-                              {initials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-[11px] text-zinc-300 font-medium">{assignee.fullName}</span>
-                          <span className="text-[9px] text-zinc-500 uppercase tracking-wider">{assignee.role.toLowerCase()}</span>
-                          <button
-                            onClick={async () => {
-                              if (!selectedTask) return;
-                              try {
-                                await removeTaskAssignee(selectedTask.id, assignee.userId);
-                                toast.success("Assignee removed");
-                                fetchAssigneesAndMembers(selectedTask.id);
-                              } catch (err) {
-                                toast.error("Failed to remove assignee");
-                              }
-                            }}
-                            className="text-zinc-500 hover:text-red-400 font-bold ml-1 text-[10px]"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })}
-                    
-                    {selectedTask && (
-                      <div className="relative flex items-center">
-                        <select
-                          value=""
-                          onChange={async (e) => {
-                            const val = e.target.value;
-                            if (!val) return;
-                            const [userId, role] = val.split(":");
-                            try {
-                              await addTaskAssignee(selectedTask.id, userId, role);
-                              toast.success("Assignee added");
-                              fetchAssigneesAndMembers(selectedTask.id);
-                            } catch (err) {
-                              toast.error("Failed to add assignee");
-                            }
-                          }}
-                          className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 rounded-full px-2 py-0.5 text-[10px] outline-none cursor-pointer hover:bg-zinc-700 transition-colors"
-                        >
-                          <option value="">+ Add</option>
-                          {[...projectMembers]
-                            .filter(m => !assignees.some(a => a.userId === m.userId))
-                            .sort((a, b) => a.belongsToAssignedTeam === b.belongsToAssignedTeam ? 0 : a.belongsToAssignedTeam ? -1 : 1)
-                            .map((m) => (
-                              <optgroup key={m.id} label={m.fullName + (m.belongsToAssignedTeam ? " (Team Member)" : "")} className="bg-[#1B1B1D]">
-                                <option value={`${m.userId}:COLLABORATOR`} className="bg-[#1B1B1D]">As Collaborator</option>
-                                <option value={`${m.userId}:REVIEWER`} className="bg-[#1B1B1D]">As Reviewer</option>
-                              </optgroup>
-                            ))}
-                        </select>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </MetadataRow>
 
@@ -743,6 +738,12 @@ export default function SprintThreeBoardPage() {
                 <MetadataRow label="Created">
                   <span className="text-muted-foreground">
                     {selectedTask?.createdAt ? new Date(selectedTask.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : "N/A"}
+                  </span>
+                </MetadataRow>
+
+                <MetadataRow label="Created by">
+                  <span className="text-muted-foreground">
+                    {selectedTask?.createdByName || "System"}
                   </span>
                 </MetadataRow>
 

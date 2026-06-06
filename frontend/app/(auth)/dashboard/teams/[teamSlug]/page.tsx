@@ -79,7 +79,7 @@ export default function BackendTeamPage() {
 
       <div className="flex-1 flex flex-col overflow-y-auto">
         {/* TEAM HEADER SECTION */}
-        <TeamHeader teamName={displayTitle} />
+        <TeamHeader teamId={teamId} teamName={displayTitle} />
 
         {/* TAB NAVIGATION */}
         <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
@@ -150,9 +150,9 @@ export default function BackendTeamPage() {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
               >
-                {activeTab === "overview" && <OverviewTab />}
+                {activeTab === "overview" && <OverviewTab teamId={teamId} />}
                 {activeTab === "members" && <MembersTab teamId={teamId} />}
-                {activeTab === "tasks" && <TasksTab />}
+                {activeTab === "tasks" && <TasksTab teamId={teamId} />}
                 {activeTab === "channels" && <ChannelsTab />}
               </motion.div>
             </TabsContent>

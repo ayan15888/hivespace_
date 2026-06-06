@@ -2,6 +2,7 @@
 
 import { Users, MessageSquare, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 const CHANNELS = [
   { name: "backend-ops", members: 24, unread: 4, lastMsg: "Are we deploying today?", time: "10:24 AM" },
@@ -14,9 +15,10 @@ export function ChannelsTab() {
     <div className="p-6 space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {CHANNELS.map((channel) => (
-          <div 
+          <Link 
+            href={`/dashboard/chat/${channel.name}`}
             key={channel.name} 
-            className="group relative bg-hs-card border border-border/50 rounded-md p-4 hover:border-border transition-all duration-300 cursor-pointer flex flex-col h-[140px]"
+            className="group relative bg-hs-card border border-border/50 rounded-md p-4 hover:border-border transition-all duration-300 cursor-pointer flex flex-col h-[140px] block"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-1.5">
@@ -45,7 +47,7 @@ export function ChannelsTab() {
             <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
                <MessageSquare className="h-4 w-4 text-zinc-600" />
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 

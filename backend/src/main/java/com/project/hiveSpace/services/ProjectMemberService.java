@@ -49,9 +49,8 @@ public class ProjectMemberService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new NotFoundException("Project not found"));
 
-        UUID workspaceId = project.getWorkspace().getId();
-        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER) && !rbacService.canAdminWorkspace(workspaceId)) {
-            throw new ForbiddenException("Access denied: Must be a project member or workspace admin");
+        if (!rbacService.canViewProject(projectId)) {
+            throw new ForbiddenException("Access denied: You do not have permission to view this project");
         }
 
         List<ProjectMember> explicitMembers = projectMemberRepository.findAllByProjectId(projectId);
@@ -67,9 +66,8 @@ public class ProjectMemberService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
-        UUID workspaceId = project.getWorkspace().getId();
-        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER) && !rbacService.canAdminWorkspace(workspaceId)) {
-            throw new ForbiddenException("Access denied: Must be a project member or workspace admin");
+        if (!rbacService.canViewProject(projectId)) {
+            throw new ForbiddenException("Access denied: You do not have permission to view this project");
         }
 
         List<ProjectMemberResponse> responses = new java.util.ArrayList<>();
@@ -80,6 +78,9 @@ public class ProjectMemberService {
             List<TeamMember> teamMembers = teamMemberRepository.findAllByTeamId(pt.getTeam().getId());
             for (TeamMember tm : teamMembers) {
                 if (!existingUserIds.contains(tm.getUser().getId())) {
+                    ProjectMemberRole virtualRole = tm.getRole() == com.project.hiveSpace.models.TeamMemberRole.LEAD 
+                            ? ProjectMemberRole.LEAD 
+                            : ProjectMemberRole.MEMBER;
                     ProjectMemberResponse virtualMember = ProjectMemberResponse.builder()
                             .id(UUID.randomUUID())
                             .projectId(projectId)
@@ -88,7 +89,7 @@ public class ProjectMemberService {
                             .email(tm.getUser().getEmail())
                             .fullName(tm.getUser().getFullName())
                             .avatarUrl(tm.getUser().getAvatarUrl())
-                            .role(ProjectMemberRole.MEMBER)
+                            .role(virtualRole)
                             .joinedAt(tm.getJoinedAt())
                             .belongsToAssignedTeam(true)
                             .build();

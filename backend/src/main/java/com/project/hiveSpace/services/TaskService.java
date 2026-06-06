@@ -398,6 +398,30 @@ public class TaskService {
             }
         }
 
+        if (request.getTeamId() != null) {
+            UUID projectId = task.getProject().getId();
+            Team newTeam = teamRepository.findById(request.getTeamId())
+                    .orElseThrow(() -> new NotFoundException("Team not found"));
+            if (!projectTeamRepository.existsByProjectIdAndTeamId(projectId, request.getTeamId())) {
+                throw new DomainValidationException("Team is not associated with this project");
+            }
+
+            Team oldTeam = task.getTeam();
+            boolean teamChanged = oldTeam == null || !request.getTeamId().equals(oldTeam.getId());
+            if (teamChanged) {
+                task.setTeam(newTeam);
+                taskActivityRepository.save(TaskActivity.builder()
+                        .task(task)
+                        .user(actor)
+                        .type("TEAM_CHANGED")
+                        .oldValue(oldTeam != null ? oldTeam.getName() : "None")
+                        .newValue(newTeam.getName())
+                        .createdAt(new Date())
+                        .build());
+                changed = true;
+            }
+        }
+
         if (changed) {
             task.setUpdatedAt(new Date());
         }
@@ -465,6 +489,10 @@ public class TaskService {
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
                 .build();
+
+        if (task.getCreatedBy() != null) {
+            response.setCreatedByName(task.getCreatedBy().getFullName());
+        }
 
         if (task.getTeam() != null) {
             response.setTeamId(task.getTeam().getId());

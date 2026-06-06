@@ -41,8 +41,8 @@ public class TeamMemberService {
                 .orElseThrow(() -> new NotFoundException("Team not found"));
 
         UUID workspaceId = team.getWorkspace().getId();
-        if (!rbacService.hasTeamRole(teamId, TeamMemberRole.MEMBER) && !rbacService.canAdminWorkspace(workspaceId)) {
-            throw new ForbiddenException("Access denied: Must be a team member or workspace admin");
+        if (!rbacService.hasWorkspaceRole(workspaceId, com.project.hiveSpace.models.WorkspaceMemberRole.VIEWER)) {
+            throw new ForbiddenException("Access denied: Must be a workspace member to view team members");
         }
 
         return teamMemberRepository.findAllByTeamId(teamId)

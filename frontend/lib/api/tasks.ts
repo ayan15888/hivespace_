@@ -40,6 +40,7 @@ export interface TaskResponse {
   assigneeName?: string;
   assigneeInitials?: string;
   teamId?: string;
+  createdByName?: string;
   parentId?: string;
   taskIdentifier?: string;
   subtaskCount?: number;
@@ -107,6 +108,7 @@ export type TaskUpdatePayload = Partial<
     | "dueDate"
     | "points"
     | "assigneeId"
+    | "teamId"
   >
 >;
 

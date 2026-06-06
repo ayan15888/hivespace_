@@ -234,8 +234,7 @@ public class ProjectService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new NotFoundException("Project not found"));
 
-        UUID workspaceId = project.getWorkspace().getId();
-        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER) && !rbacService.canAdminWorkspace(workspaceId)) {
+        if (!rbacService.canViewProject(projectId)) {
             throw new ForbiddenException("Access denied: Must be a project viewer or workspace admin to see assigned teams");
         }
 

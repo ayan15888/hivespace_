@@ -258,6 +258,12 @@ public class RbacService {
                             .orElse(false);
                     if (isTaskOwner) return true;
                     if (hasProjectRole(projectId, ProjectMemberRole.LEAD)) return true;
+                    if (task.getTeam() != null) {
+                        boolean isTeamLead = teamMemberRepository.findByTeamIdAndUserId(task.getTeam().getId(), user.getId())
+                                .map(tm -> tm.getRole() == TeamMemberRole.LEAD)
+                                .orElse(false);
+                        if (isTeamLead) return true;
+                    }
                     return canAdminWorkspace(task.getProject().getWorkspace().getId());
                 })
                 .orElse(false);

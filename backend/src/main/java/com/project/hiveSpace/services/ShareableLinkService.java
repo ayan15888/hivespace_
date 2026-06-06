@@ -162,6 +162,10 @@ public class ShareableLinkService {
                 .updatedAt(task.getUpdatedAt())
                 .build();
 
+        if (task.getCreatedBy() != null) {
+            response.setCreatedByName(task.getCreatedBy().getFullName());
+        }
+
         if (task.getTeam() != null) {
             response.setTeamId(task.getTeam().getId());
         }
