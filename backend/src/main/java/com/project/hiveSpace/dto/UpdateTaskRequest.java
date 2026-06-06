@@ -19,4 +19,5 @@ public class UpdateTaskRequest {
     private Date dueDate;
     private Integer points;
     private UUID assigneeId;
+    private UUID teamId;
 }

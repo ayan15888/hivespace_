@@ -59,6 +59,9 @@ public class Task {
     @JoinColumn(name = "parent_id")
     private Task parentTask;
 
+    @Column(name = "sequence_number")
+    private Integer sequenceNumber;
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false)
     private Date createdAt;

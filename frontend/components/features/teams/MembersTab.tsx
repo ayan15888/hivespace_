@@ -8,30 +8,18 @@ import { cn, getAvatarColorClass } from "@/lib/utils";
 import { getTeamMembers, TeamMemberResponse } from "@/lib/api/teams";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 
+import { useQuery } from "@tanstack/react-query";
+
 interface MembersTabProps {
   teamId?: string;
 }
 
 export function MembersTab({ teamId }: MembersTabProps) {
-  const [members, setMembers] = useState<TeamMemberResponse[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const fetchMembers = useCallback(async () => {
-    if (!teamId) return;
-    setLoading(true);
-    try {
-      const data = await getTeamMembers(teamId);
-      setMembers(data);
-    } catch (err: unknown) {
-      toast.error((err as Error).message || "Failed to fetch team members");
-    } finally {
-      setLoading(false);
-    }
-  }, [teamId]);
-
-  useEffect(() => {
-    fetchMembers();
-  }, [fetchMembers]);
+  const { data: members = [], isLoading: loading } = useQuery({
+    queryKey: ["teamMembers", teamId],
+    queryFn: () => getTeamMembers(teamId!),
+    enabled: !!teamId,
+  });
 
   const toInitials = (name: string) => {
     if (!name) return "?";

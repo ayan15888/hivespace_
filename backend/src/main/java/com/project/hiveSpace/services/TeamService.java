@@ -88,10 +88,6 @@ public class TeamService {
                 throw new DomainValidationException("Assigned lead must be a workspace member first");
             }
         }
-
-        boolean shouldAddCreator = (leadUserId == null || leadUserId.equals(creator.getId()))
-                || (request.getAddCreatorAsMember() != null && request.getAddCreatorAsMember());
-
         Team team = Team.builder()
                 .name(request.getName())
                 .description(request.getDescription())
@@ -103,35 +99,30 @@ public class TeamService {
 
         Team savedTeam = teamRepository.save(team);
 
-        if (leadUserId != null) {
-            User leadUser = userRepository.findById(leadUserId)
-                    .orElseThrow(() -> new NotFoundException("Lead user not found"));
+        UUID currentUserId = creator.getId();
+        UUID leadId = request.getLeadUserId() != null
+                ? request.getLeadUserId()
+                : currentUserId;
 
-            TeamMember leadMember = TeamMember.builder()
-                    .team(savedTeam)
-                    .user(leadUser)
-                    .role(TeamMemberRole.LEAD)
-                    .joinedAt(new Date())
-                    .build();
-            teamMemberRepository.save(leadMember);
+        User leadUser = userRepository.findById(leadId)
+                .orElseThrow(() -> new NotFoundException("Lead user not found"));
 
-            if (!leadUserId.equals(creator.getId()) && shouldAddCreator) {
-                TeamMember creatorMember = TeamMember.builder()
-                        .team(savedTeam)
-                        .user(creator)
-                        .role(TeamMemberRole.MEMBER)
-                        .joinedAt(new Date())
-                        .build();
-                teamMemberRepository.save(creatorMember);
-            }
-        } else {
-            TeamMember lead = TeamMember.builder()
+        TeamMember leadMember = TeamMember.builder()
+                .team(savedTeam)
+                .user(leadUser)
+                .role(TeamMemberRole.LEAD)
+                .joinedAt(new Date())
+                .build();
+        teamMemberRepository.save(leadMember);
+
+        if (!leadId.equals(currentUserId)) {
+            TeamMember creatorMember = TeamMember.builder()
                     .team(savedTeam)
                     .user(creator)
-                    .role(TeamMemberRole.LEAD)
+                    .role(TeamMemberRole.MEMBER)
                     .joinedAt(new Date())
                     .build();
-            teamMemberRepository.save(lead);
+            teamMemberRepository.save(creatorMember);
         }
 
         if (associatedProject != null) {

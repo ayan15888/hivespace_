@@ -120,7 +120,7 @@ class WorkspaceMembershipGatekeepingTests {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(userId, result.get(0).getUserId());
-        assertEquals("test@example.com", result.get(0).getUsername());
+        assertEquals("testuser", result.get(0).getUsername());
         assertEquals(WorkspaceMemberRole.MEMBER, result.get(0).getRole());
     }
 

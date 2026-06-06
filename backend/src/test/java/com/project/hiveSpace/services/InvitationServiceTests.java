@@ -165,7 +165,7 @@ class InvitationServiceTests {
         assertEquals(projectId, response.getProjectId());
         verify(resendEmailService, times(1)).sendInvitationEmail(
                 eq("invitee@example.com"), eq("Test Tenant"), eq("Test Workspace"), eq("Test Team"),
-                eq("MEMBER"), eq("inviter@example.com"), any(), eq("123456")
+                eq("MEMBER"), eq("inviter"), any(), eq("123456")
         );
     }
 

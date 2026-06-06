@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { createTask, TaskRequest } from "@/lib/api/tasks";
-import { getProjectMembers, ProjectMemberResponse, getProjectTeams, addProjectMember } from "@/lib/api/projects";
+import { getProjectMembers, getProjectTeamMembers, ProjectMemberResponse, getProjectTeams, addProjectMember } from "@/lib/api/projects";
 import { getTeamMembers, TeamResponse } from "@/lib/api/teams";
 import { columnNameToStatus, priorityToBackend } from "@/lib/taskUtils";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
@@ -72,12 +72,22 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
     }
     setMembersLoading(true);
     setMembersError(false);
-    getProjectMembers(projectId)
-      .then((data) => {
-        setProjectMembers(data);
+    Promise.all([
+      getProjectMembers(projectId),
+      getProjectTeamMembers(projectId).catch(() => [])
+    ])
+      .then(([directMembers, teamMembers]) => {
+        const merged = [...directMembers];
+        teamMembers.forEach((tm) => {
+          if (!merged.some((dm) => dm.userId === tm.userId)) {
+            merged.push(tm);
+          }
+        });
+        setProjectMembers(merged);
         setMembersLoading(false);
       })
       .catch((err) => {
+        console.error("Failed to load project members:", err);
         setProjectMembers([]);
         setMembersLoading(false);
         setMembersError(true);
@@ -143,9 +153,30 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
   const { user } = useAuthStore();
   const currentUserProjectMember = projectMembers.find(m => m.userId === user?.id);
   const projectRole = currentUserProjectMember?.role || null;
+
+  // Resolve dynamic task creation permission configured by admin
+  let allowedRoles = ["MEMBER", "LEAD"];
+  if (typeof window !== "undefined") {
+    try {
+      const saved = window.localStorage.getItem("hivespace_roles_permissions");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const projectMatrix = parsed?.project?.matrix;
+        if (projectMatrix) {
+          const createRow = projectMatrix.find((row: any) => row.action === "Create & Dispatch Tasks");
+          if (createRow) {
+            allowedRoles = createRow.rolesGranted;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse roles permissions in CreateTaskModal", e);
+    }
+  }
+
   const canCreate = !projectId || membersLoading || 
                     (!membersError && projectMembers.length === 0) || 
-                    (projectRole === "MEMBER" || projectRole === "LEAD");
+                    (projectRole ? allowedRoles.includes(projectRole) : false);
 
   // Reset fields when modal opens or initialProjectId/defaultStatus changes
   useEffect(() => {
