@@ -10,7 +10,7 @@ import com.project.hiveSpace.models.TaskActivity;
 import com.project.hiveSpace.models.User;
 import com.project.hiveSpace.repository.TaskRepository;
 import com.project.hiveSpace.repository.TaskAssigneeRepository;
-//import com.project.hiveSpace.repository.ProjectMemberRepository;
+import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.TaskActivityRepository;
 import com.project.hiveSpace.security.RbacService;
@@ -36,7 +36,7 @@ public class TaskAssigneeService {
 
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
-    //private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
     private final TaskActivityRepository taskActivityRepository;
     private final RbacService rbacService;
@@ -81,7 +81,7 @@ public class TaskAssigneeService {
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
         // RULE: User must be a member of the project
-        if (!rbacService.hasProjectRoleForUser(targetUser.getId(), projectId, ProjectMemberRole.VIEWER)) {
+        if (!projectMemberRepository.existsByProjectIdAndUserId(projectId, targetUser.getId())) {
             throw new DomainValidationException("Assignee must be a member of this project");
         }
 
@@ -104,7 +104,7 @@ public class TaskAssigneeService {
                 .task(task)
                 .user(actor)
                 .type(activityType)
-                .newValue(targetUser.getUsername())
+                .newValue(targetUser.getActualUsername())
                 .createdAt(new Date())
                 .build();
         taskActivityRepository.save(activity);
@@ -142,7 +142,7 @@ public class TaskAssigneeService {
         String oldOwnerUsername = "None";
         if (currentOwnerOpt.isPresent()) {
             TaskAssignee currentOwner = currentOwnerOpt.get();
-            oldOwnerUsername = currentOwner.getUser().getUsername();
+            oldOwnerUsername = currentOwner.getUser().getActualUsername();
             taskAssigneeRepository.delete(currentOwner);
         }
 
@@ -168,7 +168,7 @@ public class TaskAssigneeService {
                 .user(actor)
                 .type("OWNER_CHANGED")
                 .oldValue(oldOwnerUsername)
-                .newValue(newOwner.getUsername())
+                .newValue(newOwner.getActualUsername())
                 .createdAt(new Date())
                 .build();
         taskActivityRepository.save(activity);
@@ -199,7 +199,10 @@ public class TaskAssigneeService {
 
         // RULE: Cannot remove OWNER if they are the only assignee (or you cannot delete OWNER via standard remove)
         if (assignment.getRole() == TaskAssigneeRole.OWNER) {
-            throw new DomainValidationException("Cannot delete primary OWNER. Use changeOwner instead.");
+            throw new DomainValidationException(
+                "Cannot remove the task owner. " +
+                "Use the change-owner endpoint to transfer ownership first."
+            );
         }
 
         taskAssigneeRepository.delete(assignment);
@@ -209,7 +212,7 @@ public class TaskAssigneeService {
                 .task(task)
                 .user(actor)
                 .type("ASSIGNEE_REMOVED")
-                .oldValue(assignment.getUser().getUsername())
+                .oldValue(assignment.getUser().getActualUsername())
                 .createdAt(new Date())
                 .build();
         taskActivityRepository.save(activity);
@@ -221,7 +224,7 @@ public class TaskAssigneeService {
                 .taskId(assignee.getTask().getId())
                 .userId(assignee.getUser().getId())
                 .fullName(assignee.getUser().getFullName())
-                .username(assignee.getUser().getUsername())
+                .username(assignee.getUser().getActualUsername())
                 .avatarUrl(assignee.getUser().getAvatarUrl())
                 .role(assignee.getRole())
                 .assignedAt(assignee.getAssignedAt())

@@ -152,7 +152,7 @@ public class WorkspaceService {
                 .id(member.getId())
                 .workspaceId(member.getWorkspace().getId())
                 .userId(member.getUser().getId())
-                .username(member.getUser().getUsername())
+                .username(member.getUser().getActualUsername())
                 .email(includeEmail ? member.getUser().getEmail() : null)
                 .fullName(member.getUser().getFullName())
                 .avatarUrl(member.getUser().getAvatarUrl())

@@ -88,6 +88,9 @@ function getAvatarColor(userId: string) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useTeamPageStore } from "@/app/(auth)/dashboard/teams/store"
+
 export function ManageTeamSheet({
   teamId,
   projectId,
@@ -96,41 +99,36 @@ export function ManageTeamSheet({
   trigger,
   refresh = () => {}
 }: ManageTeamSheetProps) {
+  const queryClient = useQueryClient()
   const { activeWorkspace } = useWorkspaceStore()
   const workspaceId = activeWorkspace?.id ?? ""
-  const [open, setOpen] = useState(false)
+  
+  const { isManageSheetOpen: open, setIsManageSheetOpen: setOpen } = useTeamPageStore()
   const [name, setName] = useState(initialName)
   const [description, setDescription] = useState(initialDescription)
-  const [members, setMembers] = useState<TeamMemberResponse[]>([])
-  const [allWorkspaceMembers, setAllWorkspaceMembers] = useState<WorkspaceMemberResponse[]>([])
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [addingMemberId, setAddingMemberId] = useState<string | null>(null)
   const [showAddMember, setShowAddMember] = useState(false)
 
   const { user } = useAuthStore()
   const { canManageTeam } = usePermission()
+
+  const { data: members = [], isLoading: loadingMembers } = useQuery({
+    queryKey: ["teamMembers", teamId],
+    queryFn: () => getTeamMembers(teamId!),
+    enabled: open && !!teamId,
+  })
+
+  const { data: allWorkspaceMembers = [], isLoading: loadingWorkspaceMembers } = useQuery({
+    queryKey: ["workspaceMembers", workspaceId],
+    queryFn: () => getWorkspaceMembers(workspaceId),
+    enabled: open && !!workspaceId,
+  })
+
+  const loading = loadingMembers || loadingWorkspaceMembers
+
   const currentUserTeamRole = members.find(m => m.userId === user?.id)?.role || null
   const hasTeamManagement = canManageTeam(currentUserTeamRole)
-
-  const loadData = useCallback(async () => {
-    if (!open || !teamId) return
-    setLoading(true)
-    try {
-      const teamMembersList = await getTeamMembers(teamId)
-      setMembers(teamMembersList)
-      if (workspaceId) {
-        const workspaceMembersList = await getWorkspaceMembers(workspaceId)
-        setAllWorkspaceMembers(workspaceMembersList)
-      }
-    } catch (err: unknown) {
-      toast.error((err as Error).message || "Failed to load team data")
-    } finally {
-      setLoading(false)
-    }
-  }, [open, teamId, workspaceId])
-
-  useEffect(() => { loadData() }, [loadData])
 
   useEffect(() => {
     if (open) {
@@ -143,8 +141,8 @@ export function ManageTeamSheet({
     if (!teamId) return
     setAddingMemberId(userId)
     try {
-      const added = await addTeamMember(teamId, userId, "MEMBER")
-      setMembers(prev => [...prev, added])
+      await addTeamMember(teamId, userId, "MEMBER")
+      queryClient.invalidateQueries({ queryKey: ["teamMembers", teamId] })
       setShowAddMember(false)
       toast.success("Member added to team")
       refresh()
@@ -159,7 +157,7 @@ export function ManageTeamSheet({
     if (!teamId) return
     try {
       await removeTeamMember(teamId, userId)
-      setMembers(prev => prev.filter(m => m.userId !== userId))
+      queryClient.invalidateQueries({ queryKey: ["teamMembers", teamId] })
       toast.success("Member removed from team")
       refresh()
     } catch (err: unknown) {
@@ -171,7 +169,7 @@ export function ManageTeamSheet({
     if (!teamId) return
     try {
       await updateTeamMemberRole(teamId, userId, newRole)
-      setMembers(prev => prev.map(m => m.userId === userId ? { ...m, role: newRole } : m))
+      queryClient.invalidateQueries({ queryKey: ["teamMembers", teamId] })
       toast.success(`Role updated to ${newRole}`)
     } catch (err: unknown) {
       toast.error((err as Error).message || "Failed to update role")
@@ -184,6 +182,7 @@ export function ManageTeamSheet({
     setSaving(true)
     try {
       await updateTeam(workspaceId, teamId, { name: name.trim(), description: description.trim(), workspaceId })
+      queryClient.invalidateQueries({ queryKey: ["workspaceTeams", workspaceId] })
       toast.success("Team settings saved successfully")
       refresh()
       setOpen(false)
@@ -199,6 +198,7 @@ export function ManageTeamSheet({
     if (!confirm(`Are you sure you want to delete the team "${name}"?`)) return
     try {
       await deleteTeam(workspaceId, teamId)
+      queryClient.invalidateQueries({ queryKey: ["workspaceTeams", workspaceId] })
       toast.success("Team deleted successfully")
       refresh()
       setOpen(false)

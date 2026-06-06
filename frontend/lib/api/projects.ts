@@ -55,6 +55,10 @@ export async function getProjectMembers(projectId: string): Promise<ProjectMembe
   return apiFetch(`/api/projects/${projectId}/members`);
 }
 
+export async function getProjectTeamMembers(projectId: string): Promise<ProjectMemberResponse[]> {
+  return apiFetch(`/api/projects/${projectId}/team-members`);
+}
+
 export async function addProjectMember(projectId: string, userId: string, role?: string): Promise<ProjectMemberResponse> {
   const roleParam = role ? `&role=${encodeURIComponent(role)}` : "";
   return apiFetch(`/api/projects/${projectId}/members?userId=${userId}${roleParam}`, {

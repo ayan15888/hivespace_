@@ -11,6 +11,7 @@ import com.project.hiveSpace.models.Workspace;
 import com.project.hiveSpace.models.Team;
 import com.project.hiveSpace.models.ProjectTeam;
 import com.project.hiveSpace.models.ResourceType;
+import com.project.hiveSpace.models.TeamMember;
 import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.TeamRepository;
@@ -147,14 +148,24 @@ public class ProjectService {
                     .collect(Collectors.toList());
         }
 
-        // Regular members see only projects they are members of
+        // Regular members see projects they are members of, OR projects assigned to teams they are members of
         List<ProjectMember> memberships = projectMemberRepository.findAllByUserId(currentUser.getId());
         Set<UUID> memberProjectIds = memberships.stream()
                 .map(pm -> pm.getProject().getId())
                 .collect(Collectors.toSet());
 
+        List<TeamMember> teamMemberships = teamMemberRepository.findAllByUserId(currentUser.getId());
+        Set<UUID> userTeamIds = teamMemberships.stream()
+                .map(tm -> tm.getTeam().getId())
+                .collect(Collectors.toSet());
+
+        Set<UUID> assignedProjectIds = new java.util.HashSet<>();
+        for (UUID teamId : userTeamIds) {
+            projectTeamRepository.findByTeamId(teamId).forEach(pt -> assignedProjectIds.add(pt.getProject().getId()));
+        }
+
         return allProjects.stream()
-                .filter(project -> memberProjectIds.contains(project.getId()))
+                .filter(project -> memberProjectIds.contains(project.getId()) || assignedProjectIds.contains(project.getId()))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -223,8 +234,7 @@ public class ProjectService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new NotFoundException("Project not found"));
 
-        UUID workspaceId = project.getWorkspace().getId();
-        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER) && !rbacService.canAdminWorkspace(workspaceId)) {
+        if (!rbacService.canViewProject(projectId)) {
             throw new ForbiddenException("Access denied: Must be a project viewer or workspace admin to see assigned teams");
         }
 

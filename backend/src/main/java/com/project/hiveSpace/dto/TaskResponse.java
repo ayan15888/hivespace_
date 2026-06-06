@@ -27,6 +27,7 @@ public class TaskResponse {
     private String assigneeName;
     private String assigneeInitials;
     private UUID teamId;
+    private String createdByName;
     private UUID parentId;
     private String taskIdentifier;
     private Integer subtaskCount;

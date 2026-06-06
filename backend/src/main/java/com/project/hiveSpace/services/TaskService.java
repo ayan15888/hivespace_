@@ -20,6 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -35,6 +36,7 @@ public class TaskService {
     private final TaskAssigneeRepository taskAssigneeRepository;
     private final TaskActivityRepository taskActivityRepository;
     private final ProjectTeamRepository projectTeamRepository;
+    private final TeamMemberRepository teamMemberRepository;
     private final RbacService rbacService;
 
     @Transactional
@@ -72,10 +74,7 @@ public class TaskService {
         }
 
         // 5. Increment project task sequence and create the task
-        projectRepository.incrementAndGetTaskSequence(projectId);
-        Project updatedProject = projectRepository.findById(projectId)
-                .orElseThrow(() -> new NotFoundException("Project not found"));
-        int seq = updatedProject.getTaskSequence();
+        int seq = projectRepository.incrementAndGetTaskSequence(projectId);
 
         Task task = Task.builder()
                 .title(request.getTitle())
@@ -85,13 +84,13 @@ public class TaskService {
                 .labels(request.getLabels())
                 .dueDate(request.getDueDate())
                 .points(request.getPoints())
-                .project(updatedProject)
+                .project(project)
                 .parentTask(parentTask)
                 .team(team)
                 .createdBy(creator)
                 .createdAt(new Date())
-                .sequenceNumber(seq)
                 .build();
+        task.setSequenceNumber(seq);
 
         // 6. Assign the owner
         User ownerUser = creator;
@@ -120,7 +119,7 @@ public class TaskService {
                 .task(savedTask)
                 .user(creator)
                 .type("CREATED")
-                .newValue(creator.getUsername())
+                .newValue(creator.getActualUsername())
                 .createdAt(new Date())
                 .build();
         taskActivityRepository.save(activity);
@@ -179,13 +178,28 @@ public class TaskService {
         }
 
         List<ProjectMember> memberships = projectMemberRepository.findAllByUserId(currentUser.getId());
-        if (memberships.isEmpty()) {
-            return java.util.Collections.emptyList();
+        List<Project> projects = new java.util.ArrayList<>(
+            memberships.stream()
+                .map(ProjectMember::getProject)
+                .collect(Collectors.toList())
+        );
+
+        List<TeamMember> teamMemberships = teamMemberRepository.findAllByUserId(currentUser.getId());
+        Set<UUID> userTeamIds = teamMemberships.stream()
+                .map(tm -> tm.getTeam().getId())
+                .collect(Collectors.toSet());
+
+        for (UUID teamId : userTeamIds) {
+            projectTeamRepository.findByTeamId(teamId).forEach(pt -> {
+                if (projects.stream().noneMatch(p -> p.getId().equals(pt.getProject().getId()))) {
+                    projects.add(pt.getProject());
+                }
+            });
         }
 
-        List<Project> projects = memberships.stream()
-                .map(ProjectMember::getProject)
-                .collect(Collectors.toList());
+        if (projects.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
 
         return taskRepository.findAllByProjectInOrderByUpdatedAtDesc(projects)
                 .stream()
@@ -376,8 +390,32 @@ public class TaskService {
                         .task(task)
                         .user(actor)
                         .type("OWNER_CHANGED")
-                        .oldValue(currentOwner != null ? currentOwner.getUsername() : null)
-                        .newValue(newOwner.getUsername())
+                        .oldValue(currentOwner != null ? currentOwner.getActualUsername() : null)
+                        .newValue(newOwner.getActualUsername())
+                        .createdAt(new Date())
+                        .build());
+                changed = true;
+            }
+        }
+
+        if (request.getTeamId() != null) {
+            UUID projectId = task.getProject().getId();
+            Team newTeam = teamRepository.findById(request.getTeamId())
+                    .orElseThrow(() -> new NotFoundException("Team not found"));
+            if (!projectTeamRepository.existsByProjectIdAndTeamId(projectId, request.getTeamId())) {
+                throw new DomainValidationException("Team is not associated with this project");
+            }
+
+            Team oldTeam = task.getTeam();
+            boolean teamChanged = oldTeam == null || !request.getTeamId().equals(oldTeam.getId());
+            if (teamChanged) {
+                task.setTeam(newTeam);
+                taskActivityRepository.save(TaskActivity.builder()
+                        .task(task)
+                        .user(actor)
+                        .type("TEAM_CHANGED")
+                        .oldValue(oldTeam != null ? oldTeam.getName() : "None")
+                        .newValue(newTeam.getName())
                         .createdAt(new Date())
                         .build());
                 changed = true;
@@ -424,7 +462,7 @@ public class TaskService {
                 .id(activity.getId())
                 .taskId(activity.getTask().getId())
                 .userId(activity.getUser() != null ? activity.getUser().getId() : null)
-                .username(activity.getUser() != null ? activity.getUser().getUsername() : null)
+                .username(activity.getUser() != null ? activity.getUser().getActualUsername() : null)
                 .fullName(activity.getUser() != null ? activity.getUser().getFullName() : null)
                 .avatarUrl(activity.getUser() != null ? activity.getUser().getAvatarUrl() : null)
                 .type(activity.getType())
@@ -452,6 +490,10 @@ public class TaskService {
                 .updatedAt(task.getUpdatedAt())
                 .build();
 
+        if (task.getCreatedBy() != null) {
+            response.setCreatedByName(task.getCreatedBy().getFullName());
+        }
+
         if (task.getTeam() != null) {
             response.setTeamId(task.getTeam().getId());
         }
@@ -459,9 +501,7 @@ public class TaskService {
             response.setParentId(task.getParentTask().getId());
         }
 
-        // Use stored atomic task sequence for task identifier (e.g. HS-001)
-        int seq = task.getSequenceNumber() != null ? task.getSequenceNumber() : 0;
-        response.setTaskIdentifier("HS-" + String.format("%03d", seq));
+        response.setTaskIdentifier("HS-" + String.format("%03d", task.getSequenceNumber()));
 
 
         // Subtask counts
@@ -496,7 +536,7 @@ public class TaskService {
                 .taskId(assignee.getTask().getId())
                 .userId(assignee.getUser().getId())
                 .fullName(assignee.getUser().getFullName())
-                .username(assignee.getUser().getUsername())
+                .username(assignee.getUser().getActualUsername())
                 .avatarUrl(assignee.getUser().getAvatarUrl())
                 .role(assignee.getRole())
                 .assignedAt(assignee.getAssignedAt())
@@ -522,15 +562,18 @@ public class TaskService {
         if (currentStatus == newStatus) {
             return;
         }
-        if (newStatus == TaskStatus.CANCELLED) {
-            return;
-        }
         boolean valid = switch (currentStatus) {
-            case TODO -> newStatus == TaskStatus.IN_PROGRESS;
-            case IN_PROGRESS -> newStatus == TaskStatus.IN_REVIEW || newStatus == TaskStatus.TODO;
-            case IN_REVIEW -> newStatus == TaskStatus.DONE || newStatus == TaskStatus.IN_PROGRESS || newStatus == TaskStatus.TODO;
-            case DONE -> newStatus == TaskStatus.IN_PROGRESS;
-            case CANCELLED -> newStatus == TaskStatus.TODO;
+            case TODO        -> newStatus == TaskStatus.IN_PROGRESS
+                             || newStatus == TaskStatus.CANCELLED;
+            case IN_PROGRESS -> newStatus == TaskStatus.IN_REVIEW
+                             || newStatus == TaskStatus.TODO
+                             || newStatus == TaskStatus.CANCELLED;
+            case IN_REVIEW   -> newStatus == TaskStatus.DONE
+                             || newStatus == TaskStatus.IN_PROGRESS
+                             || newStatus == TaskStatus.TODO
+                             || newStatus == TaskStatus.CANCELLED;
+            case DONE        -> newStatus == TaskStatus.IN_PROGRESS;
+            case CANCELLED   -> newStatus == TaskStatus.TODO;
         };
         if (!valid) {
             throw new DomainValidationException("Cannot transition task from " + currentStatus + " to " + newStatus);

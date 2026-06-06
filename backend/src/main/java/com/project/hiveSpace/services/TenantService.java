@@ -168,8 +168,8 @@ public class TenantService {
                     return new MemberResponse(
                             user.getId(),
                             user.getEmail(),
-                            user.getUsername(),
-                            user.getFullName() != null ? user.getFullName() : user.getUsername(),
+                            user.getActualUsername(),
+                            user.getFullName() != null ? user.getFullName() : user.getActualUsername(),
                             user.getAvatarUrl(),
                             user.getJobTitle() != null ? user.getJobTitle() : "Member",
                             membership.getRole().name()
@@ -258,8 +258,8 @@ public class TenantService {
         return new MemberResponse(
                 u.getId(),
                 u.getEmail(),
-                u.getUsername(),
-                u.getFullName() != null ? u.getFullName() : u.getUsername(),
+                u.getActualUsername(),
+                u.getFullName() != null ? u.getFullName() : u.getActualUsername(),
                 u.getAvatarUrl(),
                 u.getJobTitle() != null ? u.getJobTitle() : "Member",
                 savedMember.getRole().name()

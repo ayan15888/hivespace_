@@ -68,6 +68,7 @@ export default function InviteAcceptancePage() {
   const [authError, setAuthError] = React.useState<string | null>(null)
 
   // Sign Up Fields
+  const [fullName, setFullName] = React.useState("")
   const [username, setUsername] = React.useState("")
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -96,7 +97,7 @@ export default function InviteAcceptancePage() {
       })
   }, [token])
 
-  // Listen to physical keyboard events for PIN entry
+  // Listen to physical keyboard events for PIN entry & global paste
   React.useEffect(() => {
     if (uiState !== "PIN_ENTRY" || pinVerifying) return
 
@@ -121,9 +122,46 @@ export default function InviteAcceptancePage() {
       }
     }
 
+    const handlePaste = (e: ClipboardEvent) => {
+      const pastedText = e.clipboardData?.getData("text") || ""
+      const digitsMatch = pastedText.replace(/\D/g, "").slice(0, 6)
+      if (digitsMatch.length === 6) {
+        const newPin = digitsMatch.split("")
+        setPin(newPin)
+        setPinError(null)
+        e.preventDefault()
+
+        if (isAuthenticated) {
+          setPinVerifying(true)
+          setPinError(null)
+          joinInvite({ token, pin: digitsMatch })
+            .then(async () => {
+              await fetchUser(true)
+              toast.success("Successfully joined the workspace!")
+              setUiState("SUCCESS")
+            })
+            .catch((err: any) => {
+              const msg = err.message || "Invalid security PIN"
+              setPinError(msg)
+              toast.error(msg)
+            })
+            .finally(() => {
+              setPinVerifying(false)
+            })
+        } else {
+          setStoredPin(digitsMatch)
+          setUiState("VALID_LOGGED_OUT")
+        }
+      }
+    }
+
     window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [pin, uiState, pinVerifying])
+    window.addEventListener("paste", handlePaste)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("paste", handlePaste)
+    }
+  }, [pin, uiState, pinVerifying, isAuthenticated, token, fetchUser])
 
   // Handle Holographic Keyboard Press
   const handleKeyPress = (val: string) => {
@@ -188,7 +226,7 @@ export default function InviteAcceptancePage() {
     setAuthError(null)
     setAuthLoading(true)
 
-    if (!username.trim() || !email.trim() || !password.trim()) {
+    if (!fullName.trim() || !username.trim() || !email.trim() || !password.trim()) {
       setAuthError("All fields are required")
       setAuthLoading(false)
       return
@@ -208,7 +246,7 @@ export default function InviteAcceptancePage() {
       // 1. Create account
       const registerRes = await apiFetch("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ fullName, username, email, password }),
       })
 
       // 2. Initialize auth session store
@@ -412,7 +450,7 @@ export default function InviteAcceptancePage() {
                         pinError && "border-red-500/50 text-red-400 animate-shake"
                       )}
                     >
-                      {digit ? "●" : ""}
+                      {digit || ""}
                     </div>
                   ))}
                 </div>
@@ -550,6 +588,13 @@ export default function InviteAcceptancePage() {
                   </p>
                   
                   <div className="space-y-2.5">
+                    <Input 
+                      placeholder="Full Name" 
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="bg-zinc-900 border-white/[0.06] focus:border-[#7C5CFC]/50 h-10 text-xs text-white focus-visible:ring-0 rounded-xl"
+                      required
+                    />
                     <Input 
                       placeholder="Username" 
                       value={username}

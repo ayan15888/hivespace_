@@ -162,6 +162,10 @@ public class ShareableLinkService {
                 .updatedAt(task.getUpdatedAt())
                 .build();
 
+        if (task.getCreatedBy() != null) {
+            response.setCreatedByName(task.getCreatedBy().getFullName());
+        }
+
         if (task.getTeam() != null) {
             response.setTeamId(task.getTeam().getId());
         }
@@ -169,9 +173,7 @@ public class ShareableLinkService {
             response.setParentId(task.getParentTask().getId());
         }
 
-        // Use stored task_sequence for task identifier (public view)
-        int seq = task.getSequenceNumber() != null ? task.getSequenceNumber() : 0;
-        response.setTaskIdentifier("HS-" + String.format("%03d", seq));
+        response.setTaskIdentifier("HS-" + String.format("%03d", task.getSequenceNumber()));
 
         return response;
     }

@@ -47,14 +47,23 @@ import { TasksTab } from "@/components/features/teams/TasksTab";
 import { ChannelsTab } from "@/components/features/teams/ChannelsTab";
 import { ManageTeamSheet } from "@/components/features/teams/ManageTeamSheet";
 import { useWorkspaceStore } from "@/store/workspaceStore";
-import { useTeams } from "@/hooks/useTeams";
 import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { getTeamsByWorkspace } from "@/lib/api/teams";
+import { useTeamPageStore } from "../store";
 
 export default function BackendTeamPage() {
   const params = useParams();
   const teamId = params?.teamSlug as string || "";
   const { activeWorkspace } = useWorkspaceStore();
-  const { teams, refresh: refreshTeams } = useTeams(activeWorkspace?.id);
+  const { activeTab, setActiveTab } = useTeamPageStore();
+
+  const { data: teams = [], refetch: refreshTeams } = useQuery({
+    queryKey: ["workspaceTeams", activeWorkspace?.id],
+    queryFn: () => getTeamsByWorkspace(activeWorkspace!.id),
+    enabled: !!activeWorkspace?.id,
+  });
+
   const currentTeam = teams.find(t => t.id === teamId);
 
   const formattedSlug = teamId
@@ -63,8 +72,6 @@ export default function BackendTeamPage() {
     .join(" ") + " Team";
 
   const displayTitle = currentTeam ? currentTeam.name : formattedSlug;
-
-  const [activeTab, setActiveTab] = useState("overview");
 
   return (
     <div className="flex h-screen flex-col bg-hs-main text-foreground overflow-hidden">
@@ -79,7 +86,7 @@ export default function BackendTeamPage() {
 
       <div className="flex-1 flex flex-col overflow-y-auto">
         {/* TEAM HEADER SECTION */}
-        <TeamHeader teamName={displayTitle} />
+        <TeamHeader teamId={teamId} teamName={displayTitle} />
 
         {/* TAB NAVIGATION */}
         <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
@@ -150,9 +157,9 @@ export default function BackendTeamPage() {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
               >
-                {activeTab === "overview" && <OverviewTab />}
+                {activeTab === "overview" && <OverviewTab teamId={teamId} />}
                 {activeTab === "members" && <MembersTab teamId={teamId} />}
-                {activeTab === "tasks" && <TasksTab />}
+                {activeTab === "tasks" && <TasksTab teamId={teamId} />}
                 {activeTab === "channels" && <ChannelsTab />}
               </motion.div>
             </TabsContent>

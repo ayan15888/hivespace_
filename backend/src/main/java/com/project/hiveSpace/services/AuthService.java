@@ -36,7 +36,7 @@ public class AuthService {
     private final TenantMemberRepository tenantMemberRepository;
     private final TenantRepository tenantRepository;
 
-    public UserResponse register(String email, String username, String password) {
+    public UserResponse register(String email, String username, String password, String fullName) {
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("Email already exists");
         }
@@ -44,6 +44,7 @@ public class AuthService {
         User user = User.builder()
                 .email(email)
                 .username(username)
+                .fullName(fullName)
                 .password(passwordEncoder.encode(password))
                 .active(true)
                 .avatarColor(getRandomColor())

@@ -195,14 +195,14 @@ const levelsData: Record<LevelType, LevelDetail> = {
         label: "Task Owner",
         colorClass: "text-[#7C5CFC] bg-[#7C5CFC]/10 border-[#7C5CFC]/20",
         description: "Primary driver of delivery. Directly accountable for complete implementation and milestone checkpoints.",
-        capabilities: ["Change Task Status", "Modify Task Requirements", "Delegate Subtask Items", "Submit for Code Review", "Log Activity History"]
+        capabilities: ["Change Task Status", "Modify Task Requirements", "Delegate Subtask Items", "Submit for Code Review", "Log Activity History", "Create Tasks"]
       },
       {
         name: "COLLABORATOR",
         label: "Task Collaborator",
         colorClass: "text-blue-400 bg-blue-400/10 border-blue-400/20",
         description: "Assisting builder on the task scope. Modifies details, adds notes, logs subtasks, and contributes to delivery.",
-        capabilities: ["Contribute Code/Assets", "Add Notes & Comments", "Check Subtask Elements", "Add Work progress logs", "View Requirements Scope"]
+        capabilities: ["Contribute Code/Assets", "Add Notes & Comments", "Check Subtask Elements", "Add Work progress logs", "View Requirements Scope", "Create Tasks"]
       },
       {
         name: "REVIEWER",
@@ -215,6 +215,7 @@ const levelsData: Record<LevelType, LevelDetail> = {
     matrix: [
       { action: "Approve to 'DONE'", description: "Review and merge deliverables, officially shifting the status to DONE.", rolesGranted: ["REVIEWER"] },
       { action: "Modify Core Requirements", description: "Change due date, points, title, and key constraints.", rolesGranted: ["OWNER"] },
+      { action: "Create Tasks", description: "Draft task requirements, assign due dates, and specify priority levels.", rolesGranted: ["OWNER", "COLLABORATOR"] },
       { action: "Add Work Progress Logs", description: "Post updates, logs, or commit references to the activity history.", rolesGranted: ["OWNER", "COLLABORATOR"] },
       { action: "Complete Subtasks", description: "Check off items on the task's child check-list.", rolesGranted: ["OWNER", "COLLABORATOR"] },
       { action: "Reject & Request Revisions", description: "Shift task status back to 'TODO' or 'IN_PROGRESS' with comments.", rolesGranted: ["REVIEWER"] },
@@ -236,6 +237,22 @@ export default function RolesPermissionsPage() {
 
   // Track levelsData in state so customization is dynamic and toggling actually updates the matrix
   const [localLevelsData, setLocalLevelsData] = useState<Record<LevelType, LevelDetail>>(levelsData);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem("hivespace_roles_permissions");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object") {
+            setLocalLevelsData(parsed);
+          }
+        } catch (e) {
+          console.error("Failed to parse saved roles permissions", e);
+        }
+      }
+    }
+  }, []);
 
   const activeDetail = localLevelsData[activeLevel];
 
@@ -299,13 +316,19 @@ export default function RolesPermissionsPage() {
         return row;
       });
 
-      return {
+      const nextData = {
         ...prev,
         [activeLevel]: {
           ...currentLevelData,
           matrix: updatedMatrix,
         },
       };
+
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("hivespace_roles_permissions", JSON.stringify(nextData));
+      }
+
+      return nextData;
     });
 
     toast.success(`Updated: Permission "${action}" toggled for "${role}"!`);
