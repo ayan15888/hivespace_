@@ -47,14 +47,23 @@ import { TasksTab } from "@/components/features/teams/TasksTab";
 import { ChannelsTab } from "@/components/features/teams/ChannelsTab";
 import { ManageTeamSheet } from "@/components/features/teams/ManageTeamSheet";
 import { useWorkspaceStore } from "@/store/workspaceStore";
-import { useTeams } from "@/hooks/useTeams";
 import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { getTeamsByWorkspace } from "@/lib/api/teams";
+import { useTeamPageStore } from "../store";
 
 export default function BackendTeamPage() {
   const params = useParams();
   const teamId = params?.teamSlug as string || "";
   const { activeWorkspace } = useWorkspaceStore();
-  const { teams, refresh: refreshTeams } = useTeams(activeWorkspace?.id);
+  const { activeTab, setActiveTab } = useTeamPageStore();
+
+  const { data: teams = [], refetch: refreshTeams } = useQuery({
+    queryKey: ["workspaceTeams", activeWorkspace?.id],
+    queryFn: () => getTeamsByWorkspace(activeWorkspace!.id),
+    enabled: !!activeWorkspace?.id,
+  });
+
   const currentTeam = teams.find(t => t.id === teamId);
 
   const formattedSlug = teamId
@@ -63,8 +72,6 @@ export default function BackendTeamPage() {
     .join(" ") + " Team";
 
   const displayTitle = currentTeam ? currentTeam.name : formattedSlug;
-
-  const [activeTab, setActiveTab] = useState("overview");
 
   return (
     <div className="flex h-screen flex-col bg-hs-main text-foreground overflow-hidden">

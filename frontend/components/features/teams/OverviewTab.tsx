@@ -20,76 +20,55 @@ const TEAM_CHANNELS = [
   { name: "design-sync", lastMsg: "", time: "", unread: false }
 ];
 
-export function OverviewTab({ teamId }: OverviewTabProps) {
-  const [members, setMembers] = useState<TeamMemberResponse[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(false);
-  const [activities, setActivities] = useState<any[]>([]);
-  const [loadingActivities, setLoadingActivities] = useState(false);
+import { useQuery } from "@tanstack/react-query";
 
+export function OverviewTab({ teamId }: OverviewTabProps) {
   const { tasks, fetchTasks } = useTaskStore();
   const { projects } = useProjects();
-
-  useEffect(() => {
-    if (teamId) {
-      setLoadingMembers(true);
-      getTeamMembers(teamId)
-        .then(setMembers)
-        .catch(err => console.error("Failed to fetch team members", err))
-        .finally(() => setLoadingMembers(false));
-    }
-  }, [teamId]);
 
   useEffect(() => {
     fetchTasks(); // fetch all tasks in the workspace
   }, [fetchTasks]);
 
-  useEffect(() => {
-    const fetchRecentActivities = async () => {
-      if (!teamId || tasks.length === 0) return;
-      
-      setLoadingActivities(true);
-      // Filter tasks belonging to this team
+  const { data: members = [], isLoading: loadingMembers } = useQuery({
+    queryKey: ["teamMembers", teamId],
+    queryFn: () => getTeamMembers(teamId!),
+    enabled: !!teamId,
+  });
+
+  const { data: activities = [], isLoading: loadingActivities } = useQuery({
+    queryKey: ["teamActivities", teamId, tasks],
+    queryFn: async () => {
+      if (!teamId || tasks.length === 0) return [];
       const teamTasks = tasks.filter(t => t.teamId === teamId);
-      
-      // Sort by updatedAt desc to find most recently active tasks
       const sortedTasks = [...teamTasks].sort(
         (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       );
-      
       const top5 = sortedTasks.slice(0, 5);
       
-      try {
-        const activitiesLists = await Promise.all(
-          top5.map(async (task) => {
-            try {
-              const acts = await getTaskActivities(task.id);
-              return acts.map(act => ({
-                ...act,
-                taskIdentifier: task.taskIdentifier,
-                taskTitle: task.title
-              }));
-            } catch (err) {
-              console.error(`Failed to fetch activities for task ${task.id}`, err);
-              return [];
-            }
-          })
-        );
-        
-        const flattened = activitiesLists
-          .flat()
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, 5);
-          
-        setActivities(flattened);
-      } catch (err) {
-        console.error("Failed to fetch recent activities", err);
-      } finally {
-        setLoadingActivities(false);
-      }
-    };
-
-    fetchRecentActivities();
-  }, [tasks, teamId]);
+      const activitiesLists = await Promise.all(
+        top5.map(async (task) => {
+          try {
+            const acts = await getTaskActivities(task.id);
+            return acts.map(act => ({
+              ...act,
+              taskIdentifier: task.taskIdentifier,
+              taskTitle: task.title
+            }));
+          } catch (err) {
+            console.error(`Failed to fetch activities for task ${task.id}`, err);
+            return [];
+          }
+        })
+      );
+      
+      return activitiesLists
+        .flat()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
+    },
+    enabled: !!teamId && tasks.length > 0,
+  });
 
   if (loadingMembers && members.length === 0) {
     return (

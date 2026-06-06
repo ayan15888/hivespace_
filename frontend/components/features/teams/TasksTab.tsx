@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn, getAvatarColorClass } from "@/lib/utils";
 import { useTaskStore } from "@/store/taskStore";
 import { updateTaskStatus, changeTaskOwner, updateTask } from "@/lib/api/tasks";
-import { getTeamMembers, TeamMemberResponse } from "@/lib/api/teams";
+import { getTeamMembers } from "@/lib/api/teams";
 import { useAuthStore } from "@/store/authStore";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import {
@@ -33,6 +33,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { useQuery } from "@tanstack/react-query";
+
 interface TasksTabProps {
   teamId?: string;
 }
@@ -40,7 +42,6 @@ interface TasksTabProps {
 export function TasksTab({ teamId }: TasksTabProps) {
   const { tasks, fetchTasks, loading } = useTaskStore();
   const [filter, setFilter] = useState("All");
-  const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([]);
   const { user } = useAuthStore();
   
   // Sheet-related state
@@ -48,17 +49,15 @@ export function TasksTab({ teamId }: TasksTabProps) {
   const [editedTitle, setEditedTitle] = useState("");
   const [editedDescription, setEditedDescription] = useState("");
 
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ["teamMembers", teamId],
+    queryFn: () => getTeamMembers(teamId!),
+    enabled: !!teamId,
+  });
+
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
-
-  useEffect(() => {
-    if (teamId) {
-      getTeamMembers(teamId)
-        .then(setTeamMembers)
-        .catch(err => console.error("Failed to load team members in tasks tab", err));
-    }
-  }, [teamId]);
 
   // Update title & description values when task is selected
   useEffect(() => {
