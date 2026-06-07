@@ -4,5 +4,6 @@ public enum ResourceType {
     WORKSPACE,
     TEAM,
     PROJECT,
-    TASK
+    TASK,
+    DOCUMENT
 }
