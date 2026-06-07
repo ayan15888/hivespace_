@@ -92,19 +92,18 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
     versionsLoading,
     fetchDocumentContent,
     fetchVersions,
-    saveContent,
     updateDoc,
     deleteDoc,
     publishDoc,
     unpublishDoc,
+    saveStatus,
+    autosaveContent,
+    flushPendingSave,
   } = useDocumentStore()
 
   const [view, setView] = useState<"editor" | "graph">("editor")
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null)
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle")
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const saveIndicatorRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     setActiveDoc(documentId)
@@ -112,7 +111,6 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
 
   useEffect(() => {
     fetchDocumentContent(documentId)
-    setSaveStatus("idle")
   }, [documentId, fetchDocumentContent])
 
   useEffect(() => {
@@ -129,10 +127,9 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
 
   useEffect(() => {
     return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-      if (saveIndicatorRef.current) clearTimeout(saveIndicatorRef.current)
+      flushPendingSave()
     }
-  }, [])
+  }, [flushPendingSave])
 
   const goHome = useCallback(() => {
     setActiveDoc(null)
@@ -141,20 +138,9 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
 
   const handleContentChange = useCallback(
     ({ content, textContent }: { content: string; textContent: string }) => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-      setSaveStatus("saving")
-      saveTimeoutRef.current = setTimeout(async () => {
-        try {
-          await saveContent(documentId, content, textContent)
-          setSaveStatus("saved")
-          if (saveIndicatorRef.current) clearTimeout(saveIndicatorRef.current)
-          saveIndicatorRef.current = setTimeout(() => setSaveStatus("idle"), 2000)
-        } catch {
-          setSaveStatus("idle")
-        }
-      }, 1500)
+      autosaveContent(documentId, content, textContent)
     },
-    [documentId, saveContent]
+    [documentId, autosaveContent]
   )
 
   const handleTitleChange = useCallback(

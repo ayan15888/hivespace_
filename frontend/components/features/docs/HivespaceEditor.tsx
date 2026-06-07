@@ -106,6 +106,19 @@ const HivespaceTask = Node.create({
   },
 })
 
+function deepEqual(a: any, b: any): boolean {
+  if (a === b) return true
+  if (typeof a !== "object" || a === null || typeof b !== "object" || b === null) return false
+  const keysA = Object.keys(a)
+  const keysB = Object.keys(b)
+  if (keysA.length !== keysB.length) return false
+  for (const key of keysA) {
+    if (!keysB.includes(key)) return false
+    if (!deepEqual(a[key], b[key])) return false
+  }
+  return true
+}
+
 // --- EDITOR COMPONENT ---
 
 export interface EditorContentPayload {
@@ -187,8 +200,8 @@ export function HivespaceEditor({
     const next = initialContent?.trim() || ""
     if (!next) return
 
-    const currentSerialized = JSON.stringify(editor.getJSON())
-    if (currentSerialized === next) return
+    // Do not sync and overwrite the editor content while the user is actively typing
+    if (editor.isFocused) return
 
     if (next.startsWith("<")) {
       if (editor.getHTML() !== next) {
@@ -197,7 +210,13 @@ export function HivespaceEditor({
       return
     }
 
-    editor.commands.setContent(parseStoredContent(next), { emitUpdate: false })
+    const parsedNext = parseStoredContent(next)
+    const currentJSON = editor.getJSON()
+
+    // Skip update if the editor content is structurally identical to the fetched/saved content
+    if (deepEqual(parsedNext, currentJSON)) return
+
+    editor.commands.setContent(parsedNext, { emitUpdate: false })
   }, [editor, documentId, initialContent])
 
   if (!editor) return null

@@ -32,6 +32,16 @@ interface DocumentState {
   // Child documents cache
   childDocs: Record<string, DocumentResponse[]>;
 
+  // Autosave status
+  saveStatus: "idle" | "saving" | "saved";
+  saveTimeout: any;
+  saveIndicatorTimeout: any;
+  pendingSave: {
+    documentId: string;
+    content: string;
+    textContent: string;
+  } | null;
+
   // Actions
   fetchDocuments: (projectId: string) => Promise<void>;
   fetchDocumentContent: (documentId: string) => Promise<void>;
@@ -41,6 +51,8 @@ interface DocumentState {
   createDoc: (projectId: string, title: string, parentId?: string) => Promise<DocumentResponse>;
   updateDoc: (documentId: string, title: string, icon?: string) => Promise<void>;
   saveContent: (documentId: string, content: string, textContent: string) => Promise<void>;
+  autosaveContent: (documentId: string, content: string, textContent: string) => void;
+  flushPendingSave: () => Promise<void>;
   deleteDoc: (documentId: string) => Promise<void>;
   publishDoc: (documentId: string) => Promise<void>;
   unpublishDoc: (documentId: string) => Promise<void>;
@@ -58,6 +70,11 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   versionsLoading: false,
   childDocs: {},
 
+  saveStatus: "idle",
+  saveTimeout: null,
+  saveIndicatorTimeout: null,
+  pendingSave: null,
+
   fetchDocuments: async (projectId: string) => {
     set({ loading: true, error: null });
     try {
@@ -69,6 +86,9 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   },
 
   fetchDocumentContent: async (documentId: string) => {
+    // Flush any pending save before loading a new document
+    await get().flushPendingSave();
+
     set({ activeDocLoading: true, activeDocument: null, error: null });
     try {
       const data = await getDocumentWithContent(documentId);
@@ -147,6 +167,59 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
     }));
   },
 
+  autosaveContent: (documentId: string, content: string, textContent: string) => {
+    const { saveTimeout, saveIndicatorTimeout } = get();
+
+    if (saveTimeout) clearTimeout(saveTimeout);
+    if (saveIndicatorTimeout) clearTimeout(saveIndicatorTimeout);
+
+    set({
+      pendingSave: { documentId, content, textContent },
+      saveStatus: "saving",
+    });
+
+    const timeout = setTimeout(async () => {
+      const pending = get().pendingSave;
+      if (!pending) return;
+
+      try {
+        await get().saveContent(pending.documentId, pending.content, pending.textContent);
+        set({ saveStatus: "saved", pendingSave: null });
+
+        const indicator = setTimeout(() => {
+          set({ saveStatus: "idle" });
+        }, 2000);
+        set({ saveIndicatorTimeout: indicator });
+      } catch {
+        set({ saveStatus: "idle" });
+      }
+    }, 1500);
+
+    set({ saveTimeout: timeout });
+  },
+
+  flushPendingSave: async () => {
+    const { saveTimeout, saveIndicatorTimeout, pendingSave } = get();
+
+    if (saveTimeout) clearTimeout(saveTimeout);
+    if (saveIndicatorTimeout) clearTimeout(saveIndicatorTimeout);
+    set({ saveTimeout: null, saveIndicatorTimeout: null });
+
+    if (pendingSave) {
+      try {
+        await get().saveContent(pendingSave.documentId, pendingSave.content, pendingSave.textContent);
+        set({ saveStatus: "saved", pendingSave: null });
+        
+        const indicator = setTimeout(() => {
+          set({ saveStatus: "idle" });
+        }, 2000);
+        set({ saveIndicatorTimeout: indicator });
+      } catch {
+        set({ saveStatus: "idle", pendingSave: null });
+      }
+    }
+  },
+
   deleteDoc: async (documentId: string) => {
     await deleteDocument(documentId);
     set((state) => ({
@@ -178,6 +251,16 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   },
 
   clearActive: () => {
-    set({ activeDocument: null, versions: [] });
+    const { saveTimeout, saveIndicatorTimeout } = get();
+    if (saveTimeout) clearTimeout(saveTimeout);
+    if (saveIndicatorTimeout) clearTimeout(saveIndicatorTimeout);
+    set({
+      activeDocument: null,
+      versions: [],
+      saveStatus: "idle",
+      saveTimeout: null,
+      saveIndicatorTimeout: null,
+      pendingSave: null,
+    });
   },
 }));
