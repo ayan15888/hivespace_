@@ -371,6 +371,48 @@ CREATE TABLE shareable_links (
      CASE WHEN team_id      IS NOT NULL THEN 1 ELSE 0 END) = 1
   )
 );
+
+-- DOCUMENTS
+CREATE TABLE documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR NOT NULL DEFAULT 'Untitled',
+  icon VARCHAR,
+  workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
+  parent_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  is_published BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+-- DOCUMENT CONTENT
+CREATE TABLE document_content (
+  document_id UUID PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+  content JSONB,                -- ProseMirror JSON from Tiptap
+  text_content TEXT,            -- plain text for full-text search
+  version INTEGER NOT NULL DEFAULT 1,
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+-- DOCUMENT VERSIONS
+CREATE TABLE document_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  content JSONB NOT NULL,
+  saved_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+-- DOCUMENT LINKS (for knowledge graph)
+CREATE TABLE document_links (
+  source_doc_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  target_doc_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  PRIMARY KEY (source_doc_id, target_doc_id)
+);
+
 ==========================================================================
 ---------------------------------------------------------------------------
 ---------------------- NOT ADDED IN THE DB YET ----------------------------
@@ -417,47 +459,6 @@ CREATE TABLE message_reactions (
   emoji VARCHAR NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   PRIMARY KEY (message_id, user_id, emoji)
-);
-
--- DOCUMENTS
-CREATE TABLE documents (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR NOT NULL DEFAULT 'Untitled',
-  icon VARCHAR,
-  workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-  team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
-  parent_id UUID REFERENCES documents(id) ON DELETE CASCADE,
-  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  is_published BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMP NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP NOT NULL DEFAULT now()
-);
-
--- DOCUMENT CONTENT
-CREATE TABLE document_content (
-  document_id UUID PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
-  content JSONB,                -- ProseMirror JSON from Tiptap
-  text_content TEXT,            -- plain text for full-text search
-  version INTEGER NOT NULL DEFAULT 1,
-  updated_at TIMESTAMP NOT NULL DEFAULT now()
-);
-
--- DOCUMENT VERSIONS
-CREATE TABLE document_versions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  content JSONB NOT NULL,
-  saved_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT now()
-);
-
--- DOCUMENT LINKS (for knowledge graph)
-CREATE TABLE document_links (
-  source_doc_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  target_doc_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  created_at TIMESTAMP NOT NULL DEFAULT now(),
-  PRIMARY KEY (source_doc_id, target_doc_id)
 );
 
 -- GITHUB CONNECTIONS

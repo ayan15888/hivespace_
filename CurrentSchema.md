@@ -80,6 +80,7 @@ CREATE TABLE public.projects (
   task_sequence integer NOT NULL DEFAULT 0,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  member_can_create_tasks boolean DEFAULT true,
   CONSTRAINT projects_pkey PRIMARY KEY (id),
   CONSTRAINT projects_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
   CONSTRAINT projects_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
@@ -102,6 +103,7 @@ CREATE TABLE public.teams (
   created_by uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  member_can_create_tasks boolean DEFAULT false,
   CONSTRAINT teams_pkey PRIMARY KEY (id),
   CONSTRAINT teams_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
   CONSTRAINT teams_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
@@ -245,11 +247,11 @@ CREATE TABLE public.documents (
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT documents_pkey PRIMARY KEY (id),
-  CONSTRAINT documents_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE,
-  CONSTRAINT documents_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE,
-  CONSTRAINT documents_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id) ON DELETE CASCADE,
-  CONSTRAINT documents_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.documents(id) ON DELETE CASCADE,
-  CONSTRAINT documents_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL
+  CONSTRAINT documents_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+  CONSTRAINT documents_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
+  CONSTRAINT documents_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT documents_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT documents_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.documents(id)
 );
 CREATE TABLE public.document_content (
   document_id uuid NOT NULL,
@@ -258,7 +260,7 @@ CREATE TABLE public.document_content (
   version integer NOT NULL DEFAULT 1,
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT document_content_pkey PRIMARY KEY (document_id),
-  CONSTRAINT document_content_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE
+  CONSTRAINT document_content_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id)
 );
 CREATE TABLE public.document_versions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -267,14 +269,14 @@ CREATE TABLE public.document_versions (
   saved_by uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT document_versions_pkey PRIMARY KEY (id),
-  CONSTRAINT document_versions_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE,
-  CONSTRAINT document_versions_saved_by_fkey FOREIGN KEY (saved_by) REFERENCES public.users(id) ON DELETE SET NULL
+  CONSTRAINT document_versions_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id),
+  CONSTRAINT document_versions_saved_by_fkey FOREIGN KEY (saved_by) REFERENCES public.users(id)
 );
 CREATE TABLE public.document_links (
   source_doc_id uuid NOT NULL,
   target_doc_id uuid NOT NULL,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT document_links_pkey PRIMARY KEY (source_doc_id, target_doc_id),
-  CONSTRAINT document_links_source_doc_id_fkey FOREIGN KEY (source_doc_id) REFERENCES public.documents(id) ON DELETE CASCADE,
-  CONSTRAINT document_links_target_doc_id_fkey FOREIGN KEY (target_doc_id) REFERENCES public.documents(id) ON DELETE CASCADE
+  CONSTRAINT document_links_source_doc_id_fkey FOREIGN KEY (source_doc_id) REFERENCES public.documents(id),
+  CONSTRAINT document_links_target_doc_id_fkey FOREIGN KEY (target_doc_id) REFERENCES public.documents(id)
 );
