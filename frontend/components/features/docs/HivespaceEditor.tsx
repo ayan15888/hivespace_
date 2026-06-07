@@ -20,7 +20,8 @@ import {
   CheckSquare,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+import { parseStoredContent } from "@/components/features/docs/docHelpers"
+import { useState, useEffect } from "react"
 import type React from "react"
 
 // --- CUSTOM EXTENSIONS ---
@@ -107,12 +108,19 @@ const HivespaceTask = Node.create({
 
 // --- EDITOR COMPONENT ---
 
+export interface EditorContentPayload {
+  content: string
+  textContent: string
+}
+
 interface HivespaceEditorProps {
-  initialContent?: string
-  onUpdate?: (content: string) => void
+  documentId?: string
+  initialContent?: string | null
+  onUpdate?: (payload: EditorContentPayload) => void
 }
 
 export function HivespaceEditor({
+  documentId,
   initialContent,
   onUpdate,
 }: HivespaceEditorProps) {
@@ -147,7 +155,7 @@ export function HivespaceEditor({
       }),
       HivespaceTask,
     ],
-    content: initialContent || "",
+    content: parseStoredContent(initialContent),
     editorProps: {
       attributes: {
         class:
@@ -166,9 +174,31 @@ export function HivespaceEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      onUpdate?.(editor.getHTML())
+      onUpdate?.({
+        content: JSON.stringify(editor.getJSON()),
+        textContent: editor.getText(),
+      })
     },
-  })
+  }, [documentId])
+
+  // Sync content when switching documents or when fetch completes after mount
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return
+    const next = initialContent?.trim() || ""
+    if (!next) return
+
+    const currentSerialized = JSON.stringify(editor.getJSON())
+    if (currentSerialized === next) return
+
+    if (next.startsWith("<")) {
+      if (editor.getHTML() !== next) {
+        editor.commands.setContent(next, { emitUpdate: false })
+      }
+      return
+    }
+
+    editor.commands.setContent(parseStoredContent(next), { emitUpdate: false })
+  }, [editor, documentId, initialContent])
 
   if (!editor) return null
 

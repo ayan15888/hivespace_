@@ -23,6 +23,7 @@ public class DocumentVersion {
     @JoinColumn(name = "document_id", nullable = false)
     private Document document;
 
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "content", nullable = false, columnDefinition = "jsonb")
     private String content;
 

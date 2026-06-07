@@ -4,6 +4,7 @@ import com.project.hiveSpace.dto.*;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
 import com.project.hiveSpace.security.RbacService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.hiveSpace.exceptions.ForbiddenException;
 import com.project.hiveSpace.exceptions.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class DocumentService {
     private final ProjectRepository projectRepository;
     private final WorkspaceRepository workspaceRepository;
     private final RbacService rbacService;
+    private final ObjectMapper objectMapper;
 
     // ==================== CREATE ====================
 
@@ -63,6 +65,7 @@ public class DocumentService {
 
         // Create empty document_content row
         DocumentContent content = DocumentContent.builder()
+                .documentId(saved.getId())
                 .document(saved)
                 .content(null)
                 .textContent(null)
@@ -141,6 +144,7 @@ public class DocumentService {
         doc.setTitle(request.getTitle());
         doc.setIcon(request.getIcon());
 
+        // Only reparent when parentId is explicitly provided — omitting it must not promote sub-pages to root
         if (request.getParentId() != null) {
             Document parent = documentRepository.findById(request.getParentId())
                     .orElseThrow(() -> new NotFoundException("Parent document not found"));
@@ -152,8 +156,6 @@ public class DocumentService {
                 throw new IllegalArgumentException("A document cannot be its own parent");
             }
             doc.setParent(parent);
-        } else {
-            doc.setParent(null);
         }
 
         Document saved = documentRepository.save(doc);
@@ -174,6 +176,7 @@ public class DocumentService {
 
         DocumentContent content = documentContentRepository.findById(documentId)
                 .orElseGet(() -> DocumentContent.builder()
+                        .documentId(documentId)
                         .document(doc)
                         .version(0)
                         .updatedAt(new Date())
@@ -190,7 +193,16 @@ public class DocumentService {
             documentVersionRepository.save(version);
         }
 
-        // Update content
+        // Update content — column is JSONB; must be valid JSON (ProseMirror document from Tiptap)
+        if (request.getContent() != null && !request.getContent().isBlank()) {
+            try {
+                objectMapper.readTree(request.getContent());
+            } catch (Exception e) {
+                throw new IllegalArgumentException(
+                        "Document content must be valid JSON (ProseMirror format), not HTML");
+            }
+        }
+
         content.setContent(request.getContent());
         content.setTextContent(request.getTextContent());
         content.setVersion(content.getVersion() + 1);

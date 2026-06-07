@@ -8,6 +8,13 @@ const nextConfig = {
     appIsrStatus: false,
     buildActivity: false,
   },
+  // Keep a single ProseMirror copy in the bundle (Tiptap + nested deps).
+  transpilePackages: [
+    "@tiptap/react",
+    "@tiptap/core",
+    "@tiptap/starter-kit",
+    "@tiptap/pm",
+  ],
 };
 
 export default nextConfig;

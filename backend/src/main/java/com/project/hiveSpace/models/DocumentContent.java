@@ -13,7 +13,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class DocumentContent {
+public class DocumentContent implements org.springframework.data.domain.Persistable<UUID> {
 
     @Id
     @Column(name = "document_id")
@@ -24,6 +24,27 @@ public class DocumentContent {
     @JoinColumn(name = "document_id")
     private Document document;
 
+    @Transient
+    @Builder.Default
+    private boolean isNewEntity = true;
+
+    @Override
+    public UUID getId() {
+        return this.documentId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return this.isNewEntity;
+    }
+
+    @PostPersist
+    @PostLoad
+    void markNotNew() {
+        this.isNewEntity = false;
+    }
+
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "content", columnDefinition = "jsonb")
     private String content;
 
