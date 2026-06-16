@@ -114,9 +114,23 @@ public class ChannelService {
             Instant lastReadAt = member != null ? member.getLastReadAt() : null;
             long unreadCount = channelMemberRepository.countUnread(channel.getId(), currentUserId, lastReadAt);
 
+            String channelName = channel.getName();
+            if (channel.getType() == ChannelType.DM) {
+                List<ChannelMember> members = channelMemberRepository.findByIdChannelId(channel.getId());
+                User otherUser = members.stream()
+                        .map(ChannelMember::getUser)
+                        .filter(u -> !u.getId().equals(currentUserId))
+                        .findFirst()
+                        .orElse(null);
+                if (otherUser != null) {
+                    channelName = otherUser.getFullName() != null && !otherUser.getFullName().isEmpty()
+                            ? otherUser.getFullName() : otherUser.getUsername();
+                }
+            }
+
             return new ChannelResponse(
                     channel.getId(),
-                    channel.getName(),
+                    channelName,
                     channel.getType(),
                     channel.getWorkspace().getId(),
                     channel.getProject() != null ? channel.getProject().getId() : null,
@@ -146,9 +160,23 @@ public class ChannelService {
             Instant lastReadAt = member != null ? member.getLastReadAt() : null;
             long unreadCount = channelMemberRepository.countUnread(channel.getId(), currentUserId, lastReadAt);
 
+            String channelName = channel.getName();
+            if (channel.getType() == ChannelType.DM) {
+                List<ChannelMember> members = channelMemberRepository.findByIdChannelId(channel.getId());
+                User otherUser = members.stream()
+                        .map(ChannelMember::getUser)
+                        .filter(u -> !u.getId().equals(currentUserId))
+                        .findFirst()
+                        .orElse(null);
+                if (otherUser != null) {
+                    channelName = otherUser.getFullName() != null && !otherUser.getFullName().isEmpty()
+                            ? otherUser.getFullName() : otherUser.getUsername();
+                }
+            }
+
             return new ChannelResponse(
                     channel.getId(),
-                    channel.getName(),
+                    channelName,
                     channel.getType(),
                     channel.getWorkspace().getId(),
                     channel.getProject() != null ? channel.getProject().getId() : null,
@@ -195,9 +223,12 @@ public class ChannelService {
             channelMemberRepository.save(memberTarget);
 
             // d. Return ChannelResponse (unreadCount = 0)
+            String targetName = targetUser.getFullName() != null && !targetUser.getFullName().isEmpty()
+                    ? targetUser.getFullName() : targetUser.getUsername();
+
             return new ChannelResponse(
                     savedChannel.getId(),
-                    null,
+                    targetName,
                     ChannelType.DM,
                     savedChannel.getWorkspace().getId(),
                     null,

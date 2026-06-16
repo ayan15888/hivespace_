@@ -20,6 +20,7 @@ import { CreateOrgModal } from "@/components/features/organizations/CreateOrgMod
 import { CreateWorkspaceModal } from "@/components/features/workspaces/CreateWorkspaceModal";
 import { CreateProjectModal } from "@/components/features/projects/CreateProjectModal";
 import { CreateTeamModal } from "@/components/features/teams/CreateTeamModal";
+import { CreateChannelModal } from "@/components/features/chat/CreateChannelModal";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -35,12 +36,9 @@ import { usePermission } from "@/hooks/usePermission";
 
 
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
-
-const ALL_CHANNELS = [
-  { name: "backend-ops", unreadCount: 4, projectId: "sprint-3" },
-  { name: "design-sync", unreadCount: 0, projectId: "frontend-redesign" },
-  { name: "general", unreadCount: 0, projectId: null }
-];
+import { useChatStore } from "@/store/chatStore";
+import { getWorkspaceChannels } from "@/lib/api/channels";
+import { useAuthStore } from "@/store/authStore";
 
 const sidebarContainerVariants = {
   hidden: { opacity: 0 },
@@ -74,6 +72,7 @@ export function WorkspaceSidebar() {
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
+  const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
   
   const { orgs } = useOrgs();
   const { activeOrg, setActiveOrg } = useOrgStore();
@@ -99,6 +98,21 @@ export function WorkspaceSidebar() {
   };
 
   const { canCreateProject, canCreateTeam, canAdminWorkspace } = usePermission();
+
+  const { channels, setChannels } = useChatStore();
+  const workspaceChannels = activeWorkspace ? (channels[activeWorkspace.id] ?? []) : [];
+
+  useEffect(() => {
+    if (activeWorkspace?.id) {
+      getWorkspaceChannels(activeWorkspace.id)
+        .then((chs) => {
+          setChannels(activeWorkspace.id, chs);
+        })
+        .catch((err) => {
+          console.error("Failed to load channels", err);
+        });
+    }
+  }, [activeWorkspace?.id, setChannels]);
 
   return (
     <aside className="fixed top-0 left-[56px] z-40 flex h-full w-[220px] flex-col bg-hs-nav border-r border-border/50">
@@ -389,9 +403,21 @@ export function WorkspaceSidebar() {
 
         {/* 5. CHANNELS */}
         <div className="flex flex-col">
-          <span className="px-2 mb-2 text-[10px] font-bold text-muted-foreground/60 tracking-widest uppercase">
-            Channels ({activeWorkspace?.name || "No Workspace"})
-          </span>
+          <div className="flex items-center justify-between px-2 mb-2">
+            <span className="text-[10px] font-bold text-muted-foreground/60 tracking-widest uppercase">
+              Channels ({activeWorkspace?.name || "No Workspace"})
+            </span>
+            {activeWorkspace?.id && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-4 w-4 text-zinc-500 hover:text-zinc-300"
+                onClick={() => setIsCreateChannelOpen(true)}
+              >
+                <Plus className="h-3 w-3" strokeWidth={1.5} />
+              </Button>
+            )}
+          </div>
           
           <motion.div 
             className="flex flex-col gap-0.5"
@@ -399,17 +425,18 @@ export function WorkspaceSidebar() {
             initial="hidden"
             animate="show"
           >
-             {ALL_CHANNELS
+             {workspaceChannels
+              .filter(c => c.type === 'PUBLIC' || c.type === 'PRIVATE')
               .filter(c => !expandedProjectId || c.projectId === expandedProjectId || c.projectId === null)
               .map(channel => {
-                const path = `/dashboard/chat/${channel.name}`;
+                const path = `/dashboard/chat/${channel.id}`;
                 const isActive = pathname === path;
                 const channelProject = projects.find(p => p.id === channel.projectId);
                 const channelColor = PROJECT_COLOR_MAP[channelProject?.color || ""] || "var(--hs-accent)";
 
                 return (
                   <motion.div
-                    key={channel.name}
+                    key={channel.id}
                     variants={sidebarItemVariants}
                   >
                     <Link 
@@ -439,6 +466,65 @@ export function WorkspaceSidebar() {
                       </div>
                       {channel.unreadCount > 0 && !isActive && (
                         <div className="h-1.5 w-1.5 rounded-full relative z-10" style={{ backgroundColor: channelColor }} />
+                      )}
+                    </Link>
+                  </motion.div>
+                );
+            })}
+          </motion.div>
+        </div>
+
+        {/* 5b. DIRECT MESSAGES */}
+        <div className="flex flex-col mt-4">
+          <span className="px-2 mb-2 text-[10px] font-bold text-muted-foreground/60 tracking-widest uppercase">
+            Direct Messages
+          </span>
+          
+          <motion.div 
+            className="flex flex-col gap-0.5"
+            variants={sidebarContainerVariants}
+            initial="hidden"
+            animate="show"
+          >
+             {workspaceChannels
+              .filter(c => c.type === 'DM')
+              .map(channel => {
+                const path = `/dashboard/chat/${channel.id}`;
+                const isActive = pathname === path;
+                const channelColor = "var(--hs-accent)";
+
+                return (
+                  <motion.div
+                    key={channel.id}
+                    variants={sidebarItemVariants}
+                  >
+                    <Link 
+                      href={path}
+                      className={cn(
+                        "group relative flex h-8 items-center justify-between cursor-pointer rounded-r-md px-2 border-l-2 transition-all sidebar-ripple-item",
+                        isActive 
+                          ? "text-foreground" 
+                          : "border-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                      )}
+                      style={isActive ? { borderColor: channelColor } : undefined}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeSidebarHighlight"
+                          className="absolute inset-0 -z-10 rounded-r-[inherit] border-l-2"
+                          style={{
+                            backgroundColor: `color-mix(in srgb, ${channelColor} 20%, transparent)`,
+                            borderColor: channelColor,
+                          }}
+                          transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                        />
+                      )}
+                      <div className="flex items-center gap-2 truncate relative z-10">
+                        <span className="text-zinc-500 font-light text-lg leading-none mb-0.5" style={isActive ? { color: channelColor } : undefined}>@</span>
+                        <span className="text-sm truncate">{channel.name || "Direct Message"}</span>
+                      </div>
+                      {channel.unreadCount > 0 && !isActive && (
+                        <div className="h-1.5 w-1.5 rounded-full relative z-10" style={{ backgroundColor: "#F95B4E" }} />
                       )}
                     </Link>
                   </motion.div>
@@ -480,6 +566,14 @@ export function WorkspaceSidebar() {
           isOpen={isCreateTeamOpen} 
           workspaceId={activeWorkspace.id}
           onClose={() => setIsCreateTeamOpen(false)}
+        />
+      )}
+
+      {activeWorkspace?.id && (
+        <CreateChannelModal 
+          isOpen={isCreateChannelOpen} 
+          workspaceId={activeWorkspace.id}
+          onClose={() => setIsCreateChannelOpen(false)}
         />
       )}
     </aside>

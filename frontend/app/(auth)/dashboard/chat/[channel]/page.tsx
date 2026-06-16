@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, use } from "react";
+import { useState, useRef, useEffect, use, useCallback } from "react";
 import { 
   Users, 
   Search, 
@@ -20,153 +20,242 @@ import {
   Italic,
   Code as CodeIcon,
   Link as LinkIcon,
-  List as ListIcon
+  List as ListIcon,
+  Trash2,
+  Edit2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useProjects } from "@/hooks/useProjects";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
+import { useChatStore } from "@/store/chatStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
+import { useAuthStore } from "@/store/authStore";
+import { useChannelSocket } from "@/hooks/useChannelSocket";
+import { 
+  getMessages, 
+  sendMessage, 
+  editMessage, 
+  deleteMessage, 
+  getThreadMessages, 
+  addReaction, 
+  removeReaction 
+} from "@/lib/api/messages";
+import { markChannelRead } from "@/lib/api/channels";
+import type { MessageResponse, UserSummary } from "@/types/messaging";
 
-// --- TYPES & MOCK DATA ---
-
-interface Message {
-  id: string;
-  sender: {
-    name: string;
-    initials: string;
-    color: string;
-  };
-  timestamp: string;
-  unixTime: number; // For grouping logic
-  content: string;
-  type?: "text" | "ai" | "task" | "pr";
-  metadata?: {
-    prNumber?: string;
-    taskId?: string;
-    title?: string;
-    status?: string;
-    source?: string;
-    link?: string;
-    priority?: string;
-    assignee?: { initials: string };
-  };
-  reactions?: { emoji: string; count: number; reacted?: boolean }[];
-  threadId?: string;
-  replyCount?: number;
-}
-
-const MOCK_MESSAGES: Message[] = [
-  {
-    id: "m1",
-    sender: { name: "Meera V.", initials: "MV", color: "bg-emerald-500" },
-    timestamp: "Yesterday 4:52 PM",
-    unixTime: 1712614320,
-    content: "PR #82 is up for STOMP broadcast. Added Redis fallback for unstable connections too. Needs review before sprint end.",
-    type: "pr",
-    metadata: { prNumber: "82", title: "feat/stomp-broadcast", status: "OPEN" },
-    reactions: [{ emoji: "👍", count: 3 }, { emoji: "🚀", count: 2 }]
-  },
-  {
-    id: "m2",
-    sender: { name: "Rahul S.", initials: "RS", color: "bg-blue-500" },
-    timestamp: "Yesterday 4:55 PM",
-    unixTime: 1712614500,
-    content: "On it. Also quick question — should we track unread counts per channel in Redis or just rely on last_read_at in the DB?"
-  },
-  {
-    id: "m3",
-    sender: { name: "David K.", initials: "DK", color: "bg-violet-500" },
-    timestamp: "Yesterday 4:57 PM",
-    unixTime: 1712614620,
-    content: "/ai should we use Redis or last_read_at for unread counts?"
-  },
-  {
-    id: "ai1",
-    sender: { name: "AI Assistant", initials: "✦", color: "bg-violet-600" },
-    timestamp: "Yesterday 4:58 PM",
-    unixTime: 1712614680,
-    type: "ai",
-    content: "Both approaches work together. Use Redis with a short TTL for the live unread badge count (fast reads, no DB hit per page load). Use last_read_at in the DB as the source of truth for recovery after reconnects. This is already in the blueprint — see §5.3 Chat System.",
-    metadata: { source: "Hivespace Technical Blueprint", link: "#" }
-  },
-  {
-    id: "m4",
-    sender: { name: "Meera V.", initials: "MV", color: "bg-emerald-500" },
-    timestamp: "Yesterday 5:02 PM",
-    unixTime: 1712614920,
-    content: "That makes sense. Redis for speed, DB for durability."
-  },
-  {
-    id: "m5",
-    sender: { name: "Rahul S.", initials: "RS", color: "bg-blue-500" },
-    timestamp: "Yesterday 5:03 PM",
-    unixTime: 1712614980,
-    type: "task",
-    content: "[[HS-044]] is blocked on this decision, assigning to you Meera.",
-    metadata: { taskId: "HS-044", title: "STOMP WebSocket chat broadcast", priority: "high", status: "In Progress", assignee: { initials: "MV" } }
-  },
-  {
-    id: "m6",
-    sender: { name: "Priya L.", initials: "PL", color: "bg-orange-500" },
-    timestamp: "Today 10:24 AM",
-    unixTime: 1712648640,
-    content: "Are we deploying today? Sprint ends in 3 days and we still have 2 items in Review.",
-    reactions: [{ emoji: "👀", count: 4 }]
-  },
-  {
-    id: "m7",
-    sender: { name: "David K.", initials: "DK", color: "bg-violet-500" },
-    timestamp: "Today 10:26 AM",
-    unixTime: 1712648760,
-    content: "Not yet. Waiting on the HMAC validation PR to merge."
-  },
-  {
-    id: "m8",
-    sender: { name: "David K.", initials: "DK", color: "bg-violet-500" },
-    timestamp: "Today 10:26 AM",
-    unixTime: 1712648790, // Follow-up message (within 5 mins)
-    content: "Once that's done we can cut the release branch."
-  }
-];
+const EMOJIS = ["👍", "🚀", "❤️", "🔥", "👀", "🙌", "🎉", "😮"];
 
 export default function ChatPage({ params }: { params: Promise<{ channel: string }> }) {
-  const { channel } = use(params);
+  const { channel: channelId } = use(params);
   const { projects } = useProjects();
+  const { user: currentUser } = useAuthStore();
+  const { activeWorkspace } = useWorkspaceStore();
   
-  // Find project associated with this channel
-  // For now, we'll mock this by checking a hypothetical channel-to-project mapping or just using a default
-  // In a real app, the channel object would have a projectId
-  const currentProject = projects.find(p => p.id === "sprint-3"); // Mock association
+  const { 
+    channels, 
+    messages, 
+    setMessages, 
+    prependOlderMessages, 
+    appendMessage, 
+    updateMessage, 
+    removeMessage,
+    clearUnread,
+    typingUsers, 
+    setTyping, 
+    activeThreadParentId, 
+    setActiveThread, 
+    threadMessages, 
+    setThreadMessages, 
+    appendThreadMessage,
+    hasMoreMessages
+  } = useChatStore();
+
+  const workspaceChannels = activeWorkspace ? (channels[activeWorkspace.id] ?? []) : [];
+  const currentChannel = workspaceChannels.find(c => c.id === channelId);
+
+  const currentProject = projects.find(p => p.id === currentChannel?.projectId);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
 
-  const [messages] = useState<Message[]>(MOCK_MESSAGES);
-  const [activeThread, setActiveThread] = useState<Message | null>(null);
-  const [isTyping] = useState(true); // Mock typing state
-  const [inputFocused, setInputFocused] = useState(false);
-  const [inputValue, setInputValue] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const channelMessages = messages[channelId] ?? [];
+  const hasMore = hasMoreMessages[channelId] ?? true;
 
-  // Auto-expand textarea
+  const [loading, setLoading] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const [inputFocused, setInputFocused] = useState(false);
+  const [threadInputValue, setThreadInputValue] = useState("");
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load initial messages
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "40px";
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    if (!channelId) return;
+    setLoading(true);
+    getMessages(channelId)
+      .then((msgs) => {
+        setMessages(channelId, msgs, msgs.length === 50);
+        markChannelRead(channelId).catch(() => {});
+        clearUnread(channelId);
+        // Scroll to bottom
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch messages", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [channelId, setMessages, clearUnread]);
+
+  // Load older messages on scroll
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container || loading || !hasMore) return;
+
+    if (container.scrollTop === 0 && channelMessages.length > 0) {
+      setLoading(true);
+      const oldestMessageId = channelMessages[channelMessages.length - 1].id;
+      const prevHeight = container.scrollHeight;
+
+      getMessages(channelId, oldestMessageId)
+        .then((older) => {
+          prependOlderMessages(channelId, older, older.length === 50);
+          setTimeout(() => {
+            container.scrollTop = container.scrollHeight - prevHeight;
+          }, 50);
+        })
+        .catch((err) => {
+          console.error("Failed to load older messages", err);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
-  }, [inputValue]);
+  };
+
+  const activeThread = channelMessages.find(m => m.id === activeThreadParentId) || null;
+
+  // Load thread messages
+  useEffect(() => {
+    if (!activeThreadParentId) return;
+    getThreadMessages(channelId, activeThreadParentId)
+      .then((msgs) => {
+        setThreadMessages(activeThreadParentId, msgs);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch thread messages", err);
+      });
+  }, [activeThreadParentId, channelId, setThreadMessages]);
+
+  // WebSocket Connection
+  const { sendTyping } = useChannelSocket({
+    channelId,
+    onMessage: (msg) => {
+      if (msg.parentId) {
+        appendThreadMessage(msg.parentId, msg);
+        const parentMsg = channelMessages.find(m => m.id === msg.parentId);
+        if (parentMsg) {
+          updateMessage(channelId, { ...parentMsg, replyCount: parentMsg.replyCount + 1 });
+        }
+      } else {
+        appendMessage(channelId, msg);
+        // Auto scroll if near bottom
+        const container = messagesContainerRef.current;
+        if (container) {
+          const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+          if (isNearBottom) {
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, 100);
+          }
+        }
+      }
+    },
+    onDelete: (msgId) => {
+      removeMessage(channelId, msgId);
+    },
+    onTyping: (event) => {
+      setTyping(channelId, event.userId, event.displayName, event.typing);
+    },
+    threadParentId: activeThreadParentId || undefined,
+    onThreadMessage: (msg) => {
+      appendThreadMessage(activeThreadParentId!, msg);
+    }
+  });
+
+  // Handle compose typing
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputValue(e.target.value);
+    sendTyping(true);
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      sendTyping(false);
+    }, 3000);
+  };
+
+  const handleSend = async () => {
+    if (!inputValue.trim()) return;
+    const content = inputValue.trim();
+    setInputValue("");
+    sendTyping(false);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    try {
+      await sendMessage(channelId, { content });
+    } catch (err) {
+      console.error("Failed to send message", err);
+    }
+  };
+
+  const handleSendThreadReply = async () => {
+    if (!threadInputValue.trim() || !activeThreadParentId) return;
+    const content = threadInputValue.trim();
+    setThreadInputValue("");
+    try {
+      await sendMessage(channelId, { content, parentId: activeThreadParentId });
+    } catch (err) {
+      console.error("Failed to send thread reply", err);
+    }
+  };
+
+  const handleReactionClick = async (messageId: string, emoji: string, reactedByMe: boolean) => {
+    try {
+      if (reactedByMe) {
+        await removeReaction(messageId, emoji);
+      } else {
+        await addReaction(messageId, emoji);
+      }
+    } catch (err) {
+      console.error("Failed to update reaction", err);
+    }
+  };
+
+  // Group messages DESC list reversing for chronological display
+  const displayMessages = [...channelMessages].reverse();
 
   // Grouping logic: messages from same sender within 5 mins
   type GroupedItem = 
     | { type: "date"; data: string } 
-    | { type: "message"; data: Message & { isGrouped: boolean } };
+    | { type: "message"; data: MessageResponse & { isGrouped: boolean } };
 
   const groupedMessages: GroupedItem[] = [];
   let lastDay = "";
-  let lastMessage: Message | null = null;
+  let lastMessage: MessageResponse | null = null;
 
-  messages.forEach((msg) => {
-    const msgDay = msg.timestamp.split(" ")[0]; // "Today", "Yesterday" or "Apr"
+  displayMessages.forEach((msg) => {
+    const dateObj = new Date(msg.createdAt);
+    const msgDay = dateObj.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
     let dayChanged = false;
     
     if (msgDay !== lastDay) {
@@ -175,16 +264,15 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
       dayChanged = true;
     }
 
+    const unixTime = dateObj.getTime() / 1000;
+    const lastUnixTime = lastMessage ? new Date(lastMessage.createdAt).getTime() / 1000 : 0;
+
     const isGrouped = !dayChanged && 
                      !!lastMessage && 
-                     lastMessage.sender.name === msg.sender.name && 
-                     (msg.unixTime - lastMessage.unixTime) < 300 &&
-                     msg.type !== "ai" && 
-                     msg.type !== "task" && 
-                     msg.type !== "pr" &&
-                     lastMessage.type !== "ai" &&
-                     lastMessage.type !== "task" &&
-                     lastMessage.type !== "pr";
+                     lastMessage.sender?.id === msg.sender?.id && 
+                     (unixTime - lastUnixTime) < 300 &&
+                     msg.type !== "AI" && 
+                     lastMessage.type !== "AI";
 
     groupedMessages.push({ 
       type: "message", 
@@ -192,6 +280,9 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
     });
     lastMessage = msg;
   });
+
+  const activeTypingUsers = typingUsers[channelId] ?? [];
+  const otherTypingUsers = activeTypingUsers.filter(u => u.userId !== currentUser?.id && u.typing);
 
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
@@ -203,30 +294,33 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
         <header className="sticky top-0 z-20 flex h-[48px] shrink-0 items-center justify-between bg-background/80 backdrop-blur-md px-4 border-b border-border/50">
           <div className="flex items-center">
             <Hash className="h-4 w-4 text-muted-foreground mr-1" strokeWidth={1.5} />
-            <span className="text-sm font-medium text-foreground">{channel}</span>
+            <span className="text-sm font-medium text-foreground">{currentChannel?.name || "Chat"}</span>
             <div className="w-px h-4 bg-border/50 mx-3" />
             <span className="text-xs text-muted-foreground truncate max-w-[400px]">
-              Engineering team — backend discussion, PRs, deployments
+              {currentChannel?.type === 'DM' ? "Direct conversation" : "Engineering team workspace discussion"}
             </span>
           </div>
 
           <div className="flex items-center gap-1">
-            <IconButton icon={Users} label="Members" count={24} />
+            <IconButton icon={Users} label="Members" />
             <IconButton icon={Search} label="Search" />
             <IconButton icon={Pin} label="Pinned" />
             <IconButton icon={Settings} label="Settings" />
           </div>
         </header>
 
-        {/* PINNED MESSAGES BAR */}
-        <div className="h-8 bg-muted/30 border-b border-border flex items-center px-4 shrink-0 transition-all hover:bg-muted/50 cursor-pointer">
-          <Pin className="h-3 w-3 text-muted-foreground mr-2" />
-          <span className="text-xs text-muted-foreground">1 pinned message</span>
-          <button className="text-[10px] font-bold ml-auto uppercase tracking-wider transition-opacity hover:opacity-80" style={{ color: themeColor }}>View</button>
-        </div>
-
         {/* MESSAGE LIST */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-1">
+        <div 
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-1"
+        >
+          {loading && (
+            <div className="flex justify-center p-2">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          )}
+
           {groupedMessages.map((item, i) => (
             item.type === "date" ? (
               <DateSeparator key={`date-${i}`} date={item.data} />
@@ -234,20 +328,25 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
               <MessageItem 
                 key={item.data.id} 
                 message={item.data} 
-                onReply={() => setActiveThread(item.data)}
+                channelId={channelId}
+                currentUserId={currentUser?.id}
+                onReply={() => setActiveThread(item.data.id)}
+                onReact={(emoji, reacted) => handleReactionClick(item.data.id, emoji, reacted)}
                 themeColor={themeColor}
               />
             )
           ))}
 
           {/* TYPING INDICATOR */}
-          {isTyping && (
+          {otherTypingUsers.length > 0 && (
             <div className="flex items-center gap-2 mt-2 group animate-in slide-in-from-left-2 duration-300">
               <Avatar className="h-5 w-5">
                 <AvatarFallback className="text-[8px] bg-zinc-800 text-zinc-400">SA</AvatarFallback>
               </Avatar>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-zinc-500 italic">Sanjay is typing</span>
+                <span className="text-xs text-zinc-500 italic">
+                  {otherTypingUsers.map(u => u.displayName).join(", ")} {otherTypingUsers.length === 1 ? "is" : "are"} typing
+                </span>
                 <div className="flex gap-1 items-center h-2">
                   <div className="h-1 w-1 bg-zinc-600 rounded-full animate-pulse" />
                   <div className="h-1 w-1 bg-zinc-600 rounded-full animate-pulse [animation-delay:200ms]" />
@@ -256,6 +355,7 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* COMPOSE BAR */}
@@ -264,7 +364,7 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
              "relative flex flex-col bg-hs-card/80 backdrop-blur-sm border rounded-xl transition-all duration-200",
              inputFocused ? "shadow-[0_0_15px_rgba(124,92,252,0.1)]" : "border-border"
           )} style={inputFocused ? { borderColor: `${themeColor}80` } : undefined}>
-            {/* Formatting Toolbar (shown on focus) */}
+            {/* Formatting Toolbar */}
             {inputFocused && (
               <div className="flex items-center h-9 px-3 border-b border-zinc-700/50 gap-1 animate-in fade-in slide-in-from-top-1">
                 <ToolbarButton icon={Bold} />
@@ -280,10 +380,16 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
               <textarea 
                 ref={textareaRef}
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={handleInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
                 onFocus={() => setInputFocused(true)}
                 onBlur={() => setInputFocused(false)}
-                placeholder={`Message #${channel}`}
+                placeholder={`Message #${currentChannel?.name || "Chat"}`}
                 className="w-full bg-transparent border-none text-sm text-foreground outline-none placeholder:text-muted-foreground/60 resize-none min-h-[40px] px-2 py-1"
               />
 
@@ -301,10 +407,11 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
 
                 <Button 
                   size="icon" 
+                  onClick={handleSend}
                   disabled={!inputValue.trim()}
                   className={cn(
                     "h-7 w-7 rounded-md transition-all",
-                    inputValue.trim() ? "text-white hover:opacity-90" : "bg-zinc-700 text-zinc-500"
+                    inputValue.trim() ? "text-white hover:opacity-90 cursor-pointer" : "bg-zinc-700 text-zinc-500"
                   )}
                   style={inputValue.trim() ? { backgroundColor: themeColor } : undefined}
                 >
@@ -322,7 +429,7 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
           <header className="flex h-[48px] items-center justify-between px-4 border-b border-border/50">
             <div className="flex flex-col">
               <span className="text-sm font-medium text-foreground">Thread</span>
-              <span className="text-[10px] text-muted-foreground"># {channel}</span>
+              <span className="text-[10px] text-muted-foreground"># {currentChannel?.name || "Chat"}</span>
             </div>
             <Button variant="ghost" size="icon" onClick={() => setActiveThread(null)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
               <X className="h-4 w-4" />
@@ -332,29 +439,57 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
           <div className="flex flex-col flex-1 overflow-y-auto p-4 gap-6">
              {/* Original message */}
              <div className="opacity-80 scale-[0.98] origin-top-left">
-                <MessageItem message={{...activeThread, isGrouped: false}} isThreadParent themeColor={themeColor} />
+                <MessageItem 
+                  message={{...activeThread, isGrouped: false}} 
+                  channelId={channelId}
+                  currentUserId={currentUser?.id}
+                  isThreadParent 
+                  themeColor={themeColor} 
+                />
              </div>
 
              <div className="relative flex items-center gap-3">
                 <div className="flex-1 h-px bg-zinc-800" />
-                <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest whitespace-nowrap">3 Replies</span>
+                <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest whitespace-nowrap">
+                  {threadMessages[activeThreadParentId!]?.length || 0} Replies
+                </span>
                 <div className="flex-1 h-px bg-zinc-800" />
              </div>
 
-             {/* Mock replies */}
-             <MessageItem message={{
-               id: "r1",
-               sender: { name: "David K.", initials: "DK", color: "bg-violet-500" },
-               timestamp: "Today 11:30 AM",
-               unixTime: 0,
-               content: "Checking the docs now. We definitely need durable recovery.",
-               isGrouped: false
-             }} themeColor={themeColor} />
+             {/* Replies */}
+             {(threadMessages[activeThreadParentId!] ?? []).map(reply => (
+               <MessageItem 
+                 key={reply.id} 
+                 message={{...reply, isGrouped: false}} 
+                 channelId={channelId}
+                 currentUserId={currentUser?.id}
+                 themeColor={themeColor} 
+               />
+             ))}
           </div>
 
           <div className="p-4 border-t border-zinc-800">
-             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-2 min-h-[40px] flex items-center">
-                <span className="text-xs text-zinc-600 ml-1">Reply...</span>
+             <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={threadInputValue}
+                  onChange={(e) => setThreadInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSendThreadReply();
+                    }
+                  }}
+                  placeholder="Reply..."
+                  className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-foreground outline-none placeholder:text-zinc-600"
+                />
+                <Button 
+                  size="sm"
+                  onClick={handleSendThreadReply}
+                  style={{ backgroundColor: themeColor }}
+                  className="text-white h-8 text-[11px]"
+                >
+                  Send
+                </Button>
              </div>
           </div>
         </aside>
@@ -368,16 +503,67 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
 
 function MessageItem({ 
   message, 
+  channelId,
+  currentUserId,
   onReply, 
+  onReact,
   isThreadParent,
   themeColor = "#7C5CFC"
 }: { 
-  message: Message & { isGrouped?: boolean }; 
+  message: MessageResponse & { isGrouped?: boolean }; 
+  channelId: string;
+  currentUserId?: string;
   onReply?: () => void; 
+  onReact?: (emoji: string, reacted: boolean) => void;
   isThreadParent?: boolean;
   themeColor?: string;
 }) {
-  const isAI = message.type === "ai";
+  const isAI = message.type === "AI";
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(message.content);
+
+  const getInitials = (user: UserSummary | null) => {
+    if (!user || !user.fullName) return "?";
+    return user.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  const getAvatarColorClass = (user: UserSummary | null) => {
+    if (!user) return "bg-zinc-800";
+    if (user.avatarColor) return user.avatarColor;
+    const colors = ["bg-emerald-500", "bg-blue-500", "bg-violet-500", "bg-orange-500", "bg-pink-500"];
+    const idx = Math.abs(user.id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0)) % colors.length;
+    return colors[idx];
+  };
+
+  const formatTimestamp = (isoString: string) => {
+    const d = new Date(isoString);
+    return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editValue.trim() || editValue === message.content) {
+      setIsEditing(false);
+      return;
+    }
+    try {
+      await editMessage(channelId, message.id, { content: editValue.trim() });
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Failed to edit message", err);
+    }
+  };
+
+  const handleDeleteClick = async () => {
+    if (confirm("Delete this message?")) {
+      try {
+        await deleteMessage(channelId, message.id);
+      } catch (err) {
+        console.error("Failed to delete message", err);
+      }
+    }
+  };
+
+  const isMyMessage = message.sender?.id === currentUserId;
 
   return (
     <div className={cn(
@@ -389,14 +575,18 @@ function MessageItem({
       {/* LEFT SIDE: AVATAR OR TIMESTAMP */}
       {!message.isGrouped ? (
         <Avatar className="h-8 w-8 shrink-0 mt-0.5 shadow-lg shadow-black/20">
-          <AvatarFallback className={cn("text-xs font-bold text-white", message.sender.color)}>
-            {message.sender.initials}
-          </AvatarFallback>
+          {message.sender?.avatarUrl ? (
+            <img src={message.sender.avatarUrl} alt="" className="object-cover h-full w-full" />
+          ) : (
+            <AvatarFallback className={cn("text-xs font-bold text-white", getAvatarColorClass(message.sender))}>
+              {getInitials(message.sender)}
+            </AvatarFallback>
+          )}
         </Avatar>
       ) : (
         <div className="w-8 shrink-0 flex justify-center">
           <span className="text-[10px] text-zinc-700 font-medium invisible group-hover:visible absolute left-0 mt-1 pl-3">
-            {message.timestamp.split(" ").slice(-2).join(" ")}
+            {formatTimestamp(message.createdAt)}
           </span>
         </div>
       )}
@@ -406,108 +596,101 @@ function MessageItem({
         {!message.isGrouped && (
           <div className="flex items-center mb-0.5">
             <span className="text-sm font-semibold text-foreground hover:underline cursor-pointer">
-              {message.sender.name}
+              {message.sender?.fullName || "Deleted User"}
             </span>
-            <span className="text-[10px] text-muted-foreground ml-2 font-medium">{message.timestamp}</span>
+            <span className="text-[10px] text-muted-foreground ml-2 font-medium">
+              {new Date(message.createdAt).toLocaleDateString()} {formatTimestamp(message.createdAt)}
+            </span>
+            {message.isEdited && <span className="text-[9px] text-zinc-500 ml-2">(edited)</span>}
           </div>
         )}
 
         {isAI && <span className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase mb-1">✦ AI Assistant</span>}
 
-        <div className={cn(
-          "text-sm leading-relaxed",
-          isAI ? "text-foreground/90" : "text-foreground/90"
-        )}>
-          {message.content.replace(/\[\[.*?\]\]/g, "").trim() || message.content}
-        </div>
-
-        {/* METADATA CARDS */}
-        {message.type === "pr" && message.metadata && <PRCard data={message.metadata} />}
-        {message.type === "task" && message.metadata && <TaskCard data={message.metadata} />}
-        {isAI && message.metadata?.source && (
-          <div className="mt-3 text-[10px] text-zinc-500 border-t border-zinc-700/50 pt-2 flex items-center gap-1">
-            <span>Source:</span>
-            <a href="#" className="hover:underline" style={{ color: themeColor }}>{message.metadata.source}</a>
+        {isEditing ? (
+          <div className="flex gap-2 mt-1">
+            <input 
+              type="text" 
+              value={editValue} 
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleEditSubmit();
+                if (e.key === "Escape") setIsEditing(false);
+              }}
+              className="flex-1 bg-zinc-900 border border-zinc-850 rounded px-2 py-1 text-sm text-foreground outline-none"
+            />
+            <Button size="sm" onClick={handleEditSubmit} className="text-white text-xs h-8">Save</Button>
+            <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)} className="text-zinc-500 text-xs h-8">Cancel</Button>
+          </div>
+        ) : (
+          <div className={cn(
+            "text-sm leading-relaxed",
+            message.isDeleted ? "text-zinc-500 italic" : "text-foreground/90"
+          )}>
+            {message.content}
           </div>
         )}
 
         {/* REACTIONS */}
-        {message.reactions && (
+        {!message.isDeleted && message.reactions && message.reactions.length > 0 && (
           <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1">
             {message.reactions.map((r, idx: number) => (
               <div 
                 key={idx} 
+                onClick={() => onReact?.(r.emoji, r.reactedByMe)}
                 className={cn(
                   "flex items-center gap-1.5 px-2 py-1 rounded-full border text-[11px] font-medium transition-all cursor-pointer",
-                  r.reacted 
+                  r.reactedByMe 
                     ? "border-transparent" 
                     : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700"
                 )}
-                style={r.reacted ? { backgroundColor: `${themeColor}30`, color: themeColor, borderColor: `${themeColor}50` } : undefined}
+                style={r.reactedByMe ? { backgroundColor: `${themeColor}30`, color: themeColor, borderColor: `${themeColor}50` } : undefined}
               >
                 <span>{r.emoji}</span>
                 <span>{r.count}</span>
               </div>
             ))}
-            <button className="h-6 w-6 flex items-center justify-center rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500 opacity-0 group-hover:opacity-100 hover:text-white transition-opacity">
-               <SmilePlus className="h-3.5 w-3.5" />
-            </button>
           </div>
+        )}
+
+        {/* THREAD REPLY COUNT */}
+        {!isThreadParent && message.replyCount > 0 && (
+          <button 
+            onClick={onReply}
+            className="flex items-center gap-1 text-[11px] font-semibold mt-2 hover:underline tracking-tight text-left self-start"
+            style={{ color: themeColor }}
+          >
+            <MessageSquare className="h-3 w-3" />
+            <span>{message.replyCount} {message.replyCount === 1 ? "reply" : "replies"}</span>
+          </button>
         )}
       </div>
 
       {/* HOVER ACTION BAR */}
-      {!isThreadParent && (
+      {!isThreadParent && !message.isDeleted && (
         <div className="absolute -top-4 right-4 hidden group-hover:flex items-center bg-zinc-900 border border-zinc-700 rounded-md p-1 shadow-xl z-10 scale-95 animate-in fade-in zoom-in-95 duration-100">
-          <ActionIcon icon={SmilePlus} />
-          <ActionIcon icon={MessageSquare} onClick={onReply} />
-          <ActionIcon icon={AtSign} />
+          {EMOJIS.slice(0, 4).map(emoji => {
+            const hasReacted = message.reactions?.find(r => r.emoji === emoji)?.reactedByMe ?? false;
+            return (
+              <button 
+                key={emoji}
+                onClick={() => onReact?.(emoji, hasReacted)}
+                className="h-7 w-7 flex items-center justify-center hover:bg-zinc-800 rounded transition-colors text-sm"
+              >
+                {emoji}
+              </button>
+            )
+          })}
           <div className="w-px h-3 bg-zinc-700 mx-1" />
-          <ActionIcon icon={MoreHorizontal} />
+          <ActionIcon icon={MessageSquare} onClick={onReply} />
+          {isMyMessage && (
+            <>
+              <ActionIcon icon={Edit2} onClick={() => setIsEditing(true)} />
+              <ActionIcon icon={Trash2} onClick={handleDeleteClick} />
+            </>
+          )}
         </div>
       )}
-    </div>
-  );
-}
-
-function PRCard({ data }: { data: NonNullable<Message["metadata"]> }) {
-  return (
-    <div className="mt-2 flex flex-col bg-hs-card/80 border border-border rounded-lg p-3 max-w-sm group/card cursor-pointer hover:border-border/80 transition-colors">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          <GitPullRequest className="h-4 w-4 text-emerald-500" strokeWidth={2} />
-          <span className="font-mono text-[11px] text-muted-foreground">PR #{data.prNumber}</span>
-        </div>
-        <Badge className="h-5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-bold px-1.5">
-          {data.status}
-        </Badge>
-      </div>
-      <span className="text-xs font-medium text-foreground/90">{data.title}</span>
-    </div>
-  );
-}
-
-function TaskCard({ data }: { data: NonNullable<Message["metadata"]> }) {
-  return (
-    <div className="mt-2 flex flex-col bg-hs-card/80 border border-border rounded-lg p-3 max-w-sm cursor-pointer hover:border-border/80 transition-colors">
-      <div className="flex items-center gap-2 mb-2">
-        <div className={cn(
-          "h-1.5 w-1.5 rounded-full shrink-0",
-          data.priority === "high" ? "bg-[#EF9F27]" : "bg-muted-foreground/50"
-        )} />
-        <span className="font-mono text-[11px] text-muted-foreground underline decoration-dotted decoration-muted-foreground/30">{data.taskId}</span>
-        <span className="text-xs font-semibold text-foreground/90 truncate ml-1">{data.title}</span>
-      </div>
-      <div className="flex items-center justify-between">
-        <Badge className="bg-muted/50 text-muted-foreground border-border/50 font-normal h-5 px-1.5 rounded-sm text-[10px]">
-          {data.status}
-        </Badge>
-        <Avatar className="h-5 w-5 border border-border">
-           <AvatarFallback className="text-[8px] bg-muted text-muted-foreground">
-             {data.assignee?.initials || "??"}
-           </AvatarFallback>
-        </Avatar>
-      </div>
     </div>
   );
 }
@@ -521,15 +704,10 @@ function DateSeparator({ date }: { date: string }) {
   );
 }
 
-function IconButton({ icon: Icon, label: _label, count }: { icon: React.ElementType; label: string; count?: number }) {
+function IconButton({ icon: Icon, label: _label }: { icon: React.ElementType; label: string }) {
   return (
     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground relative group">
       <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
-      {count && (
-        <span className="absolute -top-1 -right-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full px-1 text-[8px] font-bold text-white shadow shadow-black bg-violet-600">
-          {count}
-        </span>
-      )}
     </Button>
   );
 }
