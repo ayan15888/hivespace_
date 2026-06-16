@@ -277,3 +277,52 @@ CREATE TABLE public.document_links (
   CONSTRAINT document_links_source_doc_id_fkey FOREIGN KEY (source_doc_id) REFERENCES public.documents(id),
   CONSTRAINT document_links_target_doc_id_fkey FOREIGN KEY (target_doc_id) REFERENCES public.documents(id)
 );
+CREATE TABLE public.channels (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name character varying,
+  type character varying NOT NULL DEFAULT 'PUBLIC'::character varying CHECK (type::text = ANY (ARRAY['PUBLIC'::character varying, 'PRIVATE'::character varying, 'DM'::character varying, 'THREAD'::character varying]::text[])),
+  workspace_id uuid NOT NULL,
+  project_id uuid,
+  team_id uuid,
+  created_by uuid,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT channels_pkey PRIMARY KEY (id),
+  CONSTRAINT channels_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
+  CONSTRAINT channels_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT channels_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT channels_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.channel_members (
+  channel_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  last_read_at timestamp without time zone,
+  joined_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT channel_members_pkey PRIMARY KEY (channel_id, user_id),
+  CONSTRAINT channel_members_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.channels(id),
+  CONSTRAINT channel_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  content text NOT NULL,
+  type character varying NOT NULL DEFAULT 'TEXT'::character varying CHECK (type::text = ANY (ARRAY['TEXT'::character varying, 'FILE'::character varying, 'SYSTEM'::character varying, 'AI'::character varying]::text[])),
+  channel_id uuid NOT NULL,
+  sender_id uuid,
+  parent_id uuid,
+  edited_at timestamp without time zone,
+  deleted_at timestamp without time zone,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT messages_pkey PRIMARY KEY (id),
+  CONSTRAINT messages_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.channels(id),
+  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.users(id),
+  CONSTRAINT messages_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.messages(id)
+);
+CREATE TABLE public.message_reactions (
+  message_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  emoji character varying NOT NULL,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT message_reactions_pkey PRIMARY KEY (message_id, user_id, emoji),
+  CONSTRAINT message_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT message_reactions_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.messages(id)
+);
