@@ -7,6 +7,7 @@ import com.project.hiveSpace.exceptions.ForbiddenException;
 import com.project.hiveSpace.exceptions.NotFoundException;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
+import com.project.hiveSpace.dto.ChannelMemberResponse;
 import com.project.hiveSpace.security.RbacService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,10 @@ public class ChannelService {
     private final ChannelMemberRepository channelMemberRepository;
     private final WorkspaceRepository workspaceRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectTeamRepository projectTeamRepository;
     private final TeamRepository teamRepository;
+    private final TeamMemberRepository teamMemberRepository;
     private final UserRepository userRepository;
     private final RbacService rbacService;
 
@@ -247,5 +251,143 @@ public class ChannelService {
 
         member.setLastReadAt(Instant.now());
         channelMemberRepository.save(member);
+    }
+
+    // GET /api/channels/{channelId}/members
+    @Transactional(readOnly = true)
+    public List<ChannelMemberResponse> getChannelMembers(UUID channelId, UUID currentUserId) {
+        Channel channel = channelRepository.findById(channelId)
+                .orElseThrow(() -> new NotFoundException("Channel not found"));
+
+        // For project-linked channels: live-aggregate from project_members + team_members
+        if (channel.getProject() != null) {
+            UUID projectId = channel.getProject().getId();
+
+            // Access check: must be a direct project member OR a team member of an assigned team
+            boolean canView = projectMemberRepository.existsByProjectIdAndUserId(projectId, currentUserId)
+                    || channelMemberRepository.existsByIdChannelIdAndIdUserId(channelId, currentUserId)
+                    || projectTeamRepository.findByProjectId(projectId).stream()
+                        .anyMatch(pt -> teamMemberRepository.findAllByTeamId(pt.getTeam().getId())
+                                .stream().anyMatch(tm -> tm.getUser().getId().equals(currentUserId)));
+            if (!canView) {
+                throw new ForbiddenException("Access denied: Not a member of this project or its teams");
+            }
+
+            // Deduplicate by userId
+            java.util.LinkedHashMap<UUID, ChannelMemberResponse> memberMap = new java.util.LinkedHashMap<>();
+
+            // 1. Direct project members
+            projectMemberRepository.findAllByProjectId(projectId).forEach(pm -> {
+                User u = pm.getUser();
+                memberMap.put(u.getId(), new ChannelMemberResponse(
+                        u.getId(),
+                        u.getActualUsername(),
+                        u.getFullName(),
+                        u.getAvatarUrl(),
+                        u.getAvatarColor(),
+                        pm.getJoinedAt().toInstant()
+                ));
+            });
+
+            // 2. Team members via project_teams
+            projectTeamRepository.findByProjectId(projectId).forEach(pt ->
+                    teamMemberRepository.findAllByTeamId(pt.getTeam().getId()).forEach(tm -> {
+                        User u = tm.getUser();
+                        memberMap.putIfAbsent(u.getId(), new ChannelMemberResponse(
+                                u.getId(),
+                                u.getActualUsername(),
+                                u.getFullName(),
+                                u.getAvatarUrl(),
+                                u.getAvatarColor(),
+                                tm.getJoinedAt().toInstant()
+                        ));
+                    })
+            );
+
+            return new java.util.ArrayList<>(memberMap.values());
+        }
+
+        // For non-project channels: use channel_members table
+        if (!channelMemberRepository.existsByIdChannelIdAndIdUserId(channelId, currentUserId)) {
+            throw new ForbiddenException("Access denied: Not a member of this channel");
+        }
+
+        return channelMemberRepository.findByIdChannelId(channelId).stream()
+                .map(cm -> new ChannelMemberResponse(
+                        cm.getUser().getId(),
+                        cm.getUser().getActualUsername(),
+                        cm.getUser().getFullName(),
+                        cm.getUser().getAvatarUrl(),
+                        cm.getUser().getAvatarColor(),
+                        cm.getJoinedAt()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    // POST /api/projects/{projectId}/ensure-channel
+    public ChannelResponse ensureProjectChannel(UUID projectId, UUID currentUserId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new NotFoundException("Project not found"));
+
+        boolean isDirectMember = projectMemberRepository.existsByProjectIdAndUserId(projectId, currentUserId);
+        boolean isTeamMember = projectTeamRepository.findByProjectId(projectId).stream()
+                .anyMatch(pt -> teamMemberRepository.findAllByTeamId(pt.getTeam().getId())
+                        .stream().anyMatch(tm -> tm.getUser().getId().equals(currentUserId)));
+        if (!isDirectMember && !isTeamMember) {
+            throw new ForbiddenException("Access denied: Must be a project or team member");
+        }
+
+        java.util.function.BiConsumer<Channel, User> addIfAbsent = (ch, u) -> {
+            if (!channelMemberRepository.existsByIdChannelIdAndIdUserId(ch.getId(), u.getId())) {
+                ChannelMember cm = ChannelMember.builder()
+                        .id(new ChannelMemberId(ch.getId(), u.getId()))
+                        .channel(ch)
+                        .user(u)
+                        .joinedAt(Instant.now())
+                        .build();
+                channelMemberRepository.save(cm);
+            }
+        };
+
+        Channel existing = channelRepository.findByProjectIdAndType(projectId, ChannelType.PRIVATE).orElse(null);
+        if (existing != null) {
+            projectMemberRepository.findAllByProjectId(projectId)
+                    .forEach(pm -> addIfAbsent.accept(existing, pm.getUser()));
+            projectTeamRepository.findByProjectId(projectId).forEach(pt ->
+                    teamMemberRepository.findAllByTeamId(pt.getTeam().getId())
+                            .forEach(tm -> addIfAbsent.accept(existing, tm.getUser())));
+
+            long unread = channelMemberRepository.findByIdChannelIdAndIdUserId(existing.getId(), currentUserId)
+                    .map(cm -> channelMemberRepository.countUnread(existing.getId(), currentUserId, cm.getLastReadAt()))
+                    .orElse(0L);
+            return new ChannelResponse(
+                    existing.getId(), existing.getName(), existing.getType(),
+                    existing.getWorkspace().getId(), existing.getProject().getId(),
+                    null, unread);
+        }
+
+        User creator = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        Channel channel = Channel.builder()
+                .name(project.getName().toLowerCase().replaceAll("\\s+", "-"))
+                .type(ChannelType.PRIVATE)
+                .workspace(project.getWorkspace())
+                .project(project)
+                .createdBy(creator)
+                .build();
+        Channel saved = channelRepository.save(channel);
+
+        projectMemberRepository.findAllByProjectId(projectId)
+                .forEach(pm -> addIfAbsent.accept(saved, pm.getUser()));
+
+        projectTeamRepository.findByProjectId(projectId).forEach(pt ->
+                teamMemberRepository.findAllByTeamId(pt.getTeam().getId())
+                        .forEach(tm -> addIfAbsent.accept(saved, tm.getUser())));
+
+        return new ChannelResponse(
+                saved.getId(), saved.getName(), saved.getType(),
+                saved.getWorkspace().getId(), saved.getProject().getId(),
+                null, 0L);
     }
 }

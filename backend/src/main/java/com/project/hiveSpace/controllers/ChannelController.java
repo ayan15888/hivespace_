@@ -56,4 +56,22 @@ public class ChannelController {
         channelService.markRead(channelId, user.getId());
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/channels/{channelId}/members")
+    public ResponseEntity<List<com.project.hiveSpace.dto.ChannelMemberResponse>> getChannelMembers(
+            @PathVariable UUID channelId,
+            @AuthenticationPrincipal User user
+    ) {
+        List<com.project.hiveSpace.dto.ChannelMemberResponse> members = channelService.getChannelMembers(channelId, user.getId());
+        return ResponseEntity.ok(members);
+    }
+
+    @PostMapping("/projects/{projectId}/ensure-channel")
+    public ResponseEntity<ChannelResponse> ensureProjectChannel(
+            @PathVariable UUID projectId,
+            @AuthenticationPrincipal User user
+    ) {
+        ChannelResponse response = channelService.ensureProjectChannel(projectId, user.getId());
+        return ResponseEntity.ok(response);
+    }
 }

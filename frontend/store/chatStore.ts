@@ -126,13 +126,25 @@ export const useChatStore = create<ChatState>((set) => ({
     })),
 
   appendMessage: (channelId, message) =>
-    set((s) => ({
-      messages: {
-        ...s.messages,
-        // prepend to DESC array so newest stays at index 0
-        [channelId]: [message, ...(s.messages[channelId] ?? [])],
-      },
-    })),
+    set((s) => {
+      const current = s.messages[channelId] ?? [];
+      // Deduplicate: if message already exists, update it instead of duplicating
+      const exists = current.some(m => m.id === message.id);
+      if (exists) {
+        return {
+          messages: {
+            ...s.messages,
+            [channelId]: current.map(m => m.id === message.id ? message : m),
+          },
+        };
+      }
+      return {
+        messages: {
+          ...s.messages,
+          [channelId]: [message, ...current],
+        },
+      };
+    }),
 
   updateMessage: (channelId, updated) =>
     set((s) => ({
@@ -166,12 +178,24 @@ export const useChatStore = create<ChatState>((set) => ({
     })),
 
   appendThreadMessage: (parentId, message) =>
-    set((s) => ({
-      threadMessages: {
-        ...s.threadMessages,
-        [parentId]: [...(s.threadMessages[parentId] ?? []), message],
-      },
-    })),
+    set((s) => {
+      const current = s.threadMessages[parentId] ?? [];
+      const exists = current.some(m => m.id === message.id);
+      if (exists) {
+        return {
+          threadMessages: {
+            ...s.threadMessages,
+            [parentId]: current.map(m => m.id === message.id ? message : m),
+          },
+        };
+      }
+      return {
+        threadMessages: {
+          ...s.threadMessages,
+          [parentId]: [...current, message],
+        },
+      };
+    }),
 
   updateThreadMessage: (parentId, updated) =>
     set((s) => ({

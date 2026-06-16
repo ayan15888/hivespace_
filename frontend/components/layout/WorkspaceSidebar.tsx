@@ -37,8 +37,9 @@ import { usePermission } from "@/hooks/usePermission";
 
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
 import { useChatStore } from "@/store/chatStore";
-import { getWorkspaceChannels } from "@/lib/api/channels";
+import { getWorkspaceChannels, ensureProjectChannel } from "@/lib/api/channels";
 import { useAuthStore } from "@/store/authStore";
+import { useRouter } from "next/navigation";
 
 const sidebarContainerVariants = {
   hidden: { opacity: 0 },
@@ -73,6 +74,9 @@ export function WorkspaceSidebar() {
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
+  const [ensuringChannelForProject, setEnsuringChannelForProject] = useState<string | null>(null);
+
+  const router = useRouter();
   
   const { orgs } = useOrgs();
   const { activeOrg, setActiveOrg } = useOrgStore();
@@ -319,13 +323,49 @@ export function WorkspaceSidebar() {
                             isActive={pathname.startsWith("/dashboard/docs")} 
                             activeColor={dotColor}
                           />
-                          <SubItem 
-                            icon={MessageSquare} 
-                            label="Channels" 
-                            href={`/dashboard/chat/${project.id}`} 
-                            isActive={pathname.startsWith("/dashboard/chat")} 
-                            activeColor={dotColor}
-                          />
+                          <div
+                            className="group relative flex h-7 items-center gap-2 pl-8 pr-2 transition-colors rounded-md no-underline sidebar-ripple-item cursor-pointer"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              setEnsuringChannelForProject(project.id);
+                              try {
+                                // Always call ensure-channel: syncs team members into channel_members
+                                // and creates channel if it doesn't exist yet
+                                const created = await ensureProjectChannel(project.id);
+                                // Refresh channels in store so sidebar list updates
+                                if (activeWorkspace?.id) {
+                                  getWorkspaceChannels(activeWorkspace.id).then(chs => setChannels(activeWorkspace.id, chs));
+                                }
+                                router.push(`/dashboard/chat/${created.id}`);
+                              } catch (err) {
+                                console.error('Failed to ensure project channel', err);
+                                // Fallback: if channel exists in store, navigate to it
+                                const projectChannel = workspaceChannels.find(
+                                  c => c.projectId === project.id && c.type === 'PRIVATE'
+                                );
+                                if (projectChannel) router.push(`/dashboard/chat/${projectChannel.id}`);
+                              } finally {
+                                setEnsuringChannelForProject(null);
+                              }
+                            }}
+                          >
+                            <MessageSquare
+                              className="h-3 w-3 relative z-10"
+                              style={{ color: (() => {
+                                const projectChannel = workspaceChannels.find(
+                                  c => c.projectId === project.id && c.type === 'PRIVATE'
+                                );
+                                const isChannelActive = projectChannel
+                                  ? pathname === `/dashboard/chat/${projectChannel.id}`
+                                  : false;
+                                return isChannelActive ? dotColor : 'rgb(113 113 122)';
+                              })() }}
+                              strokeWidth={1.5}
+                            />
+                            <span className="text-xs font-normal relative z-10">
+                              {ensuringChannelForProject === project.id ? 'Syncing…' : 'Channel'}
+                            </span>
+                          </div>
                           {canAdminWorkspace && (
                             <SubItem 
                               icon={Settings} 

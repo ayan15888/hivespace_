@@ -9,9 +9,12 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import com.project.hiveSpace.models.ChannelType;
 
 @Repository
 public interface ChannelRepository extends JpaRepository<Channel, UUID> {
+
+    Optional<Channel> findByProjectIdAndType(UUID projectId, ChannelType type);
 
     // All channels in a workspace that the user is a member of OR are PUBLIC channels
     @Query("""

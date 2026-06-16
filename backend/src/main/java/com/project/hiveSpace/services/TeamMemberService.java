@@ -11,11 +11,16 @@ import com.project.hiveSpace.repository.TeamMemberRepository;
 import com.project.hiveSpace.repository.TeamRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
+import com.project.hiveSpace.repository.ProjectTeamRepository;
+import com.project.hiveSpace.repository.ProjectMemberRepository;
+import com.project.hiveSpace.repository.ChannelMemberRepository;
 import com.project.hiveSpace.security.RbacService;
 import com.project.hiveSpace.exceptions.DomainValidationException;
 import com.project.hiveSpace.exceptions.ForbiddenException;
 import com.project.hiveSpace.exceptions.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +38,12 @@ public class TeamMemberService {
     private final UserRepository userRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final RbacService rbacService;
+    private final ProjectTeamRepository projectTeamRepository;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final ChannelMemberRepository channelMemberRepository;
+
+    @Autowired @Lazy
+    private ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<TeamMemberResponse> getMembersByTeam(UUID teamId) {
@@ -84,6 +95,14 @@ public class TeamMemberService {
                 .build();
 
         TeamMember saved = teamMemberRepository.save(teamMember);
+
+        // Sync: add user to project channels for every project this team is assigned to
+        projectTeamRepository.findByTeamId(teamId).forEach(pt -> {
+            var channel = projectService.findProjectChannel(pt.getProject().getId());
+            if (channel != null) {
+                projectService.addUserToProjectChannel(channel, user);
+            }
+        });
 
         return mapToResponse(saved);
     }
@@ -141,6 +160,18 @@ public class TeamMemberService {
                 .orElseThrow(() -> new NotFoundException("Membership not found"));
 
         teamMemberRepository.delete(teamMember);
+
+        // Sync: remove user from project channels if they're not a direct project member
+        projectTeamRepository.findByTeamId(teamId).forEach(pt -> {
+            UUID projectId = pt.getProject().getId();
+            boolean isDirectMember = projectMemberRepository.existsByProjectIdAndUserId(projectId, userId);
+            if (!isDirectMember) {
+                var channel = projectService.findProjectChannel(projectId);
+                if (channel != null) {
+                    channelMemberRepository.deleteByIdChannelIdAndIdUserId(channel.getId(), userId);
+                }
+            }
+        });
     }
 
     private boolean isLastLead(UUID teamId, UUID userId) {

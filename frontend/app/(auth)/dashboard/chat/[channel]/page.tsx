@@ -42,7 +42,8 @@ import {
   addReaction, 
   removeReaction 
 } from "@/lib/api/messages";
-import { markChannelRead } from "@/lib/api/channels";
+import { markChannelRead, getChannelMembers } from "@/lib/api/channels";
+import type { ChannelMemberInfo } from "@/lib/api/channels";
 import type { MessageResponse, UserSummary } from "@/types/messaging";
 
 const EMOJIS = ["👍", "🚀", "❤️", "🔥", "👀", "🙌", "🎉", "😮"];
@@ -86,6 +87,15 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
   const [inputValue, setInputValue] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
   const [threadInputValue, setThreadInputValue] = useState("");
+  const [showMembers, setShowMembers] = useState(false);
+  const [channelMembers, setChannelMembers] = useState<ChannelMemberInfo[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+
+  // Reset members panel when switching channels
+  useEffect(() => {
+    setShowMembers(false);
+    setChannelMembers([]);
+  }, [channelId]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -232,7 +242,11 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
       clearTimeout(typingTimeoutRef.current);
     }
     try {
-      await sendMessage(channelId, { content });
+      const msg = await sendMessage(channelId, { content });
+      appendMessage(channelId, msg);
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 50);
     } catch (err) {
       console.error("Failed to send message", err);
     }
@@ -243,7 +257,13 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
     const content = threadInputValue.trim();
     setThreadInputValue("");
     try {
-      await sendMessage(channelId, { content, parentId: activeThreadParentId });
+      const msg = await sendMessage(channelId, { content, parentId: activeThreadParentId });
+      appendThreadMessage(activeThreadParentId, msg);
+      
+      const parentMsg = channelMessages.find(m => m.id === activeThreadParentId);
+      if (parentMsg) {
+        updateMessage(channelId, { ...parentMsg, replyCount: parentMsg.replyCount + 1 });
+      }
     } catch (err) {
       console.error("Failed to send thread reply", err);
     }
@@ -322,7 +342,31 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
           </div>
 
           <div className="flex items-center gap-1">
-            <IconButton icon={Users} label="Members" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8 transition-colors", showMembers ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground")}
+              onClick={async () => {
+                if (showMembers) {
+                  setShowMembers(false);
+                  return;
+                }
+                setShowMembers(true);
+                if (channelMembers.length === 0) {
+                  setMembersLoading(true);
+                  try {
+                    const members = await getChannelMembers(channelId);
+                    setChannelMembers(members);
+                  } catch (err) {
+                    console.error("Failed to fetch channel members", err);
+                  } finally {
+                    setMembersLoading(false);
+                  }
+                }
+              }}
+            >
+              <Users className="h-[18px] w-[18px]" strokeWidth={1.5} />
+            </Button>
             <IconButton icon={Search} label="Search" />
             <IconButton icon={Pin} label="Pinned" />
             <IconButton icon={Settings} label="Settings" />
@@ -511,6 +555,67 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
                   Send
                 </Button>
              </div>
+          </div>
+        </aside>
+      )}
+
+      {/* --- MEMBERS PANEL --- */}
+      {showMembers && (
+        <aside className="w-[240px] shrink-0 bg-hs-nav border-l border-border flex flex-col animate-in slide-in-from-right duration-200">
+          <header className="flex h-[48px] items-center justify-between px-4 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+              <span className="text-sm font-medium text-foreground">Members</span>
+              {channelMembers.length > 0 && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                  {channelMembers.length}
+                </span>
+              )}
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => setShowMembers(false)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </Button>
+          </header>
+
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-1">
+            {membersLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2.5 px-2 py-2">
+                  <div className="h-7 w-7 rounded-full bg-muted animate-pulse shrink-0" />
+                  <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+                </div>
+              ))
+            ) : channelMembers.length === 0 ? (
+              <p className="text-xs text-muted-foreground px-2 py-4 text-center">No members found</p>
+            ) : (
+              channelMembers.map((member) => {
+                const initials = (member.fullName || member.username || "?")
+                  .split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+                const isCurrentUser = member.userId === currentUser?.id;
+                return (
+                  <div
+                    key={member.userId}
+                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted/30 transition-colors group"
+                  >
+                    <div
+                      className="h-7 w-7 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
+                      style={{ backgroundColor: member.avatarColor || themeColor }}
+                    >
+                      {member.avatarUrl ? (
+                        <img src={member.avatarUrl} alt="" className="h-full w-full rounded-full object-cover" />
+                      ) : initials}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-medium text-foreground truncate">
+                        {member.fullName || member.username}
+                        {isCurrentUser && <span className="text-muted-foreground font-normal"> (you)</span>}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground truncate">@{member.username}</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </aside>
       )}

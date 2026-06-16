@@ -12,6 +12,10 @@ import com.project.hiveSpace.models.Team;
 import com.project.hiveSpace.models.ProjectTeam;
 import com.project.hiveSpace.models.ResourceType;
 import com.project.hiveSpace.models.TeamMember;
+import com.project.hiveSpace.models.Channel;
+import com.project.hiveSpace.models.ChannelType;
+import com.project.hiveSpace.models.ChannelMember;
+import com.project.hiveSpace.models.ChannelMemberId;
 import com.project.hiveSpace.repository.ProjectMemberRepository;
 import com.project.hiveSpace.repository.ProjectRepository;
 import com.project.hiveSpace.repository.TeamRepository;
@@ -20,6 +24,8 @@ import com.project.hiveSpace.repository.WorkspaceRepository;
 import com.project.hiveSpace.repository.WorkspaceMemberRepository;
 import com.project.hiveSpace.repository.UserRepository;
 import com.project.hiveSpace.repository.TeamMemberRepository;
+import com.project.hiveSpace.repository.ChannelRepository;
+import com.project.hiveSpace.repository.ChannelMemberRepository;
 import com.project.hiveSpace.security.RbacService;
 import com.project.hiveSpace.exceptions.ForbiddenException;
 import com.project.hiveSpace.exceptions.DomainValidationException;
@@ -28,7 +34,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -48,6 +56,8 @@ public class ProjectService {
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final UserRepository userRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final ChannelRepository channelRepository;
+    private final ChannelMemberRepository channelMemberRepository;
 
     @Transactional
     public ProjectResponse createProject(UUID workspaceId, ProjectRequest request, User creator) {
@@ -120,6 +130,9 @@ public class ProjectService {
                     .build();
             projectMemberRepository.save(projectMember);
         }
+
+        // Auto-create private project channel and sync members
+        createProjectChannel(savedProject, workspace, creator);
 
         return mapToResponse(savedProject);
     }
@@ -203,9 +216,75 @@ public class ProjectService {
                     .assignedAt(new Date())
                     .build();
             projectTeamRepository.save(association);
+
+            // Sync all team members into the project channel
+            Channel projectChannel = channelRepository.findByProjectIdAndType(projectId, ChannelType.PRIVATE).orElse(null);
+            if (projectChannel != null) {
+                List<TeamMember> teamMembers = teamMemberRepository.findAllByTeamId(teamId);
+                for (TeamMember tm : teamMembers) {
+                    addUserToProjectChannel(projectChannel, tm.getUser());
+                }
+            }
         }
 
         return mapToResponse(project);
+    }
+
+    /**
+     * Creates a PRIVATE channel tied to the project and bulk-adds all current project members
+     * (direct project_members + members of all assigned teams).
+     */
+    private void createProjectChannel(Project project, Workspace workspace, User creator) {
+        // Avoid duplicate channels if somehow called twice
+        if (channelRepository.findByProjectIdAndType(project.getId(), ChannelType.PRIVATE).isPresent()) {
+            return;
+        }
+
+        Channel channel = Channel.builder()
+                .name(project.getName().toLowerCase().replaceAll("\\s+", "-"))
+                .type(ChannelType.PRIVATE)
+                .workspace(workspace)
+                .project(project)
+                .createdBy(creator)
+                .build();
+        Channel savedChannel = channelRepository.save(channel);
+
+        // Add direct project members
+        List<ProjectMember> members = projectMemberRepository.findAllByProjectId(project.getId());
+        for (ProjectMember pm : members) {
+            addUserToProjectChannel(savedChannel, pm.getUser());
+        }
+
+        // Add indirect members via assigned teams
+        List<ProjectTeam> projectTeams = projectTeamRepository.findByProjectId(project.getId());
+        for (ProjectTeam pt : projectTeams) {
+            List<TeamMember> teamMembers = teamMemberRepository.findAllByTeamId(pt.getTeam().getId());
+            for (TeamMember tm : teamMembers) {
+                addUserToProjectChannel(savedChannel, tm.getUser());
+            }
+        }
+    }
+
+    /**
+     * Adds a single user to the project's PRIVATE channel if not already a member.
+     */
+    void addUserToProjectChannel(Channel channel, User user) {
+        if (!channelMemberRepository.existsByIdChannelIdAndIdUserId(channel.getId(), user.getId())) {
+            ChannelMember cm = ChannelMember.builder()
+                    .id(new ChannelMemberId(channel.getId(), user.getId()))
+                    .channel(channel)
+                    .user(user)
+                    .joinedAt(Instant.now())
+                    .build();
+            channelMemberRepository.save(cm);
+        }
+    }
+
+    /**
+     * Finds the PRIVATE channel for a project (may be null if not yet created).
+     */
+    Channel findProjectChannel(UUID projectId) {
+        return channelRepository.findByProjectIdAndType(projectId, ChannelType.PRIVATE).orElse(null);
     }
 
     private ProjectResponse mapToResponse(Project project) {
@@ -264,6 +343,31 @@ public class ProjectService {
 
         // Validate team belongs to project
         if (projectTeamRepository.existsByProjectIdAndTeamId(projectId, teamId)) {
+            // Before removing, find team members who are NOT direct project members
+            // Those exclusively-team members should be removed from the channel
+            Channel projectChannel = channelRepository.findByProjectIdAndType(projectId, ChannelType.PRIVATE).orElse(null);
+            if (projectChannel != null) {
+                Set<UUID> directMemberIds = projectMemberRepository.findAllByProjectId(projectId)
+                        .stream().map(pm -> pm.getUser().getId()).collect(Collectors.toSet());
+
+                // Get IDs of members still in OTHER teams assigned to this project (excluding current team)
+                Set<UUID> otherTeamMemberIds = new HashSet<>();
+                projectTeamRepository.findByProjectId(projectId).forEach(pt -> {
+                    if (!pt.getTeam().getId().equals(teamId)) {
+                        teamMemberRepository.findAllByTeamId(pt.getTeam().getId())
+                                .forEach(tm -> otherTeamMemberIds.add(tm.getUser().getId()));
+                    }
+                });
+
+                // Remove team members who are only in this team (not direct members, not in other assigned teams)
+                teamMemberRepository.findAllByTeamId(teamId).forEach(tm -> {
+                    UUID userId = tm.getUser().getId();
+                    if (!directMemberIds.contains(userId) && !otherTeamMemberIds.contains(userId)) {
+                        channelMemberRepository.deleteByIdChannelIdAndIdUserId(projectChannel.getId(), userId);
+                    }
+                });
+            }
+
             projectTeamRepository.deleteByProjectIdAndTeamId(projectId, teamId);
         }
 

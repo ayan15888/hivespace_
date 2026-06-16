@@ -4,6 +4,7 @@ import com.project.hiveSpace.models.ChannelMember;
 import com.project.hiveSpace.models.ChannelMemberId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -28,4 +29,13 @@ public interface ChannelMemberRepository extends JpaRepository<ChannelMember, Ch
           AND m.createdAt > :lastReadAt
     """)
     long countUnread(@Param("channelId") UUID channelId, @Param("userId") UUID userId, @Param("lastReadAt") Instant lastReadAt);
+
+    @Modifying
+    @Query("UPDATE ChannelMember cm SET cm.lastReadAt = :timestamp WHERE cm.id.channelId = :channelId AND cm.id.userId = :userId")
+    void updateLastReadAt(@Param("channelId") UUID channelId, @Param("userId") UUID userId, @Param("timestamp") Instant timestamp);
+    
+    boolean existsByIdChannelIdAndIdUserId(UUID channelId, UUID userId);
+    
+    @Modifying
+    void deleteByIdChannelIdAndIdUserId(UUID channelId, UUID userId);
 }
