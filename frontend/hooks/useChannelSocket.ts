@@ -4,13 +4,14 @@ import { useEffect, useRef, useCallback, useState } from 'react'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { getToken } from '@/lib/auth/token'
-import type { ChannelBroadcast, MessageResponse, TypingUser } from '@/types/messaging'
-import { isDeleteBroadcast } from '@/types/messaging'
+import type { ChannelBroadcast, MessageResponse, ReactionBroadcast, TypingUser } from '@/types/messaging'
+import { isDeleteBroadcast, isReactionBroadcast } from '@/types/messaging'
 
 interface UseChannelSocketOptions {
   channelId: string
   onMessage: (msg: MessageResponse) => void
   onDelete: (messageId: string) => void
+  onReaction: (event: ReactionBroadcast) => void
   onTyping: (event: TypingUser) => void
   threadParentId?: string
   onThreadMessage?: (msg: MessageResponse) => void
@@ -20,6 +21,7 @@ export function useChannelSocket({
   channelId,
   onMessage,
   onDelete,
+  onReaction,
   onTyping,
   threadParentId,
   onThreadMessage,
@@ -29,15 +31,17 @@ export function useChannelSocket({
   
   const onMessageRef = useRef(onMessage)
   const onDeleteRef = useRef(onDelete)
+  const onReactionRef = useRef(onReaction)
   const onTypingRef = useRef(onTyping)
   const onThreadMessageRef = useRef(onThreadMessage)
 
   useEffect(() => {
     onMessageRef.current = onMessage
     onDeleteRef.current = onDelete
+    onReactionRef.current = onReaction
     onTypingRef.current = onTyping
     onThreadMessageRef.current = onThreadMessage
-  }, [onMessage, onDelete, onTyping, onThreadMessage])
+  }, [onMessage, onDelete, onReaction, onTyping, onThreadMessage])
 
   useEffect(() => {
     const client = new Client({
@@ -60,11 +64,15 @@ export function useChannelSocket({
         setIsConnected(true)
 
         client.subscribe(`/topic/channel.${channelId}`, (frame) => {
+          console.debug(`[WS] 📨 /topic/channel.${channelId}`, frame.body.slice(0, 120))
           const payload = JSON.parse(frame.body) as ChannelBroadcast
+          console.log("[WS Payload Debug]", payload);
           if (isDeleteBroadcast(payload)) {
             onDeleteRef.current(payload.id)
+          } else if (isReactionBroadcast(payload)) {
+            onReactionRef.current(payload)
           } else {
-            onMessageRef.current(payload)
+            onMessageRef.current(payload as MessageResponse)
           }
         })
 

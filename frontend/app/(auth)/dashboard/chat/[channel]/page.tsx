@@ -207,6 +207,34 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
     onDelete: (msgId) => {
       removeMessage(channelId, msgId);
     },
+    onReaction: (event) => {
+      console.log("[WS onReaction Callback]", event);
+      const isSelf = event.userId === currentUser?.id;
+      console.log("isSelf evaluation:", isSelf, "event.userId:", event.userId, "currentUser.id:", currentUser?.id);
+      if (isSelf) return; // Skip because the optimistic update already handled it
+
+      const freshMsg = useChatStore.getState().messages[channelId]?.find(m => m.id === event.messageId);
+      console.log("Found message in store for reaction update:", freshMsg);
+      if (!freshMsg) return;
+      const prevReactions = freshMsg.reactions ?? [];
+      let updatedReactions;
+      if (event.delta === 1) {
+        // Reaction added
+        updatedReactions = prevReactions.some(r => r.emoji === event.emoji)
+          ? prevReactions.map(r => r.emoji === event.emoji
+              ? { ...r, count: r.count + 1, reactedByMe: r.reactedByMe || isSelf }
+              : r)
+          : [...prevReactions, { emoji: event.emoji, count: 1, reactedByMe: isSelf }];
+      } else {
+        // Reaction removed
+        updatedReactions = prevReactions
+          .map(r => r.emoji === event.emoji
+            ? { ...r, count: r.count - 1, reactedByMe: isSelf ? false : r.reactedByMe }
+            : r)
+          .filter(r => r.count > 0);
+      }
+      updateMessage(channelId, { ...freshMsg, reactions: updatedReactions });
+    },
     onTyping: (event) => {
       setTyping(channelId, event.userId, event.displayName, event.typing);
     },
@@ -291,14 +319,31 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
   };
 
   const handleReactionClick = async (messageId: string, emoji: string, reactedByMe: boolean) => {
+    // Optimistic update — immediately reflect the change in the UI
+    const prevMsg = useChatStore.getState().messages[channelId]?.find(m => m.id === messageId);
+    if (prevMsg) {
+      const prevReactions = prevMsg.reactions ?? [];
+      const updatedReactions = reactedByMe
+        ? prevReactions
+            .map(r => r.emoji === emoji ? { ...r, count: r.count - 1, reactedByMe: false } : r)
+            .filter(r => r.count > 0)
+        : prevReactions.some(r => r.emoji === emoji)
+          ? prevReactions.map(r => r.emoji === emoji ? { ...r, count: r.count + 1, reactedByMe: true } : r)
+          : [...prevReactions, { emoji, count: 1, reactedByMe: true }];
+      updateMessage(channelId, { ...prevMsg, reactions: updatedReactions });
+    }
+
     try {
       if (reactedByMe) {
         await removeReaction(messageId, emoji);
       } else {
         await addReaction(messageId, emoji);
       }
+      // WS broadcast from backend will confirm & sync the final state for all viewers
     } catch (err) {
       console.error("Failed to update reaction", err);
+      // Roll back the optimistic update on failure
+      if (prevMsg) updateMessage(channelId, prevMsg);
     }
   };
 
