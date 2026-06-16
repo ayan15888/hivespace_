@@ -37,4 +37,6 @@ public interface ChannelRepository extends JpaRepository<Channel, UUID> {
         LIMIT 1
     """, nativeQuery = true)
     Optional<UUID> findExistingDmChannel(@Param("workspaceId") UUID workspaceId, @Param("userA") UUID userA, @Param("userB") UUID userB);
+
+    Optional<Channel> findByWorkspaceIdAndName(UUID workspaceId, String name);
 }

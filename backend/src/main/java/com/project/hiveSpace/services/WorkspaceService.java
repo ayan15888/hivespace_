@@ -26,6 +26,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.project.hiveSpace.models.Channel;
+import com.project.hiveSpace.models.ChannelType;
+import com.project.hiveSpace.models.ChannelMember;
+import com.project.hiveSpace.models.ChannelMemberId;
+import com.project.hiveSpace.repository.ChannelRepository;
+import com.project.hiveSpace.repository.ChannelMemberRepository;
+import java.time.Instant;
+
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -41,6 +49,8 @@ public class WorkspaceService {
     private final UserRepository userRepository;
     private final TenantMemberRepository tenantMemberRepository;
     private final RbacService rbacService;
+    private final ChannelRepository channelRepository;
+    private final ChannelMemberRepository channelMemberRepository;
 
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -91,6 +101,28 @@ public class WorkspaceService {
                 .joinedAt(new Date())
                 .build();
         workspaceMemberRepository.save(creatorMember);
+
+        // Create default general channel
+        Channel generalChannel = Channel.builder()
+                .name("general")
+                .type(ChannelType.PUBLIC)
+                .workspace(savedWorkspace)
+                .createdBy(currentUser)
+                .build();
+        Channel savedChannel = channelRepository.save(generalChannel);
+
+        // Add creator to general channel members
+        ChannelMemberId memberId = ChannelMemberId.builder()
+                .channelId(savedChannel.getId())
+                .userId(currentUser.getId())
+                .build();
+        ChannelMember channelMember = ChannelMember.builder()
+                .id(memberId)
+                .channel(savedChannel)
+                .user(currentUser)
+                .joinedAt(Instant.now())
+                .build();
+        channelMemberRepository.save(channelMember);
 
         return mapToResponse(savedWorkspace);
     }
@@ -193,6 +225,23 @@ public class WorkspaceService {
                 .build();
 
         WorkspaceMember saved = workspaceMemberRepository.save(member);
+
+        // Find the general channel for this workspace and add the user to it
+        channelRepository.findByWorkspaceIdAndName(workspaceId, "general").ifPresent(generalChan -> {
+            if (!channelMemberRepository.existsByIdChannelIdAndIdUserId(generalChan.getId(), user.getId())) {
+                ChannelMemberId channelMemberId = ChannelMemberId.builder()
+                        .channelId(generalChan.getId())
+                        .userId(user.getId())
+                        .build();
+                ChannelMember newChanMem = ChannelMember.builder()
+                        .id(channelMemberId)
+                        .channel(generalChan)
+                        .user(user)
+                        .joinedAt(Instant.now())
+                        .build();
+                channelMemberRepository.save(newChanMem);
+            }
+        });
 
         return mapToWorkspaceMemberResponse(saved, true);
     }
