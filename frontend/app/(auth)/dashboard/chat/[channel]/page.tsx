@@ -111,10 +111,12 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
         setMessages(channelId, msgs, msgs.length === 50);
         markChannelRead(channelId).catch(() => {});
         clearUnread(channelId);
-        // Scroll to bottom
+        // Scroll to bottom instantly
         setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
+          if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+          }
+        }, 50);
       })
       .catch((err) => {
         console.error("Failed to fetch messages", err);
@@ -123,6 +125,17 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
         setLoading(false);
       });
   }, [channelId, setMessages, clearUnread]);
+
+  // Scroll to bottom on channel change or initial message load completion
+  useEffect(() => {
+    if (channelMessages.length > 0 && !loading) {
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      }, 50);
+    }
+  }, [channelId, loading]);
 
   // Load older messages on scroll
   const handleScroll = () => {
