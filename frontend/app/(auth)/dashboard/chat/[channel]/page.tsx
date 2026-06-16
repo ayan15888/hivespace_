@@ -165,7 +165,7 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
   }, [activeThreadParentId, channelId, setThreadMessages]);
 
   // WebSocket Connection
-  const { sendTyping } = useChannelSocket({
+  const { sendTyping, isConnected } = useChannelSocket({
     channelId,
     onMessage: (msg) => {
       // Use getState() to avoid stale closure — always read current store snapshot
@@ -221,6 +221,24 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
       }
     }
   });
+
+  // Polling fallback: if WS is disconnected, poll every 4s so receiver always sees updates
+  useEffect(() => {
+    if (isConnected) return; // WS is live — no need to poll
+    const interval = setInterval(() => {
+      getMessages(channelId)
+        .then((msgs) => {
+          // Only update if there are genuinely new messages
+          const currentIds = new Set(useChatStore.getState().messages[channelId]?.map(m => m.id) ?? []);
+          const hasNew = msgs.some(m => !currentIds.has(m.id));
+          if (hasNew) {
+            setMessages(channelId, msgs, msgs.length === 50);
+          }
+        })
+        .catch(() => {}); // silently ignore poll errors
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isConnected, channelId, setMessages]);
 
   // Handle compose typing
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -342,6 +360,14 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
             <span className="text-xs text-muted-foreground truncate max-w-[400px]">
               {currentChannel?.type === 'DM' ? "Direct conversation" : "Engineering team workspace discussion"}
             </span>
+            {/* WS connection status dot */}
+            <div
+              title={isConnected ? "Live" : "Reconnecting…"}
+              className={cn(
+                "ml-3 h-2 w-2 rounded-full shrink-0 transition-colors",
+                isConnected ? "bg-emerald-500" : "bg-amber-400 animate-pulse"
+              )}
+            />
           </div>
 
           <div className="flex items-center gap-1">
