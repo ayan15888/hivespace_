@@ -81,9 +81,22 @@ export interface DeleteBroadcast {
   isDeleted: true
 }
 
-// Union type for incoming channel messages — either a full message or a deletion
-export type ChannelBroadcast = MessageResponse | DeleteBroadcast
+export interface ReactionBroadcast {
+  type: 'REACTION_UPDATE'
+  messageId: string
+  channelId: string
+  emoji: string
+  userId: string    // who reacted
+  delta: 1 | -1    // +1 added, -1 removed
+}
+
+// Union type for incoming channel messages
+export type ChannelBroadcast = MessageResponse | DeleteBroadcast | ReactionBroadcast
 
 export function isDeleteBroadcast(payload: ChannelBroadcast): payload is DeleteBroadcast {
   return (payload as DeleteBroadcast).isDeleted === true
+}
+
+export function isReactionBroadcast(payload: ChannelBroadcast): payload is ReactionBroadcast {
+  return (payload as ReactionBroadcast).type === 'REACTION_UPDATE'
 }

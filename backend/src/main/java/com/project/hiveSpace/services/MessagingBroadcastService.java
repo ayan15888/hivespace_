@@ -1,6 +1,7 @@
 package com.project.hiveSpace.services;
 
 import com.project.hiveSpace.dto.MessageResponse;
+import com.project.hiveSpace.dto.ReactionBroadcast;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -52,17 +53,14 @@ public class MessagingBroadcastService {
     }
 
     /**
-     * Broadcast a typing indicator. Never touches the DB.
-     * Topic: /topic/typing.{channelId}
+     * Broadcast a reaction add/remove event without per-viewer reactedByMe bias.
+     * Topic: /topic/channel.{channelId}
+     * Each client applies the delta to its own local state.
      */
-    public void broadcastTyping(UUID channelId, UUID userId, String displayName, boolean typing) {
+    public void broadcastReaction(UUID channelId, UUID messageId, String emoji, UUID reactorUserId, int delta) {
         messagingTemplate.convertAndSend(
-                "/topic/typing." + channelId,
-                Map.of(
-                        "userId", userId,
-                        "displayName", displayName,
-                        "typing", typing
-                )
+                "/topic/channel." + channelId,
+                new ReactionBroadcast("REACTION_UPDATE", messageId, channelId, emoji, reactorUserId, delta)
         );
     }
 }
