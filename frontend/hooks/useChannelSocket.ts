@@ -41,7 +41,12 @@ export function useChannelSocket({
 
   useEffect(() => {
     const client = new Client({
-      webSocketFactory: () => new SockJS(`${process.env.NEXT_PUBLIC_API_URL || ''}/ws`),
+      // WebSockets cannot be proxied by Next.js app/api/[...path]/route.ts
+      // so we must connect directly to the backend URL.
+      webSocketFactory: () => {
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8080';
+        return new SockJS(`${baseUrl}/ws`);
+      },
       connectHeaders: { Authorization: `Bearer ${getToken() ?? ''}` },
       beforeConnect: async () => {
         // Refresh token before every connect/reconnect attempt
