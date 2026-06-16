@@ -10,6 +10,7 @@ import com.project.hiveSpace.repository.ChannelMemberRepository;
 import com.project.hiveSpace.repository.MessageReactionRepository;
 import com.project.hiveSpace.repository.MessageRepository;
 import com.project.hiveSpace.repository.UserRepository;
+import com.project.hiveSpace.dto.MessageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,8 @@ public class ReactionService {
     private final MessageReactionRepository messageReactionRepository;
     private final ChannelMemberRepository channelMemberRepository;
     private final UserRepository userRepository;
+    private final MessagingBroadcastService broadcastService;
+    private final MessageService messageService;
 
     // POST /api/messages/{messageId}/reactions
     public void addReaction(UUID messageId, String emoji, UUID currentUserId) {
@@ -62,7 +65,11 @@ public class ReactionService {
 
         messageReactionRepository.save(reaction);
 
-        // TODO: broadcast updated message reactions via STOMP (Step 3)
+        MessageResponse updated = messageService.toResponse(
+                messageRepository.findById(messageId).orElseThrow(),
+                currentUserId
+        );
+        broadcastService.broadcastMessage(updated.channelId(), updated);
     }
 
     // DELETE /api/messages/{messageId}/reactions/{emoji}
@@ -86,6 +93,10 @@ public class ReactionService {
             messageReactionRepository.deleteById(reactionId);
         }
 
-        // TODO: broadcast updated message reactions via STOMP (Step 3)
+        MessageResponse updated = messageService.toResponse(
+                messageRepository.findById(messageId).orElseThrow(),
+                currentUserId
+        );
+        broadcastService.broadcastMessage(updated.channelId(), updated);
     }
 }

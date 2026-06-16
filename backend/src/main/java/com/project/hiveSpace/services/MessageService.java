@@ -28,6 +28,7 @@ public class MessageService {
     private final MessageReactionRepository messageReactionRepository;
     private final UserRepository userRepository;
     private final RbacService rbacService;
+    private final MessagingBroadcastService broadcastService;
 
     // GET /api/channels/{channelId}/messages
     @Transactional(readOnly = true)
@@ -81,10 +82,14 @@ public class MessageService {
         // 4. Save message
         Message saved = messageRepository.save(message);
 
-        // TODO: broadcast via STOMP (Step 3)
+        MessageResponse response = toResponse(saved, currentUserId);
+        broadcastService.broadcastMessage(channelId, response);
 
-        // 5. Map to MessageResponse
-        return toResponse(saved, currentUserId);
+        if (req.parentId() != null) {
+            broadcastService.broadcastThreadReply(req.parentId(), response);
+        }
+
+        return response;
     }
 
     // PATCH /api/messages/{messageId}
@@ -107,10 +112,9 @@ public class MessageService {
         // 5. Save
         Message saved = messageRepository.save(message);
 
-        // TODO: broadcast via STOMP (Step 3)
-
-        // 6. Map to MessageResponse
-        return toResponse(saved, currentUserId);
+        MessageResponse response = toResponse(saved, currentUserId);
+        broadcastService.broadcastMessage(saved.getChannel().getId(), response);
+        return response;
     }
 
     // DELETE /api/messages/{messageId}
@@ -136,7 +140,7 @@ public class MessageService {
         // 5. Save
         messageRepository.save(message);
 
-        // TODO: broadcast { id, deleted: true } via STOMP (Step 3)
+        broadcastService.broadcastDeletion(message.getChannel().getId(), messageId);
     }
 
     // GET /api/channels/{channelId}/messages/{messageId}/thread
@@ -160,7 +164,7 @@ public class MessageService {
     }
 
     // Helper: map Message entity → MessageResponse
-    private MessageResponse toResponse(Message message, UUID currentUserId) {
+    public MessageResponse toResponse(Message message, UUID currentUserId) {
         boolean isDeleted = message.getDeletedAt() != null;
 
         if (isDeleted) {
