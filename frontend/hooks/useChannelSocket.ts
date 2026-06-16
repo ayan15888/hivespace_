@@ -25,6 +25,19 @@ export function useChannelSocket({
   onThreadMessage,
 }: UseChannelSocketOptions) {
   const clientRef = useRef<Client | null>(null)
+  
+  const onMessageRef = useRef(onMessage)
+  const onDeleteRef = useRef(onDelete)
+  const onTypingRef = useRef(onTyping)
+  const onThreadMessageRef = useRef(onThreadMessage)
+
+  // Keep callback refs updated with latest component state
+  useEffect(() => {
+    onMessageRef.current = onMessage
+    onDeleteRef.current = onDelete
+    onTypingRef.current = onTyping
+    onThreadMessageRef.current = onThreadMessage
+  })
 
   useEffect(() => {
     const token = getToken()
@@ -43,23 +56,23 @@ export function useChannelSocket({
           const payload = JSON.parse(frame.body) as ChannelBroadcast
 
           if (isDeleteBroadcast(payload)) {
-            onDelete(payload.id)
+            onDeleteRef.current(payload.id)
           } else {
-            onMessage(payload)
+            onMessageRef.current(payload)
           }
         })
 
         // Typing indicator topic
         client.subscribe(`/topic/typing.${channelId}`, (frame) => {
           const event = JSON.parse(frame.body) as TypingUser
-          onTyping(event)
+          onTypingRef.current(event)
         })
 
         // Thread topic — only if viewing a thread panel
-        if (threadParentId && onThreadMessage) {
+        if (threadParentId && onThreadMessageRef.current) {
           client.subscribe(`/topic/thread.${threadParentId}`, (frame) => {
             const msg = JSON.parse(frame.body) as MessageResponse
-            onThreadMessage(msg)
+            onThreadMessageRef.current?.(msg)
           })
         }
       },

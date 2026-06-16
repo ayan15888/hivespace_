@@ -35,6 +35,7 @@ interface ChatState {
   setActiveThread: (parentId: string | null) => void
   setThreadMessages: (parentId: string, messages: MessageResponse[]) => void
   appendThreadMessage: (parentId: string, message: MessageResponse) => void
+  updateThreadMessage: (parentId: string, updated: MessageResponse) => void
 
   // ── Actions: typing ───────────────────────────────────────────────────────────
   setTyping: (channelId: string, userId: string, displayName: string, typing: boolean) => void
@@ -169,6 +170,16 @@ export const useChatStore = create<ChatState>((set) => ({
       threadMessages: {
         ...s.threadMessages,
         [parentId]: [...(s.threadMessages[parentId] ?? []), message],
+      },
+    })),
+
+  updateThreadMessage: (parentId, updated) =>
+    set((s) => ({
+      threadMessages: {
+        ...s.threadMessages,
+        [parentId]: (s.threadMessages[parentId] ?? []).map((m) =>
+          m.id === updated.id ? updated : m
+        ),
       },
     })),
 

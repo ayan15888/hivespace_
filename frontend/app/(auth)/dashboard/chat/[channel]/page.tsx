@@ -69,6 +69,7 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
     threadMessages, 
     setThreadMessages, 
     appendThreadMessage,
+    updateThreadMessage,
     hasMoreMessages
   } = useChatStore();
 
@@ -158,21 +159,34 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
     channelId,
     onMessage: (msg) => {
       if (msg.parentId) {
-        appendThreadMessage(msg.parentId, msg);
-        const parentMsg = channelMessages.find(m => m.id === msg.parentId);
-        if (parentMsg) {
-          updateMessage(channelId, { ...parentMsg, replyCount: parentMsg.replyCount + 1 });
+        // Handle thread reply
+        const threadList = threadMessages[msg.parentId] ?? [];
+        const exists = threadList.some(m => m.id === msg.id);
+        if (exists) {
+          updateThreadMessage(msg.parentId, msg);
+        } else {
+          appendThreadMessage(msg.parentId, msg);
+          const parentMsg = channelMessages.find(m => m.id === msg.parentId);
+          if (parentMsg) {
+            updateMessage(channelId, { ...parentMsg, replyCount: parentMsg.replyCount + 1 });
+          }
         }
       } else {
-        appendMessage(channelId, msg);
-        // Auto scroll if near bottom
-        const container = messagesContainerRef.current;
-        if (container) {
-          const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
-          if (isNearBottom) {
-            setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            }, 100);
+        // Handle channel message (new, edit, or reaction)
+        const exists = channelMessages.some(m => m.id === msg.id);
+        if (exists) {
+          updateMessage(channelId, msg);
+        } else {
+          appendMessage(channelId, msg);
+          // Auto scroll if near bottom
+          const container = messagesContainerRef.current;
+          if (container) {
+            const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+            if (isNearBottom) {
+              setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+              }, 100);
+            }
           }
         }
       }
@@ -185,7 +199,13 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
     },
     threadParentId: activeThreadParentId || undefined,
     onThreadMessage: (msg) => {
-      appendThreadMessage(activeThreadParentId!, msg);
+      const threadList = threadMessages[activeThreadParentId!] ?? [];
+      const exists = threadList.some(m => m.id === msg.id);
+      if (exists) {
+        updateThreadMessage(activeThreadParentId!, msg);
+      } else {
+        appendThreadMessage(activeThreadParentId!, msg);
+      }
     }
   });
 

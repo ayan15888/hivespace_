@@ -103,7 +103,9 @@ export function WorkspaceSidebar() {
   const workspaceChannels = activeWorkspace ? (channels[activeWorkspace.id] ?? []) : [];
 
   useEffect(() => {
-    if (activeWorkspace?.id) {
+    if (!activeWorkspace?.id) return;
+
+    const fetchChannels = () => {
       getWorkspaceChannels(activeWorkspace.id)
         .then((chs) => {
           setChannels(activeWorkspace.id, chs);
@@ -111,7 +113,11 @@ export function WorkspaceSidebar() {
         .catch((err) => {
           console.error("Failed to load channels", err);
         });
-    }
+    };
+
+    fetchChannels();
+    const interval = setInterval(fetchChannels, 10000);
+    return () => clearInterval(interval);
   }, [activeWorkspace?.id, setChannels]);
 
   return (
