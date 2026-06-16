@@ -61,6 +61,7 @@ export function useChannelSocket({
         client.subscribe(`/topic/channel.${channelId}`, (frame) => {
           console.debug(`[WS] 📨 /topic/channel.${channelId}`, frame.body.slice(0, 120))
           const payload = JSON.parse(frame.body) as ChannelBroadcast
+          console.log("[WS Payload Debug]", payload);
           if (isDeleteBroadcast(payload)) {
             onDeleteRef.current(payload.id)
           } else if (isReactionBroadcast(payload)) {

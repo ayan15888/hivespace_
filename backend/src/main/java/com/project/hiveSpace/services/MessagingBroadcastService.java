@@ -63,4 +63,18 @@ public class MessagingBroadcastService {
                 new ReactionBroadcast("REACTION_UPDATE", messageId, channelId, emoji, reactorUserId, delta)
         );
     }
+
+    /**
+     * Broadcast typing status to subscribers of /topic/typing.{channelId}
+     */
+    public void broadcastTyping(UUID channelId, UUID userId, String displayName, boolean typing) {
+        messagingTemplate.convertAndSend(
+                "/topic/typing." + channelId,
+                Map.of(
+                        "userId", userId,
+                        "displayName", displayName,
+                        "typing", typing
+                )
+        );
+    }
 }

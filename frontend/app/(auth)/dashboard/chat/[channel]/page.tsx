@@ -208,11 +208,14 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
       removeMessage(channelId, msgId);
     },
     onReaction: (event) => {
-      // Apply delta to every viewer's local state independently
-      // reactedByMe = true only if the reactor is the current viewing user
-      const freshMsg = useChatStore.getState().messages[channelId]?.find(m => m.id === event.messageId);
-      if (!freshMsg) return;
+      console.log("[WS onReaction Callback]", event);
       const isSelf = event.userId === currentUser?.id;
+      console.log("isSelf evaluation:", isSelf, "event.userId:", event.userId, "currentUser.id:", currentUser?.id);
+      if (isSelf) return; // Skip because the optimistic update already handled it
+
+      const freshMsg = useChatStore.getState().messages[channelId]?.find(m => m.id === event.messageId);
+      console.log("Found message in store for reaction update:", freshMsg);
+      if (!freshMsg) return;
       const prevReactions = freshMsg.reactions ?? [];
       let updatedReactions;
       if (event.delta === 1) {
