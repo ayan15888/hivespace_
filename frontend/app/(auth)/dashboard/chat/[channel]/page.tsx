@@ -168,27 +168,30 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
   const { sendTyping } = useChannelSocket({
     channelId,
     onMessage: (msg) => {
+      // Use getState() to avoid stale closure — always read current store snapshot
+      const freshMessages = useChatStore.getState().messages[channelId] ?? [];
       if (msg.parentId) {
         // Handle thread reply
-        const threadList = threadMessages[msg.parentId] ?? [];
-        const exists = threadList.some(m => m.id === msg.id);
+        const freshThreadList = useChatStore.getState().threadMessages[msg.parentId] ?? [];
+        const exists = freshThreadList.some(m => m.id === msg.id);
         if (exists) {
           updateThreadMessage(msg.parentId, msg);
         } else {
           appendThreadMessage(msg.parentId, msg);
-          const parentMsg = channelMessages.find(m => m.id === msg.parentId);
+          const parentMsg = freshMessages.find(m => m.id === msg.parentId);
           if (parentMsg) {
             updateMessage(channelId, { ...parentMsg, replyCount: parentMsg.replyCount + 1 });
           }
         }
       } else {
-        // Handle channel message (new, edit, or reaction)
-        const exists = channelMessages.some(m => m.id === msg.id);
+        // Handle channel message (new, edit, or reaction update)
+        const exists = freshMessages.some(m => m.id === msg.id);
         if (exists) {
+          // Already in store: our own optimistic append OR an edit/reaction update
           updateMessage(channelId, msg);
         } else {
+          // Someone else's new message — append and auto-scroll
           appendMessage(channelId, msg);
-          // Auto scroll if near bottom
           const container = messagesContainerRef.current;
           if (container) {
             const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
@@ -209,8 +212,8 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
     },
     threadParentId: activeThreadParentId || undefined,
     onThreadMessage: (msg) => {
-      const threadList = threadMessages[activeThreadParentId!] ?? [];
-      const exists = threadList.some(m => m.id === msg.id);
+      const freshThreadList = useChatStore.getState().threadMessages[activeThreadParentId!] ?? [];
+      const exists = freshThreadList.some(m => m.id === msg.id);
       if (exists) {
         updateThreadMessage(activeThreadParentId!, msg);
       } else {
