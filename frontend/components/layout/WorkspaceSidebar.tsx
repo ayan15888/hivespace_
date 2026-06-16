@@ -21,6 +21,8 @@ import { CreateWorkspaceModal } from "@/components/features/workspaces/CreateWor
 import { CreateProjectModal } from "@/components/features/projects/CreateProjectModal";
 import { CreateTeamModal } from "@/components/features/teams/CreateTeamModal";
 import { CreateChannelModal } from "@/components/features/chat/CreateChannelModal";
+import { StartDmModal } from "@/components/features/chat/StartDmModal";
+
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -74,7 +76,9 @@ export function WorkspaceSidebar() {
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
+  const [isStartDmOpen, setIsStartDmOpen] = useState(false);
   const [ensuringChannelForProject, setEnsuringChannelForProject] = useState<string | null>(null);
+
 
   const router = useRouter();
   
@@ -522,9 +526,21 @@ export function WorkspaceSidebar() {
 
         {/* 5b. DIRECT MESSAGES */}
         <div className="flex flex-col mt-4">
-          <span className="px-2 mb-2 text-[10px] font-bold text-muted-foreground/60 tracking-widest uppercase">
-            Direct Messages
-          </span>
+          <div className="flex items-center justify-between px-2 mb-2">
+            <span className="text-[10px] font-bold text-muted-foreground/60 tracking-widest uppercase">
+              Direct Messages
+            </span>
+            {activeWorkspace?.id && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-4 w-4 text-zinc-500 hover:text-zinc-300"
+                onClick={() => setIsStartDmOpen(true)}
+              >
+                <Plus className="h-3 w-3" strokeWidth={1.5} />
+              </Button>
+            )}
+          </div>
           
           <motion.div 
             className="flex flex-col gap-0.5"
@@ -620,6 +636,14 @@ export function WorkspaceSidebar() {
           isOpen={isCreateChannelOpen} 
           workspaceId={activeWorkspace.id}
           onClose={() => setIsCreateChannelOpen(false)}
+        />
+      )}
+
+      {activeWorkspace?.id && (
+        <StartDmModal 
+          isOpen={isStartDmOpen}
+          workspaceId={activeWorkspace.id}
+          onClose={() => setIsStartDmOpen(false)}
         />
       )}
     </aside>
