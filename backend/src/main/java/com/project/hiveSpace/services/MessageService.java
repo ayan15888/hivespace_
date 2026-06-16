@@ -30,15 +30,45 @@ public class MessageService {
     private final RbacService rbacService;
     private final MessagingBroadcastService broadcastService;
 
-    // GET /api/channels/{channelId}/messages
-    @Transactional(readOnly = true)
-    public List<MessageResponse> getMessages(UUID channelId, UUID before, UUID currentUserId) {
-        // 1. Verify currentUserId is a member of channelId (check ChannelMember)
-        channelMemberRepository.findByIdChannelIdAndIdUserId(channelId, currentUserId)
-                .orElseThrow(() -> new ForbiddenException("Access denied: Must be a member of the channel to view messages"));
+    private void verifyChannelAccess(UUID channelId, UUID currentUserId) {
+        boolean isMember = channelMemberRepository.findByIdChannelIdAndIdUserId(channelId, currentUserId).isPresent();
+        if (!isMember) {
+            Channel channel = channelRepository.findById(channelId)
+                    .orElseThrow(() -> new NotFoundException("Channel not found"));
+            if (channel.getType() == ChannelType.PUBLIC) {
+                if (!rbacService.hasWorkspaceRole(channel.getWorkspace().getId(), WorkspaceMemberRole.MEMBER)) {
+                    throw new ForbiddenException("Access denied: Must be a member of the workspace to access this channel");
+                }
+                // Auto-join
+                User user = userRepository.findById(currentUserId)
+                        .orElseThrow(() -> new NotFoundException("User not found"));
+                ChannelMember newMember = ChannelMember.builder()
+                        .id(new ChannelMemberId(channelId, currentUserId))
+                        .channel(channel)
+                        .user(user)
+                        .joinedAt(Instant.now())
+                        .build();
+                channelMemberRepository.save(newMember);
+            } else {
+                throw new ForbiddenException("Access denied: Must be a member of this channel to access it");
+            }
+        }
+    }
 
-        // 2. messageRepository.findPageByChannel(channelId, before, PageRequest.of(0, 50))
-        List<Message> messages = messageRepository.findPageByChannel(channelId, before, PageRequest.of(0, 50));
+    // GET /api/channels/{channelId}/messages
+    public List<MessageResponse> getMessages(UUID channelId, UUID before, UUID currentUserId) {
+        // 1. Verify currentUserId has access to channelId
+        verifyChannelAccess(channelId, currentUserId);
+
+        Instant beforeTime = Instant.parse("9999-12-31T23:59:59Z");
+        if (before != null) {
+            Message beforeMsg = messageRepository.findById(before)
+                    .orElseThrow(() -> new NotFoundException("Cursor message not found"));
+            beforeTime = beforeMsg.getCreatedAt();
+        }
+
+        // 2. messageRepository.findPageByChannel(channelId, beforeTime, PageRequest.of(0, 50))
+        List<Message> messages = messageRepository.findPageByChannel(channelId, beforeTime, PageRequest.of(0, 50));
 
         // 3. For each message: if deletedAt != null, return tombstone
         // 4. Map to MessageResponse
@@ -49,9 +79,8 @@ public class MessageService {
 
     // POST /api/channels/{channelId}/messages
     public MessageResponse sendMessage(UUID channelId, SendMessageRequest req, UUID currentUserId) {
-        // 1. Verify currentUserId is member of channelId
-        channelMemberRepository.findByIdChannelIdAndIdUserId(channelId, currentUserId)
-                .orElseThrow(() -> new ForbiddenException("Access denied: Must be a member of the channel to send messages"));
+        // 1. Verify currentUserId has access to channelId
+        verifyChannelAccess(channelId, currentUserId);
 
         Channel channel = channelRepository.findById(channelId)
                 .orElseThrow(() -> new NotFoundException("Channel not found"));
@@ -144,15 +173,13 @@ public class MessageService {
     }
 
     // GET /api/channels/{channelId}/messages/{messageId}/thread
-    @Transactional(readOnly = true)
     public List<MessageResponse> getThreadReplies(UUID messageId, UUID currentUserId) {
         // 1. Load parent message; throw 404 if not found
         Message parent = messageRepository.findById(messageId)
                 .orElseThrow(() -> new NotFoundException("Parent message not found"));
 
-        // 2. Verify currentUserId is member of the channel
-        channelMemberRepository.findByIdChannelIdAndIdUserId(parent.getChannel().getId(), currentUserId)
-                .orElseThrow(() -> new ForbiddenException("Access denied: Must be a member of the channel to view thread replies"));
+        // 2. Verify currentUserId has access to the channel
+        verifyChannelAccess(parent.getChannel().getId(), currentUserId);
 
         // 3. messageRepository.findThreadReplies(messageId)
         List<Message> replies = messageRepository.findThreadReplies(messageId);

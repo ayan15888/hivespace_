@@ -25,7 +25,7 @@ public interface ChannelMemberRepository extends JpaRepository<ChannelMember, Ch
         WHERE m.channel.id = :channelId
           AND m.deletedAt IS NULL
           AND (m.sender IS NULL OR m.sender.id != :userId)
-          AND (CAST(:lastReadAt AS timestamp) IS NULL OR m.createdAt > :lastReadAt)
+          AND m.createdAt > :lastReadAt
     """)
     long countUnread(@Param("channelId") UUID channelId, @Param("userId") UUID userId, @Param("lastReadAt") Instant lastReadAt);
 }

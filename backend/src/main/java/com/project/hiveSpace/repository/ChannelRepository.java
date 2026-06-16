@@ -13,12 +13,12 @@ import java.util.UUID;
 @Repository
 public interface ChannelRepository extends JpaRepository<Channel, UUID> {
 
-    // All channels in a workspace that the user is a member of
+    // All channels in a workspace that the user is a member of OR are PUBLIC channels
     @Query("""
-        SELECT c FROM Channel c
-        JOIN ChannelMember cm ON cm.id.channelId = c.id
+        SELECT DISTINCT c FROM Channel c
+        LEFT JOIN ChannelMember cm ON cm.id.channelId = c.id AND cm.id.userId = :userId
         WHERE c.workspace.id = :workspaceId
-          AND cm.id.userId = :userId
+          AND (c.type = 'PUBLIC' OR cm.id.userId = :userId)
         ORDER BY c.createdAt ASC
     """)
     List<Channel> findByWorkspaceAndMember(@Param("workspaceId") UUID workspaceId, @Param("userId") UUID userId);

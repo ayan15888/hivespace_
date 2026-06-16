@@ -7,24 +7,23 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface MessageRepository extends JpaRepository<Message, UUID> {
 
-    // Cursor pagination — 50 most recent active messages before a given message
+    // Cursor pagination — 50 most recent active messages before a given timestamp
     @Query("""
         SELECT m FROM Message m
         WHERE m.channel.id = :channelId
           AND m.parent IS NULL
           AND m.deletedAt IS NULL
-          AND (:before IS NULL OR m.createdAt < (
-              SELECT m2.createdAt FROM Message m2 WHERE m2.id = :before
-          ))
+          AND m.createdAt < :beforeTime
         ORDER BY m.createdAt DESC
     """)
-    List<Message> findPageByChannel(@Param("channelId") UUID channelId, @Param("before") UUID before, Pageable pageable);
+    List<Message> findPageByChannel(@Param("channelId") UUID channelId, @Param("beforeTime") Instant beforeTime, Pageable pageable);
 
     // Thread replies for a parent message
     @Query("""

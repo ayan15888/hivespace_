@@ -112,7 +112,8 @@ public class ChannelService {
             ChannelMember member = channelMemberRepository.findByIdChannelIdAndIdUserId(channel.getId(), currentUserId)
                     .orElse(null);
             Instant lastReadAt = member != null ? member.getLastReadAt() : null;
-            long unreadCount = channelMemberRepository.countUnread(channel.getId(), currentUserId, lastReadAt);
+            Instant resolvedLastReadAt = lastReadAt != null ? lastReadAt : Instant.EPOCH;
+            long unreadCount = channelMemberRepository.countUnread(channel.getId(), currentUserId, resolvedLastReadAt);
 
             String channelName = channel.getName();
             if (channel.getType() == ChannelType.DM) {
@@ -158,7 +159,8 @@ public class ChannelService {
             ChannelMember member = channelMemberRepository.findByIdChannelIdAndIdUserId(channel.getId(), currentUserId)
                     .orElse(null);
             Instant lastReadAt = member != null ? member.getLastReadAt() : null;
-            long unreadCount = channelMemberRepository.countUnread(channel.getId(), currentUserId, lastReadAt);
+            Instant resolvedLastReadAt = lastReadAt != null ? lastReadAt : Instant.EPOCH;
+            long unreadCount = channelMemberRepository.countUnread(channel.getId(), currentUserId, resolvedLastReadAt);
 
             String channelName = channel.getName();
             if (channel.getType() == ChannelType.DM) {

@@ -83,10 +83,17 @@ export function useChannelSocket({
   // Send typing event to server — call on keypress, debounce the false
   const sendTyping = useCallback(
     (typing: boolean) => {
-      clientRef.current?.publish({
-        destination: `/app/channel/${channelId}/typing`,
-        body: JSON.stringify({ typing }),
-      })
+      const client = clientRef.current;
+      if (client && client.connected) {
+        try {
+          client.publish({
+            destination: `/app/channel/${channelId}/typing`,
+            body: JSON.stringify({ typing }),
+          });
+        } catch (e) {
+          console.error("Failed to publish typing status", e);
+        }
+      }
     },
     [channelId]
   )
