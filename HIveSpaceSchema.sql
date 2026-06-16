@@ -413,53 +413,139 @@ CREATE TABLE document_links (
   PRIMARY KEY (source_doc_id, target_doc_id)
 );
 
+-- =============================================================================
+-- MESSAGING SCHEMA
+-- Fixes applied per review:
+--   1. channels scoped to project + team (nullable), not just workspace
+--   2. channels.updated_at + trigger added
+--   3. Partial index on messages for soft-delete pattern
+--   4. Indexes on all FK columns in messaging tables
+--   5. DM uniqueness note (application-layer, flagged in comment)
+-- =============================================================================
+
+
+-- -----------------------------------------------------------------------------
+-- CHANNELS
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE channels (
+  id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  name         VARCHAR NOT NULL,
+  type         VARCHAR NOT NULL DEFAULT 'PUBLIC'
+                 CHECK (type IN ('PUBLIC', 'PRIVATE', 'DM', 'THREAD')),
+  workspace_id UUID    NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+
+  -- Fix 1: project + team scope (both nullable, same pattern as documents)
+  project_id   UUID    REFERENCES projects(id) ON DELETE CASCADE,
+  team_id      UUID    REFERENCES teams(id)    ON DELETE CASCADE,
+
+  created_by   UUID    REFERENCES users(id)    ON DELETE SET NULL,
+
+  -- Fix 2: updated_at for change tracking
+  created_at   TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMP NOT NULL DEFAULT now()
+);
+
+-- Fix 2: trigger for updated_at
+CREATE TRIGGER trigger_channels_updated_at
+  BEFORE UPDATE ON channels
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Fix 4: indexes on channels
+CREATE INDEX idx_channels_workspace ON channels(workspace_id);
+CREATE INDEX idx_channels_project   ON channels(project_id);
+CREATE INDEX idx_channels_team      ON channels(team_id);
+
+
+-- -----------------------------------------------------------------------------
+-- CHANNEL MEMBERS
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE channel_members (
+  channel_id   UUID      NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+  user_id      UUID      NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
+  last_read_at TIMESTAMP,
+  joined_at    TIMESTAMP NOT NULL DEFAULT now(),
+
+  PRIMARY KEY (channel_id, user_id)
+);
+
+-- Fix 4: index on user_id for reverse lookups ("what channels is this user in?")
+CREATE INDEX idx_channel_members_user ON channel_members(user_id);
+
+
+-- -----------------------------------------------------------------------------
+-- MESSAGES
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE messages (
+  id         UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  content    TEXT    NOT NULL,
+  type       VARCHAR NOT NULL DEFAULT 'TEXT'
+               CHECK (type IN ('TEXT', 'FILE', 'SYSTEM', 'AI')),
+  channel_id UUID    NOT NULL REFERENCES channels(id)  ON DELETE CASCADE,
+  sender_id  UUID    REFERENCES users(id)              ON DELETE SET NULL,
+  parent_id  UUID    REFERENCES messages(id)           ON DELETE CASCADE,  -- threads
+  edited_at  TIMESTAMP,
+  deleted_at TIMESTAMP,  -- soft delete; filter with WHERE deleted_at IS NULL
+  created_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+-- Fix 4: general indexes
+CREATE INDEX idx_messages_channel ON messages(channel_id);
+CREATE INDEX idx_messages_sender  ON messages(sender_id);
+CREATE INDEX idx_messages_parent  ON messages(parent_id);
+
+-- Fix 3: partial index for soft-delete — powers the common "list active messages
+--         in a channel" query without scanning deleted rows
+CREATE INDEX idx_messages_channel_active
+  ON messages(channel_id, created_at DESC)
+  WHERE deleted_at IS NULL;
+
+
+-- -----------------------------------------------------------------------------
+-- MESSAGE REACTIONS
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE message_reactions (
+  message_id UUID    NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  user_id    UUID    NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
+  emoji      VARCHAR NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+
+  PRIMARY KEY (message_id, user_id, emoji)
+);
+
+
+-- -----------------------------------------------------------------------------
+-- FIX 5 (APPLICATION NOTE — not a schema change)
+-- DM channels have no DB-level uniqueness constraint preventing:
+--   a) a DM channel with more than 2 members
+--   b) duplicate DM channels between the same two users
+--
+-- Handle this at the application layer:
+--   Before creating a DM channel, query for an existing channel of type='DM'
+--   whose channel_members set is exactly {userA, userB}.
+--
+-- Example check query:
+--
+--   SELECT c.id
+--   FROM channels c
+--   JOIN channel_members cm1 ON cm1.channel_id = c.id AND cm1.user_id = :user_a
+--   JOIN channel_members cm2 ON cm2.channel_id = c.id AND cm2.user_id = :user_b
+--   WHERE c.type = 'DM'
+--     AND (SELECT COUNT(*) FROM channel_members WHERE channel_id = c.id) = 2
+--   LIMIT 1;
+--
+--   If a row is returned, reuse that channel. Only INSERT a new channel + members
+--   if no existing DM channel is found.
+-- -----------------------------------------------------------------------------
+
 ==========================================================================
 ---------------------------------------------------------------------------
 ---------------------- NOT ADDED IN THE DB YET ----------------------------
 ---------------------------------------------------------------------------
 
--- CHANNELS
-CREATE TABLE channels (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR NOT NULL,
-  type VARCHAR NOT NULL DEFAULT 'PUBLIC'
-    CHECK (type IN ('PUBLIC', 'PRIVATE', 'DM', 'THREAD')),
-  workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT now()
-);
-
--- CHANNEL MEMBERS
-CREATE TABLE channel_members (
-  channel_id UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  last_read_at TIMESTAMP,
-  joined_at TIMESTAMP NOT NULL DEFAULT now(),
-  PRIMARY KEY (channel_id, user_id)
-);
-
--- MESSAGES
-CREATE TABLE messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  content TEXT NOT NULL,
-  type VARCHAR NOT NULL DEFAULT 'TEXT'
-    CHECK (type IN ('TEXT', 'FILE', 'SYSTEM', 'AI')),
-  channel_id UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
-  sender_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  parent_id UUID REFERENCES messages(id) ON DELETE CASCADE,  -- threads
-  edited_at TIMESTAMP,
-  deleted_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT now()
-);
-
--- MESSAGE REACTIONS
-CREATE TABLE message_reactions (
-  message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  emoji VARCHAR NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT now(),
-  PRIMARY KEY (message_id, user_id, emoji)
-);
 
 -- GITHUB CONNECTIONS
 CREATE TABLE github_connections (
