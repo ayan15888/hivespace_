@@ -326,3 +326,19 @@ CREATE TABLE public.message_reactions (
   CONSTRAINT message_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
   CONSTRAINT message_reactions_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.messages(id)
 );
+CREATE TABLE public.notifications (
+  id uuid NOT NULL,
+  content character varying NOT NULL,
+  created_at timestamp without time zone NOT NULL,
+  is_read boolean NOT NULL,
+  type character varying NOT NULL CHECK (type::text = ANY (ARRAY['MENTION'::character varying, 'TASK_ASSIGNED'::character varying, 'SYSTEM'::character varying]::text[])),
+  actor_id uuid,
+  channel_id uuid,
+  message_id uuid,
+  user_id uuid NOT NULL,
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT fk4sd9fik0uthbk6d9rsxco4uja FOREIGN KEY (actor_id) REFERENCES public.users(id),
+  CONSTRAINT fkmiftu2o020axe0hjhdvebm2sh FOREIGN KEY (channel_id) REFERENCES public.channels(id),
+  CONSTRAINT fkibag5l76gvbhaumitjend434e FOREIGN KEY (message_id) REFERENCES public.messages(id),
+  CONSTRAINT fk9y21adhxn0ayjhfocscqox7bh FOREIGN KEY (user_id) REFERENCES public.users(id)
+);

@@ -413,6 +413,22 @@ CREATE TABLE document_links (
   PRIMARY KEY (source_doc_id, target_doc_id)
 );
 
+-- -----------------------------------------------------------------------------
+-- NOTIFICATIONS
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE notifications (
+    id          UUID         NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id     UUID         NOT NULL REFERENCES users(id),
+    actor_id    UUID                  REFERENCES users(id),
+    type        VARCHAR(255) NOT NULL,  -- enum stored as string: 'MENTION'
+    content     VARCHAR(255) NOT NULL,
+    message_id  UUID                  REFERENCES messages(id),
+    channel_id  UUID                  REFERENCES channels(id),
+    is_read     BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMP    NOT NULL
+);
+
 -- =============================================================================
 -- HIVESPACE — MESSAGING SCHEMA (Phase 3)
 -- Run this in Supabase SQL editor AFTER the existing 22 tables are in place.
