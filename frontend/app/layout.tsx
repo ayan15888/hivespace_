@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 }
 
+import { CommandPalette } from "@/components/common/CommandPalette"
+import { GlobalContextMenu } from "@/components/common/GlobalContextMenu"
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -32,7 +35,10 @@ export default function RootLayout({
       <body className={`${plusJakartaSans.variable} font-sans tracking-tight`} suppressHydrationWarning>
         <GooeyToaster />
         <QueryProvider>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            {children}
+            <CommandPalette />
+          </ThemeProvider>
         </QueryProvider>
       </body>
     </html>

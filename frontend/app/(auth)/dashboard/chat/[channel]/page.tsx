@@ -90,6 +90,9 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
   const [showMembers, setShowMembers] = useState(false);
   const [channelMembers, setChannelMembers] = useState<ChannelMemberInfo[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
+  const [mentionDropdownVisible, setMentionDropdownVisible] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionIndex, setMentionIndex] = useState(0);
 
   // Reset members panel when switching channels
   useEffect(() => {
@@ -164,6 +167,17 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
   };
 
   const activeThread = channelMessages.find(m => m.id === activeThreadParentId) || null;
+
+  // Close thread on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && activeThreadParentId) {
+        setActiveThread(null);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [activeThreadParentId, setActiveThread]);
 
   // Load thread messages
   useEffect(() => {
@@ -283,8 +297,25 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
 
   // Handle compose typing
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(e.target.value);
+    const val = e.target.value;
+    setInputValue(val);
     sendTyping(true);
+
+    const cursor = e.target.selectionStart;
+    const textBeforeCursor = val.slice(0, cursor);
+    const words = textBeforeCursor.split(/\s/);
+    const lastWord = words[words.length - 1];
+
+    if (lastWord.startsWith("@")) {
+      setMentionQuery(lastWord.slice(1).toLowerCase());
+      setMentionDropdownVisible(true);
+      setMentionIndex(0);
+      if (channelMembers.length === 0) {
+        getChannelMembers(channelId).then(setChannelMembers).catch(() => {});
+      }
+    } else {
+      setMentionDropdownVisible(false);
+    }
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -293,6 +324,28 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
     typingTimeoutRef.current = setTimeout(() => {
       sendTyping(false);
     }, 3000);
+  };
+
+  const insertMention = (username: string) => {
+    if (!textareaRef.current) return;
+    const cursor = textareaRef.current.selectionStart;
+    const textBeforeCursor = inputValue.slice(0, cursor);
+    const textAfterCursor = inputValue.slice(cursor);
+    
+    const words = textBeforeCursor.split(/\s/);
+    words.pop(); // Remove the incomplete @mention
+    const newTextBefore = words.length > 0 ? words.join(" ") + " @" + username + " " : "@" + username + " ";
+    
+    setInputValue(newTextBefore + textAfterCursor);
+    setMentionDropdownVisible(false);
+    
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.selectionStart = newTextBefore.length;
+        textareaRef.current.selectionEnd = newTextBefore.length;
+      }
+    }, 0);
   };
 
   const handleSend = async () => {
@@ -484,6 +537,7 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
                 onReply={() => setActiveThread(item.data.id)}
                 onReact={(emoji, reacted) => handleReactionClick(item.data.id, emoji, reacted)}
                 themeColor={themeColor}
+                channelMembers={channelMembers}
               />
             )
           ))}
@@ -527,12 +581,81 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
               </div>
             )}
 
-            <div className="flex flex-col p-2">
+            <div className="flex flex-col p-2 relative">
+              {mentionDropdownVisible && (
+                <div className="absolute bottom-full mb-2 left-0 w-64 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden z-50">
+                  {(() => {
+                    const filteredMembers = [
+                      { username: "all", fullName: "Everyone in channel", isAll: true, avatarColor: themeColor, userId: "all" },
+                      ...channelMembers.filter(m => m.username.toLowerCase().includes(mentionQuery) || (m.fullName && m.fullName.toLowerCase().includes(mentionQuery)))
+                    ];
+                    if (filteredMembers.length === 0) {
+                      return <div className="p-3 text-xs text-zinc-500">No members found</div>;
+                    }
+                    return (
+                      <div className="max-h-48 overflow-y-auto py-1 scrollbar-thin scrollbar-thumb-white/10">
+                        {filteredMembers.map((member, idx) => (
+                          <div
+                            key={member.userId || member.username}
+                            onClick={() => insertMention(member.username)}
+                            onMouseEnter={() => setMentionIndex(idx)}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors",
+                              idx === mentionIndex ? "bg-white/10" : "hover:bg-white/5"
+                            )}
+                          >
+                            {member.isAll ? (
+                              <div className="h-6 w-6 rounded-full bg-zinc-800 flex items-center justify-center shrink-0">
+                                <Users className="h-3 w-3 text-zinc-400" />
+                              </div>
+                            ) : (
+                              <div className="h-6 w-6 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold text-white" style={{ backgroundColor: member.avatarColor || themeColor }}>
+                                {(member as any).avatarUrl ? <img src={(member as any).avatarUrl} alt="" className="h-full w-full rounded-full object-cover" /> : (member.fullName || member.username || "?").split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                              </div>
+                            )}
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs font-medium text-foreground truncate">{member.fullName || member.username}</span>
+                              {!member.isAll && <span className="text-[10px] text-zinc-500 truncate">@{member.username}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
               <textarea 
                 ref={textareaRef}
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={(e) => {
+                  if (mentionDropdownVisible) {
+                    const filteredMembers = [
+                      { username: "all", fullName: "Everyone in channel", isAll: true, avatarColor: themeColor, userId: "all" },
+                      ...channelMembers.filter(m => m.username.toLowerCase().includes(mentionQuery) || (m.fullName && m.fullName.toLowerCase().includes(mentionQuery)))
+                    ];
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setMentionIndex(prev => (prev + 1) % filteredMembers.length);
+                      return;
+                    }
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setMentionIndex(prev => (prev - 1 + filteredMembers.length) % filteredMembers.length);
+                      return;
+                    }
+                    if (e.key === "Enter" || e.key === "Tab") {
+                      e.preventDefault();
+                      if (filteredMembers[mentionIndex]) {
+                        insertMention(filteredMembers[mentionIndex].username);
+                      }
+                      return;
+                    }
+                    if (e.key === "Escape") {
+                      setMentionDropdownVisible(false);
+                      return;
+                    }
+                  }
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     handleSend();
@@ -576,35 +699,39 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
 
       {/* --- THREAD PANEL --- */}
       {activeThread && (
-        <aside className="w-[320px] shrink-0 bg-hs-nav border-l border-border flex flex-col animate-in slide-in-from-right duration-300">
-          <header className="flex h-[48px] items-center justify-between px-4 border-b border-border/50">
+        <aside className="w-[340px] shrink-0 bg-background/70 backdrop-blur-2xl border-l border-border/30 flex flex-col shadow-[-8px_0_30px_-15px_rgba(0,0,0,0.6)] animate-in slide-in-from-right duration-300 relative z-30">
+          <div className="absolute inset-x-0 top-0 h-32 pointer-events-none opacity-40" style={{ backgroundImage: `linear-gradient(to bottom, ${themeColor}30, transparent)` }} />
+          
+          <header className="flex h-[56px] items-center justify-between px-5 border-b border-white/5 relative z-10">
             <div className="flex flex-col">
-              <span className="text-sm font-medium text-foreground">Thread</span>
-              <span className="text-[10px] text-muted-foreground"># {currentChannel?.name || "Chat"}</span>
+              <span className="text-[15px] font-semibold text-foreground tracking-tight drop-shadow-sm">Thread</span>
+              <span className="text-[11px] text-muted-foreground font-medium"># {currentChannel?.name || "Chat"}</span>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setActiveThread(null)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" size="icon" onClick={() => setActiveThread(null)} className="h-8 w-8 rounded-full bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground backdrop-blur-sm transition-all">
               <X className="h-4 w-4" />
             </Button>
           </header>
 
-          <div className="flex flex-col flex-1 overflow-y-auto p-4 gap-6">
+          <div className="flex flex-col flex-1 overflow-y-auto p-5 gap-6 scrollbar-thin scrollbar-thumb-white/10 relative z-10">
              {/* Original message */}
-             <div className="opacity-80 scale-[0.98] origin-top-left">
+             <div className="opacity-90 relative">
+                <div className="absolute -inset-2 bg-gradient-to-b from-white/5 to-transparent rounded-xl -z-10 border border-white/5" />
                 <MessageItem 
                   message={{...activeThread, isGrouped: false}} 
                   channelId={channelId}
                   currentUserId={currentUser?.id}
                   isThreadParent 
-                  themeColor={themeColor} 
+                  themeColor={themeColor}
+                  channelMembers={channelMembers} 
                 />
              </div>
 
-             <div className="relative flex items-center gap-3">
-                <div className="flex-1 h-px bg-zinc-800" />
-                <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest whitespace-nowrap">
+             <div className="relative flex items-center gap-3 my-2">
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap bg-background/50 px-2 rounded-full py-0.5 border border-white/5">
                   {threadMessages[activeThreadParentId!]?.length || 0} Replies
                 </span>
-                <div className="flex-1 h-px bg-zinc-800" />
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
              </div>
 
              {/* Replies */}
@@ -614,13 +741,15 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
                  message={{...reply, isGrouped: false}} 
                  channelId={channelId}
                  currentUserId={currentUser?.id}
-                 themeColor={themeColor} 
+                 themeColor={themeColor}
+                 channelMembers={channelMembers}
                />
              ))}
           </div>
 
-          <div className="p-4 border-t border-zinc-800">
-             <div className="flex gap-2">
+          <div className="p-4 border-t border-white/5 bg-background/40 backdrop-blur-md relative z-10">
+             <div className="flex gap-2 relative group">
+                <div className="absolute -inset-0.5 rounded-lg opacity-20 group-focus-within:opacity-40 blur transition-opacity duration-300" style={{ backgroundColor: themeColor }} />
                 <input 
                   type="text" 
                   value={threadInputValue}
@@ -630,16 +759,16 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
                       handleSendThreadReply();
                     }
                   }}
-                  placeholder="Reply..."
-                  className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-foreground outline-none placeholder:text-zinc-600"
+                  placeholder="Reply to thread..."
+                  className="flex-1 bg-zinc-950/80 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-2 text-sm text-foreground outline-none placeholder:text-zinc-500 shadow-inner relative z-10 transition-all focus:border-white/20"
                 />
                 <Button 
-                  size="sm"
+                  size="icon"
                   onClick={handleSendThreadReply}
                   style={{ backgroundColor: themeColor }}
-                  className="text-white h-8 text-[11px]"
+                  className="relative z-10 text-white h-9 w-9 rounded-lg shadow-lg hover:brightness-110 transition-all shrink-0"
                 >
-                  Send
+                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
                 </Button>
              </div>
           </div>
@@ -648,32 +777,42 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
 
       {/* --- MEMBERS PANEL --- */}
       {showMembers && (
-        <aside className="w-[240px] shrink-0 bg-hs-nav border-l border-border flex flex-col animate-in slide-in-from-right duration-200">
-          <header className="flex h-[48px] items-center justify-between px-4 border-b border-border/50">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-              <span className="text-sm font-medium text-foreground">Members</span>
+        <aside className="w-[280px] shrink-0 bg-background/70 backdrop-blur-2xl border-l border-border/30 flex flex-col shadow-[-8px_0_30px_-15px_rgba(0,0,0,0.6)] animate-in slide-in-from-right duration-300 relative z-30">
+          <div className="absolute inset-x-0 top-0 h-24 pointer-events-none opacity-30" style={{ backgroundImage: `linear-gradient(to bottom, ${themeColor}20, transparent)` }} />
+
+          <header className="flex h-[56px] items-center justify-between px-5 border-b border-white/5 relative z-10">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-md bg-white/5 backdrop-blur-sm border border-white/5">
+                <Users className="h-4 w-4 text-foreground/80" strokeWidth={1.5} />
+              </div>
+              <span className="text-[15px] font-semibold text-foreground tracking-tight drop-shadow-sm">Members</span>
               {channelMembers.length > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-foreground border border-white/5 shadow-sm">
                   {channelMembers.length}
                 </span>
               )}
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setShowMembers(false)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" size="icon" onClick={() => setShowMembers(false)} className="h-8 w-8 rounded-full bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground backdrop-blur-sm transition-all">
               <X className="h-4 w-4" />
             </Button>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-1">
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-1.5 scrollbar-thin scrollbar-thumb-white/10 relative z-10">
             {membersLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-2.5 px-2 py-2">
-                  <div className="h-7 w-7 rounded-full bg-muted animate-pulse shrink-0" />
-                  <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+                <div key={i} className="flex items-center gap-3 px-3 py-2.5 bg-white/5 rounded-xl border border-white/5 animate-pulse">
+                  <div className="h-8 w-8 rounded-full bg-white/10 shrink-0" />
+                  <div className="flex flex-col gap-1.5 w-full">
+                    <div className="h-3 w-24 rounded bg-white/10" />
+                    <div className="h-2 w-16 rounded bg-white/5" />
+                  </div>
                 </div>
               ))
             ) : channelMembers.length === 0 ? (
-              <p className="text-xs text-muted-foreground px-2 py-4 text-center">No members found</p>
+              <div className="flex flex-col items-center justify-center h-40 opacity-50">
+                <Users className="h-8 w-8 mb-3" />
+                <p className="text-xs text-foreground font-medium">No members found</p>
+              </div>
             ) : (
               channelMembers.map((member) => {
                 const initials = (member.fullName || member.username || "?")
@@ -682,22 +821,22 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
                 return (
                   <div
                     key={member.userId}
-                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted/30 transition-colors group"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/10 transition-all group border border-transparent hover:border-white/5 cursor-pointer"
                   >
                     <div
-                      className="h-7 w-7 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
+                      className="h-9 w-9 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold text-white shadow-md shadow-black/20"
                       style={{ backgroundColor: member.avatarColor || themeColor }}
                     >
                       {member.avatarUrl ? (
                         <img src={member.avatarUrl} alt="" className="h-full w-full rounded-full object-cover" />
                       ) : initials}
                     </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-medium text-foreground truncate">
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-[13px] font-semibold text-foreground truncate drop-shadow-sm">
                         {member.fullName || member.username}
-                        {isCurrentUser && <span className="text-muted-foreground font-normal"> (you)</span>}
+                        {isCurrentUser && <span className="text-muted-foreground/80 font-normal ml-1 text-[11px] bg-white/5 px-1.5 py-0.5 rounded-md">you</span>}
                       </span>
-                      <span className="text-[10px] text-muted-foreground truncate">@{member.username}</span>
+                      <span className="text-[11px] text-muted-foreground truncate group-hover:text-muted-foreground/80 transition-colors">@{member.username}</span>
                     </div>
                   </div>
                 );
@@ -720,7 +859,8 @@ function MessageItem({
   onReply, 
   onReact,
   isThreadParent,
-  themeColor = "#7C5CFC"
+  themeColor = "#7C5CFC",
+  channelMembers = []
 }: { 
   message: MessageResponse & { isGrouped?: boolean }; 
   channelId: string;
@@ -729,6 +869,7 @@ function MessageItem({
   onReact?: (emoji: string, reacted: boolean) => void;
   isThreadParent?: boolean;
   themeColor?: string;
+  channelMembers?: ChannelMemberInfo[];
 }) {
   const isAI = message.type === "AI";
   const [isEditing, setIsEditing] = useState(false);
@@ -837,9 +978,72 @@ function MessageItem({
         ) : (
           <div className={cn(
             "text-sm leading-relaxed",
-            message.isDeleted ? "text-zinc-500 italic" : "text-foreground/90"
+            message.isDeleted ? "text-zinc-500 italic" : "text-foreground"
           )}>
-            {message.content}
+            {(() => {
+              if (message.isDeleted) return message.content;
+              const content = message.content || "";
+              const parts = content.split(/(@\w+)/g);
+              
+              return (
+                <>
+                  {parts.map((part, index) => {
+                    if (part.startsWith('@') && part.length > 1) {
+                      const username = part.slice(1);
+                      
+                      if (username.toLowerCase() === "all" || username.toLowerCase() === "everyone") {
+                        return (
+                          <span 
+                            key={index} 
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 mx-1 align-middle bg-zinc-800 rounded-full"
+                          >
+                            <span className="flex items-center justify-center h-4 w-4 shrink-0 bg-zinc-700 text-zinc-300 rounded-full">
+                              <Users className="h-[10px] w-[10px]" />
+                            </span>
+                            <span className="font-bold text-[12px] text-white tracking-tight" style={{ color: themeColor }}>
+                              {part}
+                            </span>
+                          </span>
+                        );
+                      }
+
+                      const member = channelMembers?.find(m => m.username.toLowerCase() === username.toLowerCase());
+                      
+                      let avatarContent;
+                      if (member?.avatarUrl) {
+                        avatarContent = <img src={member.avatarUrl} alt="" className="h-full w-full object-cover rounded-full" />;
+                      } else {
+                        const displayUsername = member?.fullName || member?.username || username;
+                        const initial = displayUsername.charAt(0).toUpperCase();
+                        const colors = ["bg-emerald-500", "bg-blue-500", "bg-violet-500", "bg-orange-500", "bg-pink-500"];
+                        const colorIdx = Math.abs(displayUsername.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0)) % colors.length;
+                        const bgClass = member?.avatarColor || colors[colorIdx];
+                        avatarContent = (
+                          <span className={cn("flex items-center justify-center h-full w-full text-[9px] font-bold text-white rounded-full", member?.avatarColor ? "" : bgClass)} style={member?.avatarColor ? { backgroundColor: member.avatarColor } : undefined}>
+                            {initial}
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <span 
+                          key={index} 
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 mx-1 align-middle bg-zinc-800 rounded-full"
+                        >
+                          <span className="flex items-center justify-center h-4 w-4 shrink-0 rounded-full">
+                            {avatarContent}
+                          </span>
+                          <span className="font-bold text-[12px] text-white tracking-tight" style={{ color: themeColor }}>
+                            {part}
+                          </span>
+                        </span>
+                      );
+                    }
+                    return <span key={index} className="whitespace-pre-wrap">{part}</span>;
+                  })}
+                </>
+              );
+            })()}
           </div>
         )}
 

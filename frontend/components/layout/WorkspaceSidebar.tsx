@@ -79,6 +79,9 @@ export function WorkspaceSidebar() {
   const [isStartDmOpen, setIsStartDmOpen] = useState(false);
   const [ensuringChannelForProject, setEnsuringChannelForProject] = useState<string | null>(null);
 
+  const [isProjectsSectionExpanded, setIsProjectsSectionExpanded] = useState(true);
+  const [isTeamsSectionExpanded, setIsTeamsSectionExpanded] = useState(true);
+
 
   const router = useRouter();
   
@@ -236,14 +239,26 @@ export function WorkspaceSidebar() {
             )}
 
             <div className="flex flex-col">
-              <span className="px-2 mb-2 text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Projects</span>
-              
-              <motion.div 
-                className="flex flex-col gap-0.5"
-                variants={sidebarContainerVariants}
-                initial="hidden"
-                animate="show"
+              <div 
+                className="flex items-center px-2 mb-2 cursor-pointer group select-none" 
+                onClick={() => setIsProjectsSectionExpanded(!isProjectsSectionExpanded)}
               >
+                <motion.div animate={{ rotate: isProjectsSectionExpanded ? 0 : -90 }} className="mr-1" transition={{ duration: 0.2 }}>
+                  <ChevronDown className="h-3 w-3 text-muted-foreground group-hover:text-foreground transition-colors" />
+                </motion.div>
+                <span className="text-[10px] font-bold text-muted-foreground/60 group-hover:text-foreground/80 tracking-widest uppercase transition-colors">Projects</span>
+              </div>
+              
+              <AnimatePresence initial={false}>
+                {isProjectsSectionExpanded && (
+                  <motion.div 
+                    className="flex flex-col gap-0.5 overflow-hidden"
+                    variants={sidebarContainerVariants}
+                    initial="hidden"
+                    animate="show"
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
                 <AnimatePresence initial={false}>
                   {projects.map(project => {
                     const projectPath = `/dashboard/projects/${project.id}`;
@@ -388,12 +403,22 @@ export function WorkspaceSidebar() {
                 {projects.length === 0 && !projectsLoading && (
                   <div className="px-4 py-2 text-xs text-zinc-500 italic">No projects found</div>
                 )}
-              </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="flex flex-col">
               <div className="flex items-center justify-between px-2 mb-2">
-                <span className="text-xs font-semibold text-muted-foreground/60 tracking-widest uppercase">Teams</span>
+                <div 
+                  className="flex items-center cursor-pointer group select-none"
+                  onClick={() => setIsTeamsSectionExpanded(!isTeamsSectionExpanded)}
+                >
+                  <motion.div animate={{ rotate: isTeamsSectionExpanded ? 0 : -90 }} className="mr-1" transition={{ duration: 0.2 }}>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground group-hover:text-foreground transition-colors" />
+                  </motion.div>
+                  <span className="text-[10px] font-bold text-muted-foreground/60 group-hover:text-foreground/80 tracking-widest uppercase transition-colors">Teams</span>
+                </div>
                 {activeWorkspace?.id && canCreateTeam && (
                   <Button 
                     variant="ghost" 
@@ -406,12 +431,16 @@ export function WorkspaceSidebar() {
                 )}
               </div>
               
-              <motion.div 
-                className="flex flex-col gap-0.5"
-                variants={sidebarContainerVariants}
-                initial="hidden"
-                animate="show"
-              >
+              <AnimatePresence initial={false}>
+                {isTeamsSectionExpanded && (
+                  <motion.div 
+                    className="flex flex-col gap-0.5 overflow-hidden"
+                    variants={sidebarContainerVariants}
+                    initial="hidden"
+                    animate="show"
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
                 {teams.length > 0 ? teams.map(team => {
                   const path = `/dashboard/teams/${team.id}`;
                   const isActive = pathname === path;
@@ -446,7 +475,9 @@ export function WorkspaceSidebar() {
                 }) : (
                   <div className="px-2 py-1 text-xs text-zinc-500 italic">No teams found</div>
                 )}
-              </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </>
         )}

@@ -16,6 +16,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Date;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,7 @@ public class MessageService {
     private final UserRepository userRepository;
     private final RbacService rbacService;
     private final MessagingBroadcastService broadcastService;
+    private final NotificationRepository notificationRepository;
 
     private void verifyChannelAccess(UUID channelId, UUID currentUserId) {
         boolean isMember = channelMemberRepository.findByIdChannelIdAndIdUserId(channelId, currentUserId).isPresent();
@@ -118,7 +124,48 @@ public class MessageService {
             broadcastService.broadcastThreadReply(req.parentId(), response);
         }
 
+        handleMentions(saved, sender, channel);
+
         return response;
+    }
+
+    private void handleMentions(Message message, User sender, Channel channel) {
+        String content = message.getContent();
+        if (content == null) return;
+
+        Matcher matcher = Pattern.compile("@(\\w+)").matcher(content);
+        Set<String> mentionedUsernames = new HashSet<>();
+        while (matcher.find()) {
+            mentionedUsernames.add(matcher.group(1).toLowerCase());
+        }
+
+        if (mentionedUsernames.isEmpty()) return;
+
+        List<ChannelMember> members = channelMemberRepository.findByIdChannelId(channel.getId());
+
+        boolean isTagAll = mentionedUsernames.contains("all") || mentionedUsernames.contains("everyone");
+
+        List<User> toNotify = members.stream()
+                .map(ChannelMember::getUser)
+                .filter(u -> !u.getId().equals(sender.getId()))
+                .filter(u -> {
+                    if (isTagAll) return true;
+                    String uname = u.getActualUsername();
+                    return uname != null && mentionedUsernames.contains(uname.toLowerCase());
+                })
+                .collect(Collectors.toList());
+
+        List<Notification> notifications = toNotify.stream().map(u -> Notification.builder()
+                .user(u)
+                .actor(sender)
+                .type(NotificationType.MENTION)
+                .content(isTagAll ? sender.getFullName() + " mentioned everyone in #" + channel.getName() : sender.getFullName() + " mentioned you in #" + channel.getName())
+                .message(message)
+                .channel(channel)
+                .createdAt(new Date())
+                .build()).collect(Collectors.toList());
+
+        notificationRepository.saveAll(notifications);
     }
 
     // PATCH /api/messages/{messageId}

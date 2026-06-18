@@ -372,7 +372,7 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
     };
 
     return (
-        <div className="flex-1 flex flex-col w-full items-center p-6 relative overflow-y-auto scrollbar-none bg-transparent text-white">
+        <div className="flex-1 flex flex-col w-full items-center p-6 relative overflow-y-auto scrollbar-none text-[#EDE8E3]" style={{ background: 'linear-gradient(160deg, #1a1612 0%, #191511 60%, #1c1410 100%)' }}>
             <div className="w-full max-w-3xl mx-auto relative z-10 py-8">
                 <motion.div 
                     className="space-y-12"
@@ -388,18 +388,20 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
                             transition={{ delay: 0.2, duration: 0.5 }}
                             className="inline-block"
                         >
-                            <h1 className="text-3xl font-medium tracking-tight text-white/90 pb-1">
+                            <h1 className="text-[2.1rem] font-semibold tracking-tight pb-1" style={{ color: '#EDE8E3', letterSpacing: '-0.03em' }}>
                                 How can I help today?
                             </h1>
                             <motion.div 
-                                className="h-px bg-white/10"
+                                className="h-px"
+                                style={{ background: 'linear-gradient(90deg, transparent, #D97757 50%, transparent)' }}
                                 initial={{ width: 0, opacity: 0 }}
                                 animate={{ width: "100%", opacity: 1 }}
                                 transition={{ delay: 0.5, duration: 0.8 }}
                             />
                         </motion.div>
                         <motion.p 
-                            className="text-sm text-white/40 font-sans"
+                            className="text-sm font-sans"
+                            style={{ color: '#8C7B6E' }}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 0.3 }}
@@ -410,7 +412,8 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
 
                     {/* Input Bar */}
                     <motion.div 
-                        className="relative backdrop-blur-2xl bg-white/[0.02] rounded-2xl border border-white/[0.05] shadow-2xl overflow-hidden"
+                        className="relative rounded-2xl overflow-hidden"
+                        style={{ background: '#221e1a', border: '1px solid #3a2e26', boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(217,119,87,0.08)' }}
                         initial={{ scale: 0.98 }}
                         animate={{ scale: 1 }}
                         transition={{ delay: 0.1 }}
@@ -472,11 +475,10 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
                                     "resize-none",
                                     "bg-transparent",
                                     "border-none",
-                                    "text-white/90 text-sm",
-                                    "focus:outline-none focus:ring-0",
-                                    "placeholder:text-white/20",
+                                    "text-sm focus:outline-none focus:ring-0",
                                     "min-h-[60px]"
                                 )}
+                                style={{ color: '#EDE8E3' } as React.CSSProperties}
                                 style={{
                                     overflow: "hidden",
                                 }}
@@ -513,7 +515,7 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
                             )}
                         </AnimatePresence>
 
-                        <div className="p-4 border-t border-white/[0.05] flex items-center justify-between gap-4">
+                        <div className="p-4 flex items-center justify-between gap-4" style={{ borderTop: '1px solid #2e2720' }}>
                             <div className="flex items-center gap-3">
                                 <motion.button
                                     type="button"
@@ -555,12 +557,10 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
                                 whileTap={{ scale: 0.98 }}
                                 disabled={isTyping || !value.trim()}
                                 className={cn(
-                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                                    "flex items-center gap-2",
-                                    value.trim()
-                                        ? "bg-white text-[#0A0A0B] shadow-lg shadow-white/10 font-bold"
-                                        : "bg-white/[0.05] text-white/40"
+                                    "px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                    "flex items-center gap-2"
                                 )}
+                                style={value.trim() ? { background: '#D97757', color: '#fff', boxShadow: '0 4px 16px rgba(217,119,87,0.35)' } : { background: '#2e2720', color: '#5a4a3e' }}
                             >
                                 {isTyping ? (
                                     <LoaderIcon className="w-4 h-4 animate-[spin_2s_linear_infinite]" />
@@ -573,15 +573,18 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
                     </motion.div>
 
                     {/* Quick Command Suggestions */}
-                    <div className="flex flex-wrap items-center justify-center gap-2.5">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
                         {commandSuggestions.map((suggestion, index) => (
                             <motion.button
                                 key={suggestion.prefix}
                                 onClick={() => selectCommandSuggestion(index)}
-                                className="flex items-center gap-2 px-4 py-2 bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.05] rounded-full text-xs text-white/60 hover:text-white/90 transition-all relative group"
+                                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all"
+                                style={{ background: '#221e1a', border: '1px solid #3a2e26', color: '#8C7B6E' }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#EDE8E3'; (e.currentTarget as HTMLElement).style.borderColor = '#D9775740'; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#8C7B6E'; (e.currentTarget as HTMLElement).style.borderColor = '#3a2e26'; }}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.1 }}
+                                transition={{ delay: index * 0.08 }}
                             >
                                 {suggestion.icon}
                                 <span>{suggestion.label}</span>
@@ -590,7 +593,7 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
                     </div>
 
                     {/* Quick Action Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full mt-10">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full mt-8">
                         {QUICK_ACTIONS.map((action, i) => (
                             <motion.div
                                 key={i}
@@ -601,51 +604,57 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
                                         adjustHeight();
                                     }
                                 }}
-                                whileHover={{ scale: 1.02, y: -2 }}
+                                whileHover={{ scale: 1.015, y: -2 }}
                                 whileTap={{ scale: 0.98 }}
-                                className="cursor-pointer backdrop-blur-md bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.03] hover:border-[#7C5CFC]/30 rounded-xl p-4 flex flex-col justify-between h-36 transition-all duration-200"
+                                className="cursor-pointer rounded-xl p-4 flex flex-col justify-between h-[140px] transition-all duration-200 group"
+                                style={{ background: '#1f1b17', border: '1px solid #2e2720' }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#D9775730'; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#2e2720'; }}
                             >
                                 <div>
-                                    <div className="h-8 w-8 rounded-lg bg-[#7C5CFC]/10 flex items-center justify-center text-[#7C5CFC]">
+                                    <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: '#D9775715', color: '#D97757' }}>
                                         <action.icon className="h-4 w-4" strokeWidth={1.8} />
                                     </div>
-                                    <h3 className="text-xs font-semibold text-white/90 mt-3">{action.title}</h3>
-                                    <p className="text-[10px] text-white/40 mt-1 leading-normal">{action.desc}</p>
+                                    <h3 className="text-[13px] font-semibold mt-3" style={{ color: '#EDE8E3' }}>{action.title}</h3>
+                                    <p className="text-[11px] mt-1 leading-normal" style={{ color: '#6b5a4e' }}>{action.desc}</p>
                                 </div>
-                                <span className="text-[9px] uppercase font-bold tracking-wider text-[#7C5CFC] mt-2 block opacity-0 hover:opacity-100 transition-opacity">
-                                    Try it →
+                                <span className="text-[10px] font-semibold tracking-wide mt-2 block opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: '#D97757' }}>
+                                    Use prompt →
                                 </span>
                             </motion.div>
                         ))}
                     </div>
 
                     {/* Recent Conversations */}
-                    <div className="mt-10 w-full pt-6 border-t border-white/[0.04]">
-                        <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-4 flex items-center gap-1.5">
-                            <MessageSquare className="w-3.5 h-3.5 text-[#7C5CFC]" /> Recent Conversations
+                    <div className="mt-8 w-full pt-6" style={{ borderTop: '1px solid #2e2720' }}>
+                        <h4 className="text-[11px] font-semibold uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: '#4e3e34', letterSpacing: '0.1em' }}>
+                            <MessageSquare className="w-3.5 h-3.5" style={{ color: '#D97757' }} /> Recent Conversations
                         </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {RECENT_CONVS.map((conv, i) => (
                                 <div 
                                     key={i} 
                                     onClick={onStart}
-                                    className="group flex items-center justify-between p-3 bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.03] hover:border-[#7C5CFC]/20 rounded-xl cursor-pointer transition-all duration-200"
+                                    className="group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200"
+                                    style={{ background: '#1f1b17', border: '1px solid #2e2720' }}
+                                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#D9775730'; }}
+                                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#2e2720'; }}
                                 >
                                     <div className="flex items-center gap-2.5 min-w-0">
-                                        <MessageSquare className="h-3.5 w-3.5 text-white/30 group-hover:text-[#7C5CFC] transition-colors" />
-                                        <span className="text-xs text-white/60 truncate group-hover:text-white transition-colors">{conv.title}</span>
+                                        <MessageSquare className="h-3.5 w-3.5 shrink-0 transition-colors" style={{ color: '#4e3e34' }} />
+                                        <span className="text-xs truncate transition-colors" style={{ color: '#8C7B6E' }}>{conv.title}</span>
                                     </div>
-                                    <span className="text-[9px] text-white/30 shrink-0">{conv.time}</span>
+                                    <span className="text-[10px] shrink-0 ml-2" style={{ color: '#4e3e34' }}>{conv.time}</span>
                                 </div>
                             ))}
                         </div>
                     </div>
 
                     {/* Capabilities Footer */}
-                    <div className="mt-12 flex flex-wrap justify-center gap-3 pt-6 opacity-60">
-                        <div className="bg-white/[0.01] border border-white/[0.04] rounded-full px-3.5 py-1 text-[10px] text-white/40">Reads your tasks</div>
-                        <div className="bg-white/[0.01] border border-white/[0.04] rounded-full px-3.5 py-1 text-[10px] text-white/40">Searches your docs</div>
-                        <div className="bg-white/[0.01] border border-white/[0.04] rounded-full px-3.5 py-1 text-[10px] text-white/40">Understands your projects</div>
+                    <div className="mt-10 flex flex-wrap justify-center gap-2 pt-4">
+                        {['Reads your tasks','Searches your docs','Understands your projects'].map(cap => (
+                          <div key={cap} className="rounded-full px-4 py-1.5 text-[11px] font-medium" style={{ background: '#1f1b17', border: '1px solid #2e2720', color: '#4e3e34' }}>{cap}</div>
+                        ))}
                     </div>
                 </motion.div>
             </div>
@@ -653,16 +662,17 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
             <AnimatePresence>
                 {isTyping && (
                     <motion.div 
-                        className="fixed bottom-8 left-1/2 transform -translate-x-1/2 backdrop-blur-2xl bg-[#7C5CFC]/10 rounded-full px-4 py-2 shadow-lg border border-[#7C5CFC]/20 z-50"
+                        className="fixed bottom-8 left-1/2 transform -translate-x-1/2 backdrop-blur-2xl rounded-full px-5 py-2.5 z-50"
+                        style={{ background: '#221e1a', border: '1px solid #3a2e26', boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(217,119,87,0.12)' }}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 20 }}
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 rounded-full bg-[#7C5CFC] flex items-center justify-center text-center shadow-lg shadow-[#7C5CFC]/30">
-                                <span className="text-[10px] font-bold text-white mb-0.5">Z</span>
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center shadow-lg" style={{ background: '#D97757', boxShadow: '0 0 12px rgba(217,119,87,0.4)' }}>
+                                <span className="text-[10px] font-bold text-white">Z</span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-white/95">
+                            <div className="flex items-center gap-2 text-xs" style={{ color: '#EDE8E3' }}>
                                 <span>Thinking</span>
                                 <TypingDots />
                             </div>
@@ -844,20 +854,21 @@ function AIConversation({ onBack }: { onBack: () => void }) {
         </div>
 
         {/* Compose Bar */}
-        <div className="p-6 bg-hs-main">
+        <div className="p-5" style={{ background: '#191511', borderTop: '1px solid #2e2720' }}>
           <div className="max-w-3xl mx-auto w-full">
-            <div className="bg-muted border border-border/50 rounded-xl px-4 py-2 flex items-center gap-3 focus-within:border-primary/40 transition-colors shadow-2xl shadow-black/5">
-              <Sparkles className="h-4 w-4 text-[#7C5CFC]/40" />
+            <div className="rounded-2xl px-4 py-2.5 flex items-center gap-3 transition-all" style={{ background: '#221e1a', border: '1px solid #3a2e26' }}>
+              <Sparkles className="h-4 w-4 shrink-0" style={{ color: '#D9775750' }} />
               <input 
                 type="text" 
                 placeholder="Follow up, ask for changes..." 
-                className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/40 flex-1 py-1"
+                className="bg-transparent border-none outline-none text-sm flex-1 py-1"
+                style={{ color: '#EDE8E3' }}
               />
-              <button className="h-7 w-7 rounded-md bg-[#7C5CFC] flex items-center justify-center text-white hover:opacity-90 transition-colors">
+              <button className="h-8 w-8 rounded-xl flex items-center justify-center text-white transition-all hover:brightness-110" style={{ background: '#D97757', boxShadow: '0 2px 10px rgba(217,119,87,0.3)' }}>
                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
               </button>
             </div>
-            <p className="text-[10px] text-zinc-600 text-center mt-3 uppercase tracking-wider font-semibold opacity-60">
+            <p className="text-[10px] text-center mt-3 font-medium tracking-wider uppercase" style={{ color: '#3d3028' }}>
               AI has access to tasks, docs, and channels in Engineering workspace
             </p>
           </div>
@@ -865,7 +876,7 @@ function AIConversation({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Context Panel (Right) */}
-      <aside className="w-[280px] bg-hs-nav border-l border-border/50 p-5 flex flex-col gap-6 overflow-y-auto scrollbar-none">
+      <aside className="w-[280px] p-5 flex flex-col gap-6 overflow-y-auto scrollbar-none" style={{ background: '#161210', borderLeft: '1px solid #2e2720' }}>
         <section>
           <h4 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-4 flex items-center gap-2">
              <Activity className="h-3 w-3" /> Context
