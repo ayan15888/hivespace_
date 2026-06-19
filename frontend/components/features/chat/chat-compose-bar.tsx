@@ -143,7 +143,7 @@ export function ChatComposeBar({
           )}
 
           {showAiSuggestions && (
-            <div className="absolute bottom-full left-0 z-50 mb-2 w-72 overflow-hidden rounded-lg border border-purple-500/30 bg-zinc-950/95 backdrop-blur-md shadow-2xl p-1 animate-in slide-in-from-bottom-1 duration-150">
+            <div className="absolute bottom-full left-0 z-50 mb-2 w-72 overflow-hidden rounded-lg border border-purple-500/30 bg-zinc-950 shadow-2xl p-1 animate-in slide-in-from-bottom-1 duration-150">
               <div className="px-3 py-1.5 text-[10px] font-bold text-purple-400 tracking-wider uppercase border-b border-zinc-800">
                 AI Commands
               </div>
