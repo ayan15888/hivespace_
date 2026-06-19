@@ -16,7 +16,15 @@ import {
   Users,
 } from "lucide-react"
 import type { ChangeEvent, RefObject, ElementType } from "react"
+import { useState, useEffect } from "react"
 import type { MentionMember } from "@/app/(auth)/dashboard/chat/[channel]/chat-utils"
+
+const SUGGESTIONS = [
+  { command: "/ai summarize", description: "Summarize the last 50 messages in this channel" },
+  { command: "/ai summarize from ", description: "Summarize messages in a specific date range" },
+  { command: "/ai ask ", description: "Answer questions using the channel history" },
+  { command: "/ai draft a reply to ", description: "Draft a response to a channel member" }
+]
 
 export function ChatComposeBar({
   currentChannelName,
@@ -51,6 +59,25 @@ export function ChatComposeBar({
   onMentionIndexChange: (value: number) => void
   onMentionDropdownVisibleChange: (value: boolean) => void
 }) {
+  const [aiSuggestIndex, setAiSuggestIndex] = useState(0)
+  const [dismissedSuggestions, setDismissedSuggestions] = useState(false)
+
+  useEffect(() => {
+    if (inputValue === "") {
+      setDismissedSuggestions(false)
+    }
+  }, [inputValue])
+
+  const filteredSuggestions = SUGGESTIONS.filter(s => 
+    s.command.toLowerCase().startsWith(inputValue.toLowerCase()) ||
+    (inputValue.toLowerCase().startsWith(s.command.toLowerCase()) && inputValue.length <= s.command.length)
+  )
+
+  const showAiSuggestions = 
+    !dismissedSuggestions &&
+    inputValue.startsWith("/") && 
+    filteredSuggestions.length > 0
+
   const isAiMode = inputValue.toLowerCase().startsWith("/ai")
   const canSend = inputValue.trim().length > 0
 
@@ -93,6 +120,41 @@ export function ChatComposeBar({
               <span className="font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 uppercase">
                 HEX AI Command Mode
               </span>
+            </div>
+          )}
+
+          {showAiSuggestions && (
+            <div className="absolute bottom-full left-0 z-50 mb-2 w-72 overflow-hidden rounded-lg border border-purple-500/30 bg-zinc-950/95 backdrop-blur-md shadow-2xl p-1 animate-in slide-in-from-bottom-1 duration-150">
+              <div className="px-3 py-1.5 text-[10px] font-bold text-purple-400 tracking-wider uppercase border-b border-zinc-800">
+                AI Commands
+              </div>
+              <div className="scrollbar-thin scrollbar-thumb-white/10 max-h-48 overflow-y-auto py-1">
+                {filteredSuggestions.map((suggestion, index) => (
+                  <div
+                    key={suggestion.command}
+                    onClick={() => {
+                      const mockEvent = {
+                        target: { value: suggestion.command }
+                      } as ChangeEvent<HTMLTextAreaElement>;
+                      onInputChange(mockEvent);
+                    }}
+                    onMouseEnter={() => setAiSuggestIndex(index)}
+                    className={cn(
+                      "flex flex-col cursor-pointer px-3 py-1.5 transition-colors rounded-md",
+                      index === aiSuggestIndex
+                        ? "bg-purple-500/20 border border-purple-500/30"
+                        : "hover:bg-white/5 border border-transparent"
+                    )}
+                  >
+                    <span className="text-xs font-semibold text-purple-200">
+                      {suggestion.command}
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      {suggestion.description}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -165,6 +227,35 @@ export function ChatComposeBar({
             value={inputValue}
             onChange={onInputChange}
             onKeyDown={(event) => {
+              if (showAiSuggestions) {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault()
+                  setAiSuggestIndex((aiSuggestIndex + 1) % filteredSuggestions.length)
+                  return
+                }
+                if (event.key === "ArrowUp") {
+                  event.preventDefault()
+                  setAiSuggestIndex((aiSuggestIndex - 1 + filteredSuggestions.length) % filteredSuggestions.length)
+                  return
+                }
+                if (event.key === "Enter" || event.key === "Tab") {
+                  event.preventDefault()
+                  const suggestion = filteredSuggestions[aiSuggestIndex]
+                  if (suggestion) {
+                    const mockEvent = {
+                      target: { value: suggestion.command }
+                    } as ChangeEvent<HTMLTextAreaElement>
+                    onInputChange(mockEvent)
+                  }
+                  return
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault()
+                  setDismissedSuggestions(true)
+                  return
+                }
+              }
+
               if (mentionDropdownVisible) {
                 if (filteredMentionMembers.length === 0) {
                   return
@@ -207,7 +298,10 @@ export function ChatComposeBar({
             onFocus={onInputFocus}
             onBlur={onInputBlur}
             placeholder={`Message #${currentChannelName || "Chat"}`}
-            className="min-h-[40px] w-full resize-none border-none bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
+            className={cn(
+              "min-h-[40px] w-full resize-none border-none bg-transparent px-2 py-1 text-sm outline-none placeholder:text-muted-foreground/60 transition-colors",
+              isAiMode ? "text-purple-300 font-semibold" : "text-foreground"
+            )}
           />
 
           <div className="mt-1 flex items-center justify-between px-1">
