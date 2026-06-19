@@ -94,6 +94,160 @@ export function ChatMessageItem({
     }
   }
 
+  const renderLineContent = (lineText: string) => {
+    if (!lineText) return null
+
+    const regex = /(@\w+|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g
+    const parts = lineText.split(regex)
+
+    return parts.map((part, index) => {
+      if (part.startsWith("@") && part.length > 1) {
+        const username = part.slice(1)
+        if (
+          username.toLowerCase() === "all" ||
+          username.toLowerCase() === "everyone"
+        ) {
+          return (
+            <span
+              key={index}
+              className="mx-1 inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-2 py-0.5 align-middle"
+            >
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-zinc-300">
+                <Users className="h-[10px] w-[10px]" />
+              </span>
+              <span
+                className="font-bold tracking-tight text-white"
+                style={{ color: themeColor }}
+              >
+                {part}
+              </span>
+            </span>
+          )
+        }
+
+        const member = channelMembers.find(
+          (item) => item.username.toLowerCase() === username.toLowerCase()
+        )
+        const displayUsername =
+          member?.fullName || member?.username || username
+        const initial = displayUsername.charAt(0).toUpperCase()
+        const colors = [
+          "bg-emerald-500",
+          "bg-blue-500",
+          "bg-violet-500",
+          "bg-orange-500",
+          "bg-pink-500",
+        ]
+        const colorIndex =
+          Math.abs(
+            displayUsername
+              .split("")
+              .reduce((acc, char) => acc + char.charCodeAt(0), 0)
+          ) % colors.length
+        const avatarContent = member?.avatarUrl ? (
+          <img
+            src={member.avatarUrl}
+            alt=""
+            className="h-full w-full rounded-full object-cover"
+          />
+        ) : (
+          <span
+            className={cn(
+              "flex h-full w-full items-center justify-center rounded-full text-[9px] font-bold text-white",
+              member?.avatarColor ? "" : colors[colorIndex]
+            )}
+            style={
+              member?.avatarColor
+                ? { backgroundColor: member.avatarColor }
+                : undefined
+            }
+          >
+            {initial}
+          </span>
+        )
+
+        return (
+          <span
+            key={index}
+            className="mx-1 inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-2 py-0.5 align-middle"
+          >
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full">
+              {avatarContent}
+            </span>
+            <span
+              className="font-bold tracking-tight text-white"
+              style={{ color: themeColor }}
+            >
+              {part}
+            </span>
+          </span>
+        )
+      }
+
+      if (part.startsWith("`") && part.endsWith("`")) {
+        return (
+          <code
+            key={index}
+            className="mx-1 rounded border border-zinc-700/50 bg-zinc-800 px-1.5 py-0.5 font-mono text-[12px] text-pink-400"
+          >
+            {part.slice(1, -1)}
+          </code>
+        )
+      }
+
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return (
+          <strong key={index} className="font-extrabold text-white">
+            {part.slice(2, -2)}
+          </strong>
+        )
+      }
+
+      if (part.startsWith("*") && part.endsWith("*")) {
+        return (
+          <span key={index} className="font-semibold italic text-white/95">
+            {part.slice(1, -1)}
+          </span>
+        )
+      }
+
+      return (
+        <span key={index} className="whitespace-pre-wrap">
+          {part}
+        </span>
+      )
+    })
+  }
+
+  const renderMessageContent = (content: string) => {
+    const lines = (content || "").split("\n")
+    return lines.map((line, lineIndex) => {
+      if (line === "") {
+        return <div key={lineIndex} className="min-h-[1.25rem]" />
+      }
+
+      const isBullet =
+        line.trimStart().startsWith("* ") || line.trimStart().startsWith("- ")
+      if (isBullet) {
+        const cleanLine = line.trimStart().replace(/^(\*|-)\s+/, "")
+        return (
+          <div key={lineIndex} className="my-1 flex items-start gap-2 pl-4">
+            <span className="mt-1 select-none font-bold text-zinc-500">•</span>
+            <div className="flex-1 text-sm text-foreground">
+              {renderLineContent(cleanLine)}
+            </div>
+          </div>
+        )
+      }
+
+      return (
+        <div key={lineIndex} className="min-h-[1.25rem] text-sm text-foreground">
+          {renderLineContent(line)}
+        </div>
+      )
+    })
+  }
+
   return (
     <div
       className={cn(
@@ -208,99 +362,7 @@ export function ChatMessageItem({
             {message.isDeleted ? (
               message.content
             ) : (
-              <>
-                {(message.content || "").split(/(@\w+)/g).map((part, index) => {
-                  if (!part.startsWith("@") || part.length <= 1) {
-                    return (
-                      <span key={index} className="whitespace-pre-wrap">
-                        {part}
-                      </span>
-                    )
-                  }
-
-                  const username = part.slice(1)
-                  if (
-                    username.toLowerCase() === "all" ||
-                    username.toLowerCase() === "everyone"
-                  ) {
-                    return (
-                      <span
-                        key={index}
-                        className="mx-1 inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-2 py-0.5 align-middle"
-                      >
-                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-zinc-300">
-                          <Users className="h-[10px] w-[10px]" />
-                        </span>
-                        <span
-                          className="font-bold tracking-tight text-white"
-                          style={{ color: themeColor }}
-                        >
-                          {part}
-                        </span>
-                      </span>
-                    )
-                  }
-
-                  const member = channelMembers.find(
-                    (item) =>
-                      item.username.toLowerCase() === username.toLowerCase()
-                  )
-                  const displayUsername =
-                    member?.fullName || member?.username || username
-                  const initial = displayUsername.charAt(0).toUpperCase()
-                  const colors = [
-                    "bg-emerald-500",
-                    "bg-blue-500",
-                    "bg-violet-500",
-                    "bg-orange-500",
-                    "bg-pink-500",
-                  ]
-                  const colorIndex =
-                    Math.abs(
-                      displayUsername
-                        .split("")
-                        .reduce((acc, char) => acc + char.charCodeAt(0), 0)
-                    ) % colors.length
-                  const avatarContent = member?.avatarUrl ? (
-                    <img
-                      src={member.avatarUrl}
-                      alt=""
-                      className="h-full w-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <span
-                      className={cn(
-                        "flex h-full w-full items-center justify-center rounded-full text-[9px] font-bold text-white",
-                        member?.avatarColor ? "" : colors[colorIndex]
-                      )}
-                      style={
-                        member?.avatarColor
-                          ? { backgroundColor: member.avatarColor }
-                          : undefined
-                      }
-                    >
-                      {initial}
-                    </span>
-                  )
-
-                  return (
-                    <span
-                      key={index}
-                      className="mx-1 inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-2 py-0.5 align-middle"
-                    >
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full">
-                        {avatarContent}
-                      </span>
-                      <span
-                        className="font-bold tracking-tight text-white"
-                        style={{ color: themeColor }}
-                      >
-                        {part}
-                      </span>
-                    </span>
-                  )
-                })}
-              </>
+              <>{renderMessageContent(message.content || "")}</>
             )}
           </div>
         )}
