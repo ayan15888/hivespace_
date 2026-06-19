@@ -10,6 +10,15 @@ import { ChatThreadPanel } from "./chat-thread-panel"
 export function ChatChannelPage({ channelId }: { channelId: string }) {
   const page = useChatChannelPage(channelId)
 
+  const handleSelectSuggestion = (suggestion: string) => {
+    page.setInputValue(suggestion)
+    setTimeout(() => {
+      if (page.textareaRef.current) {
+        page.textareaRef.current.focus()
+      }
+    }, 50)
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <div className="relative flex flex-1 flex-col overflow-hidden">
@@ -81,6 +90,8 @@ export function ChatChannelPage({ channelId }: { channelId: string }) {
           onInsertMention={page.insertMention}
           onMentionIndexChange={page.setMentionIndex}
           onMentionDropdownVisibleChange={page.setMentionDropdownVisible}
+          suggestedReplies={page.suggestedReplies}
+          onSelectSuggestion={handleSelectSuggestion}
         />
       </div>
 

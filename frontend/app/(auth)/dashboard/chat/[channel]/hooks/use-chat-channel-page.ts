@@ -16,6 +16,7 @@ import {
   sendMessage,
 } from "@/lib/api/messages"
 import { getChannelMembers, markChannelRead } from "@/lib/api/channels"
+import { getSuggestedReplies } from "@/lib/api/suggestions"
 import type { MessageResponse } from "@/types/messaging"
 import { buildGroupedMessages } from "../chat-utils"
 import { useChatChannelComposer } from "./use-chat-channel-composer"
@@ -70,6 +71,8 @@ export function useChatChannelPage(channelId: string) {
   const [initialUnreadCount, setInitialUnreadCount] = useState(0)
   const [unreadSummary, setUnreadSummary] = useState<string | null>(null)
   const [isSummarizing, setIsSummarizing] = useState(false)
+  const [suggestedReplies, setSuggestedReplies] = useState<string[]>([])
+  const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false)
 
   const handleSummarizeUnread = () => {
     if (initialUnreadCount <= 0) return
@@ -149,7 +152,39 @@ export function useChatChannelPage(channelId: string) {
     setInitialUnreadCount(0)
     setUnreadSummary(null)
     setIsSummarizing(false)
-  }, [channelId, setShowMembers, setInitialUnreadCount, setUnreadSummary, setIsSummarizing])
+    setSuggestedReplies([])
+  }, [channelId, setShowMembers, setInitialUnreadCount, setUnreadSummary, setIsSummarizing, setSuggestedReplies])
+
+  useEffect(() => {
+    if (!channelId) {
+      setSuggestedReplies([])
+      return
+    }
+
+    const lastMsg = channelMessages.length > 0 ? channelMessages[channelMessages.length - 1] : null
+    const lastMsgSenderId = lastMsg?.sender?.id
+    if (!lastMsg || lastMsgSenderId === currentUser?.id || lastMsg.type === "AI") {
+      setSuggestedReplies([])
+      return
+    }
+
+    const handler = setTimeout(() => {
+      setIsSuggestionsLoading(true)
+      getSuggestedReplies(channelId)
+        .then((replies) => {
+          setSuggestedReplies(replies)
+        })
+        .catch((error) => {
+          console.error("Failed to fetch suggested replies", error)
+          setSuggestedReplies([])
+        })
+        .finally(() => {
+          setIsSuggestionsLoading(false)
+        })
+    }, 600)
+
+    return () => clearTimeout(handler)
+  }, [channelId, channelMessages.length, currentUser?.id, setSuggestedReplies])
 
   useEffect(() => {
     if (channelMessages.length === 0) return
@@ -468,5 +503,7 @@ export function useChatChannelPage(channelId: string) {
     isSummarizing,
     handleSummarizeUnread,
     setUnreadSummary,
+    suggestedReplies,
+    isSuggestionsLoading,
   }
 }

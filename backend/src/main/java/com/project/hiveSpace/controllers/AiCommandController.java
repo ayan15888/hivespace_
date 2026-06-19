@@ -47,6 +47,9 @@ public class AiCommandController {
     @Value("${nvidia.model.default}")
     private String defaultChatModel;
 
+    @Value("${nvidia.model.fast:meta/llama-3.1-8b-instruct}")
+    private String fastChatModel;
+
     @PostMapping("/channels/{channelId}/ai-command")
     public ResponseEntity<?> handleAiCommand(
             @PathVariable UUID channelId,
@@ -152,5 +155,69 @@ public class AiCommandController {
                 "Focus on what the user missed and any critical action items. Limit the summary to 2-3 sentences/bullets.";
 
         return nvidiaAIService.streamChatCompletion(systemPrompt, context, defaultChatModel);
+    }
+
+    @GetMapping("/channels/{channelId}/suggested-replies")
+    public ResponseEntity<List<String>> getSuggestedReplies(
+            @PathVariable UUID channelId,
+            @AuthenticationPrincipal User user
+    ) {
+        // Validate requesting user is a member of the channel
+        boolean isMember = channelMemberRepository.existsByIdChannelIdAndIdUserId(channelId, user.getId());
+        if (!isMember) {
+            throw new ForbiddenException("Access denied: Must be a member of this channel to get suggested replies.");
+        }
+
+        // Fetch last 5 messages
+        List<Message> dbMessages = messageRepository.findPageByChannel(
+                channelId,
+                Instant.now(),
+                org.springframework.data.domain.PageRequest.of(0, 5)
+        );
+
+        if (dbMessages.isEmpty()) {
+            return ResponseEntity.ok(List.of("Hello!", "Hey there!", "Hi!"));
+        }
+
+        // Reverse to chronological order
+        List<Message> messages = new java.util.ArrayList<>(dbMessages);
+        java.util.Collections.reverse(messages);
+
+        String context = messages.stream()
+                .map(msg -> {
+                    String senderName = msg.getSender() != null ? msg.getSender().getFullName() : "AI Assistant";
+                    return senderName + ": " + msg.getContent();
+                })
+                .collect(java.util.stream.Collectors.joining("\n"));
+
+        String systemPrompt = "You are an AI assistant helping a user write quick replies in a chat application. " +
+                "Based on the last few messages in the conversation, generate exactly 2 or 3 short, context-appropriate, natural suggestions for replies that the user can click to send. " +
+                "The suggestions should be brief (1-5 words each) and reflect a casual, natural workplace chat tone. " +
+                "Respond ONLY with a JSON array of strings, e.g. [\"Sure!\", \"Will do.\", \"Let's do it.\"]. " +
+                "Do not include markdown code block formatting (like ```json). Respond with the raw JSON array string only.";
+
+        try {
+            String rawResponse = nvidiaAIService.chatCompletion(systemPrompt, context, fastChatModel).trim();
+            // Clean markdown block wrapping if present
+            if (rawResponse.startsWith("```")) {
+                int firstLineEnd = rawResponse.indexOf('\n');
+                if (firstLineEnd != -1) {
+                    rawResponse = rawResponse.substring(firstLineEnd).trim();
+                }
+                if (rawResponse.endsWith("```")) {
+                    rawResponse = rawResponse.substring(0, rawResponse.length() - 3).trim();
+                }
+            }
+            // Parse
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            List<String> suggestions = mapper.readValue(rawResponse, new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+            if (suggestions != null && !suggestions.isEmpty()) {
+                return ResponseEntity.ok(suggestions);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to parse suggested replies: " + e.getMessage());
+        }
+
+        return ResponseEntity.ok(List.of("Got it, thanks!", "I'll take a look.", "Sure thing!"));
     }
 }

@@ -42,6 +42,8 @@ export function ChatComposeBar({
   onInsertMention,
   onMentionIndexChange,
   onMentionDropdownVisibleChange,
+  suggestedReplies = [],
+  onSelectSuggestion,
 }: {
   currentChannelName?: string
   inputValue: string
@@ -58,6 +60,8 @@ export function ChatComposeBar({
   onInsertMention: (username: string) => void
   onMentionIndexChange: (value: number) => void
   onMentionDropdownVisibleChange: (value: boolean) => void
+  suggestedReplies?: string[]
+  onSelectSuggestion?: (suggestion: string) => void
 }) {
   const [aiSuggestIndex, setAiSuggestIndex] = useState(0)
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false)
@@ -83,6 +87,21 @@ export function ChatComposeBar({
 
   return (
     <div className="shrink-0 p-4 pt-0">
+      {suggestedReplies.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <span className="text-[10px] self-center font-bold text-zinc-500 uppercase tracking-wider mr-1">Suggest:</span>
+          {suggestedReplies.map((reply) => (
+            <button
+              key={reply}
+              onClick={() => onSelectSuggestion?.(reply)}
+              className="group relative flex items-center gap-1 rounded-full border border-purple-500/20 bg-purple-500/5 px-3 py-1 text-xs font-medium text-purple-300 transition-all hover:border-purple-500/40 hover:bg-purple-500/10 hover:text-purple-200 cursor-pointer"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-indigo-400 to-pink-400 group-hover:scale-110 transition-transform" />
+              {reply}
+            </button>
+          ))}
+        </div>
+      )}
       <div
         className={cn(
           "relative flex flex-col rounded-xl border bg-hs-card/80 backdrop-blur-sm transition-all duration-200",
