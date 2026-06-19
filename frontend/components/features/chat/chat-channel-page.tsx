@@ -18,7 +18,36 @@ export function ChatChannelPage({ channelId }: { channelId: string }) {
           isConnected={page.isConnected}
           showMembers={page.showMembers}
           onToggleMembers={page.toggleMembersPanel}
+          initialUnreadCount={page.initialUnreadCount}
+          isSummarizing={page.isSummarizing}
+          onSummarize={page.handleSummarizeUnread}
         />
+
+        {page.unreadSummary !== null && (
+          <div className="mx-4 mt-3 rounded-lg border border-purple-500/20 bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-pink-500/5 p-3 shadow-md animate-in slide-in-from-top-2 duration-200">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <svg viewBox="0 0 24 24" className={`h-4 w-4 fill-current text-purple-400 mt-0.5 shrink-0 ${page.isSummarizing ? "animate-pulse" : ""}`}>
+                  <path d="M12,2 C12,7.5 16.5,12 22,12 C16.5,12 12,16.5 12,22 C12,16.5 7.5,12 2,12 C7.5,12 12,7.5 12,2 Z" />
+                </svg>
+                <div className="flex-1 text-xs leading-relaxed text-zinc-300">
+                  <span className="font-bold text-purple-200">Unread Catch-Up Summary: </span>
+                  {page.unreadSummary === "" && page.isSummarizing ? (
+                    <span className="italic text-zinc-500">Hex is summarizing unread messages...</span>
+                  ) : (
+                    <span className="whitespace-pre-wrap">{page.unreadSummary}</span>
+                  )}
+                </div>
+              </div>
+              <button 
+                onClick={() => page.setUnreadSummary(null)}
+                className="text-zinc-500 hover:text-zinc-300 text-[10px] uppercase font-bold shrink-0 px-1"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         <ChatMessageList
           channelId={channelId}

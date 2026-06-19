@@ -67,6 +67,40 @@ export function useChatChannelPage(channelId: string) {
     (typingUser) => typingUser.userId !== currentUser?.id && typingUser.typing
   )
 
+  const [initialUnreadCount, setInitialUnreadCount] = useState(0)
+  const [unreadSummary, setUnreadSummary] = useState<string | null>(null)
+  const [isSummarizing, setIsSummarizing] = useState(false)
+
+  const handleSummarizeUnread = () => {
+    if (initialUnreadCount <= 0) return
+    setIsSummarizing(true)
+    setUnreadSummary("")
+
+    const getCookie = (name: string): string | null => {
+      if (typeof document === "undefined") return null
+      const value = `; ${document.cookie}`
+      const parts = value.split(`; ${name}=`)
+      if (parts.length === 2) return parts.pop()?.split(";").shift() || null
+      return null
+    }
+
+    const token = getCookie("token")
+    const eventSource = new EventSource(
+      `/api/channels/${channelId}/summarize-unread?count=${initialUnreadCount}&token=${encodeURIComponent(
+        token || ""
+      )}`
+    )
+
+    eventSource.onmessage = (event) => {
+      setUnreadSummary((prev) => (prev ?? "") + event.data)
+    }
+
+    eventSource.onerror = (err) => {
+      eventSource.close()
+      setIsSummarizing(false)
+    }
+  }
+
   const [showMembers, setShowMembers] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -77,6 +111,12 @@ export function useChatChannelPage(channelId: string) {
   const { isLoading: isMessagesLoading } = useQuery({
     queryKey: ["messages", channelId],
     queryFn: async () => {
+      // Capture the unread count from the store before clearing it
+      const currentChannels = useChatStore.getState().channels[activeWorkspace?.id ?? ""] ?? []
+      const ch = currentChannels.find((c) => c.id === channelId)
+      const unreads = ch ? ch.unreadCount : 0
+      setInitialUnreadCount(unreads)
+
       const msgs = await getMessages(channelId)
       setMessages(channelId, msgs, msgs.length === 50)
       await markChannelRead(channelId).catch(() => {})
@@ -106,7 +146,10 @@ export function useChatChannelPage(channelId: string) {
 
   useEffect(() => {
     setShowMembers(false)
-  }, [channelId])
+    setInitialUnreadCount(0)
+    setUnreadSummary(null)
+    setIsSummarizing(false)
+  }, [channelId, setShowMembers, setInitialUnreadCount, setUnreadSummary, setIsSummarizing])
 
   useEffect(() => {
     if (channelMessages.length === 0) return
@@ -420,5 +463,10 @@ export function useChatChannelPage(channelId: string) {
     threadMessages,
     themeColor,
     toggleMembersPanel,
+    initialUnreadCount,
+    unreadSummary,
+    isSummarizing,
+    handleSummarizeUnread,
+    setUnreadSummary,
   }
 }
