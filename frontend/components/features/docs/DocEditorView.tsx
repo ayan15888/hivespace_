@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils"
 import { HivespaceEditor } from "@/components/features/docs/HivespaceEditor"
 import { useDocumentStore } from "@/store/documentStore"
 import { useDocSidebarState } from "@/store/docSidebarStore"
+import type { DocumentResponse } from "@/lib/api/documents"
 import { formatTimeAgo, formatDate, getInitials } from "./docHelpers"
 
 const PageNode = ({ data }: NodeProps) => (
@@ -50,23 +51,21 @@ const PageNode = ({ data }: NodeProps) => (
     <div
       className={cn(
         "relative flex items-center justify-center rounded-full border-2 shadow-lg transition-all",
-        data.size === "large" ? "h-8 w-8" : "h-5 w-5",
+        data.size === "large" ? "h-9 w-9" : data.size === "medium" ? "h-7 w-7" : "h-5 w-5",
         data.isActive
-          ? "border-violet-500 bg-violet-500/20 shadow-[0_0_15px_rgba(124,92,252,0.4)]"
-          : data.isHub
-            ? "border-blue-500/60 bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-            : "border-zinc-600 bg-zinc-800 group-hover:border-zinc-400"
+          ? "border-white bg-white/30 shadow-[0_0_20px_rgba(255,255,255,0.7)] scale-110"
+          : data.colorClass || "border-zinc-600 bg-zinc-800 group-hover:border-zinc-400"
       )}
     >
-      <Handle type="target" position={Position.Top} className="absolute h-1 w-1 opacity-0" />
-      <Handle type="source" position={Position.Bottom} className="absolute h-1 w-1 opacity-0" />
+      <Handle type="target" position={Position.Top} className="pointer-events-none absolute left-1/2 top-1/2 h-0 w-0 -translate-x-1/2 -translate-y-1/2 opacity-0" />
+      <Handle type="source" position={Position.Bottom} className="pointer-events-none absolute left-1/2 top-1/2 h-0 w-0 -translate-x-1/2 -translate-y-1/2 opacity-0" />
     </div>
     <span
       className={cn(
         "absolute top-full mt-2 rounded-md bg-[#0E0E10]/80 px-2 py-0.5 font-medium whitespace-nowrap backdrop-blur-sm transition-colors",
         data.size === "large"
-          ? "text-sm text-zinc-200"
-          : "text-xs text-zinc-400 group-hover:text-zinc-200"
+          ? "text-xs text-zinc-100 font-semibold"
+          : "text-[11px] text-zinc-400 group-hover:text-zinc-200"
       )}
     >
       {data.title}
@@ -85,12 +84,14 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
   const { setActiveDoc, setActiveProject } = useDocSidebarState()
   const {
     documents,
+    allDocuments,
     activeDocument,
     activeDocLoading,
     error,
     versions,
     versionsLoading,
     fetchDocumentContent,
+    fetchAllDocuments,
     fetchVersions,
     updateDoc,
     deleteDoc,
@@ -112,6 +113,12 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
   useEffect(() => {
     fetchDocumentContent(documentId)
   }, [documentId, fetchDocumentContent])
+
+  useEffect(() => {
+    if (view === "graph" && activeDocument?.projectId) {
+      fetchAllDocuments(activeDocument.projectId)
+    }
+  }, [view, activeDocument?.projectId, fetchAllDocuments])
 
   useEffect(() => {
     if (activeDocument?.projectId) {
@@ -165,21 +172,233 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
     }
   }, [documentId, activeDocument, publishDoc, unpublishDoc])
 
-  const graphNodes: Node[] = useMemo(
-    () =>
-      documents.map((doc, i) => ({
+  const { graphNodes, graphEdges } = useMemo(() => {
+    const docsToUse = allDocuments.length > 0 ? allDocuments : documents;
+    if (docsToUse.length === 0) {
+      return { graphNodes: [], graphEdges: [] };
+    }
+
+    const documentIds = new Set(docsToUse.map((d) => d.id));
+    const roots = docsToUse.filter((doc) => !doc.parentId || !documentIds.has(doc.parentId));
+    
+    const childrenByParent: Record<string, DocumentResponse[]> = {};
+    docsToUse.forEach((doc) => {
+      if (doc.parentId && documentIds.has(doc.parentId)) {
+        if (!childrenByParent[doc.parentId]) {
+          childrenByParent[doc.parentId] = [];
+        }
+        childrenByParent[doc.parentId].push(doc);
+      }
+    });
+
+    // 1. Group & Color clusters
+    const getRootAncestorId = (docId: string): string => {
+      let current = docsToUse.find((d) => d.id === docId);
+      while (current && current.parentId && documentIds.has(current.parentId)) {
+        current = docsToUse.find((d) => d.id === current!.parentId);
+      }
+      return current ? current.id : docId;
+    };
+
+    const rootColors = [
+      "border-orange-500 bg-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.4)] text-orange-400",
+      "border-rose-500 bg-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.4)] text-rose-400",
+      "border-emerald-500 bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.4)] text-emerald-400",
+      "border-sky-500 bg-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.4)] text-sky-400",
+      "border-violet-500 bg-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.4)] text-violet-400",
+      "border-amber-500 bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.4)] text-amber-400",
+    ];
+
+    const clusterColor: Record<string, string> = {};
+    roots.forEach((root, idx) => {
+      clusterColor[root.id] = rootColors[idx % rootColors.length];
+    });
+
+    docsToUse.forEach((doc) => {
+      const rootId = getRootAncestorId(doc.id);
+      clusterColor[doc.id] = clusterColor[rootId] || rootColors[0];
+    });
+
+    // Build list of all active connections for force physics
+    const simEdges: { source: string; target: string }[] = [];
+    docsToUse
+      .filter((doc) => doc.parentId && documentIds.has(doc.parentId))
+      .forEach((doc) => {
+        simEdges.push({ source: doc.parentId!, target: doc.id });
+      });
+
+    docsToUse.forEach((doc) => {
+      if (doc.linkedDocIds) {
+        doc.linkedDocIds.forEach((targetId) => {
+          if (documentIds.has(targetId)) {
+            simEdges.push({ source: doc.id, target: targetId });
+          }
+        });
+      }
+    });
+
+    // 2. Deterministic Initial Seed positions
+    const nodesList = docsToUse.map((doc, index) => {
+      const angle = (index / docsToUse.length) * 2 * Math.PI;
+      const initialRadius = 150 + (index % 3) * 50;
+      return {
+        id: doc.id,
+        x: 400 + initialRadius * Math.cos(angle),
+        y: 300 + initialRadius * Math.sin(angle),
+        vx: 0,
+        vy: 0,
+        size: !doc.parentId || !documentIds.has(doc.parentId)
+          ? "large"
+          : (childrenByParent[doc.id]?.length ?? 0) > 0
+            ? "medium"
+            : "normal",
+      };
+    });
+
+    const nodesMap = new Map(nodesList.map(n => [n.id, n]));
+
+    // 3. Run Force-Directed layout simulation
+    const k = 0.15; // spring strength
+    const repulse = 120000; // repulsion strength
+    const centerGravity = 0.08; // gravity towards center (400, 300)
+    const idealLength = 130; // ideal link length
+
+    for (let step = 0; step < 200; step++) {
+      // Repulsion between all node pairs
+      for (let i = 0; i < nodesList.length; i++) {
+        const n1 = nodesList[i];
+        for (let j = i + 1; j < nodesList.length; j++) {
+          const n2 = nodesList[j];
+          const dx = n1.x - n2.x;
+          const dy = n1.y - n2.y;
+          const distSq = dx * dx + dy * dy + 0.1;
+          const dist = Math.sqrt(distSq);
+          if (dist < 500) {
+            const force = repulse / distSq;
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            n1.vx += fx;
+            n1.vy += fy;
+            n2.vx -= fx;
+            n2.vy -= fy;
+          }
+        }
+      }
+
+      // Attraction along edges (both hierarchy and content links)
+      simEdges.forEach((edge) => {
+        const n1 = nodesMap.get(edge.source);
+        const n2 = nodesMap.get(edge.target);
+        if (n1 && n2) {
+          const dx = n1.x - n2.x;
+          const dy = n1.y - n2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) + 0.1;
+          const force = k * (dist - idealLength);
+          const fx = (dx / dist) * force;
+          const fy = (dy / dist) * force;
+          n1.vx -= fx;
+          n1.vy -= fy;
+          n2.vx += fx;
+          n2.vy += fy;
+        }
+      });
+
+      // Gravity and damping
+      nodesList.forEach((n) => {
+        n.vx -= (n.x - 400) * centerGravity;
+        n.vy -= (n.y - 300) * centerGravity;
+
+        n.x += n.vx * 0.4;
+        n.y += n.vy * 0.4;
+        n.vx *= 0.65;
+        n.vy *= 0.65;
+      });
+    }
+
+    const positions: Record<string, { x: number; y: number }> = {};
+    nodesList.forEach((n) => {
+      positions[n.id] = { x: n.x, y: n.y };
+    });
+
+    // Build ReactFlow Nodes
+    const nodes: Node[] = docsToUse.map((doc) => {
+      const pos = positions[doc.id] || { x: 400, y: 300 };
+      const size = !doc.parentId || !documentIds.has(doc.parentId)
+        ? "large"
+        : (childrenByParent[doc.id]?.length ?? 0) > 0
+          ? "medium"
+          : "normal";
+
+      return {
         id: doc.id,
         type: "page",
-        position: { x: 150 + (i % 3) * 200, y: 100 + Math.floor(i / 3) * 150 },
+        position: pos,
         data: {
           title: doc.title,
           isActive: doc.id === documentId,
-          isHub: doc.childCount > 2,
-          size: doc.childCount > 2 ? "large" : "normal",
+          size,
+          colorClass: clusterColor[doc.id],
         },
-      })),
-    [documents, documentId]
-  )
+      };
+    });
+
+    // Helper to get edge stroke color
+    const getStrokeColor = (docId: string) => {
+      const colorCls = clusterColor[docId] || "";
+      if (colorCls.includes("orange")) return "#f97316";
+      if (colorCls.includes("rose")) return "#f43f5e";
+      if (colorCls.includes("emerald")) return "#10b981";
+      if (colorCls.includes("sky")) return "#0ea5e9";
+      if (colorCls.includes("violet")) return "#8b5cf6";
+      if (colorCls.includes("amber")) return "#f59e0b";
+      return "#4b5563";
+    };
+
+    // Build ReactFlow Edges
+    const edges: any[] = [];
+
+    // 1. Parent-Child hierarchy edges (colored based on branch)
+    docsToUse
+      .filter((doc) => doc.parentId && documentIds.has(doc.parentId))
+      .forEach((doc) => {
+        const strokeColor = getStrokeColor(doc.id);
+        edges.push({
+          id: `edge-hierarchy-${doc.parentId}-${doc.id}`,
+          source: doc.parentId!,
+          target: doc.id,
+          animated: true,
+          style: {
+            stroke: strokeColor,
+            strokeWidth: doc.id === documentId || doc.parentId === documentId ? 2.5 : 1.5,
+            opacity: doc.id === documentId || doc.parentId === documentId ? 0.95 : 0.6,
+          },
+        });
+      });
+
+    // 2. Content link edges (dashed sky/blue lines)
+    docsToUse.forEach((doc) => {
+      if (doc.linkedDocIds) {
+        doc.linkedDocIds.forEach((targetId) => {
+          if (documentIds.has(targetId)) {
+            edges.push({
+              id: `edge-link-${doc.id}-${targetId}`,
+              source: doc.id,
+              target: targetId,
+              animated: true,
+              style: {
+                stroke: "#38bdf8", // Sky blue for connections
+                strokeWidth: doc.id === documentId || targetId === documentId ? 2.2 : 1.2,
+                strokeDasharray: "5,5",
+                opacity: doc.id === documentId || targetId === documentId ? 0.95 : 0.5,
+              },
+            });
+          }
+        });
+      }
+    });
+
+    return { graphNodes: nodes, graphEdges: edges };
+  }, [allDocuments, documents, documentId]);
 
   if (activeDocLoading) {
     return (
@@ -291,14 +510,22 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
       <div className="relative flex flex-1 overflow-hidden">
         {view === "graph" ? (
           <div className="flex-1 animate-in bg-background duration-500 fade-in">
-            <ReactFlow nodes={graphNodes} edges={[]} nodeTypes={nodeTypes} fitView>
+            <ReactFlow
+              nodes={graphNodes}
+              edges={graphEdges}
+              nodeTypes={nodeTypes}
+              onNodeClick={(event, node) => {
+                router.push(`/dashboard/docs/${node.id}`);
+              }}
+              fitView
+            >
               <Background color="#18181B" gap={20} />
               <Controls className="border-zinc-700 bg-zinc-800 fill-zinc-400" />
               <div className="absolute top-4 left-4 z-10 flex items-center gap-4 rounded-lg border border-zinc-800/80 bg-zinc-900/50 px-4 py-2 backdrop-blur">
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-zinc-200">Knowledge Graph</span>
                   <span className="text-[10px] tracking-widest text-zinc-500 uppercase">
-                    {documents.length} pages
+                    {(allDocuments.length > 0 ? allDocuments : documents).length} pages
                   </span>
                 </div>
               </div>

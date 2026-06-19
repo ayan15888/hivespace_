@@ -92,6 +92,27 @@ public class DocumentService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public List<DocumentResponse> getAllDocumentsByProject(UUID projectId) {
+        rbacService.verifyResourceBelongsToTenant(projectId, ResourceType.PROJECT);
+        if (!rbacService.canViewProject(projectId)) {
+            throw new ForbiddenException("Access denied: You do not have permission to view documents in this project");
+        }
+
+        List<Document> docs = documentRepository.findAllByProjectIdOrderByUpdatedAtDesc(projectId);
+
+        // Sync links for all docs to catch up any existing links written before parser update
+        for (Document doc : docs) {
+            documentContentRepository.findById(doc.getId()).ifPresent(content -> {
+                updateDocumentLinks(doc, content.getContent());
+            });
+        }
+
+        return docs.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     // ==================== GET SINGLE DOC WITH CONTENT ====================
 
     @Transactional(readOnly = true)
@@ -125,6 +146,12 @@ public class DocumentService {
                     .textContent(content.getTextContent())
                     .version(content.getVersion());
         }
+
+        List<UUID> linkedDocIds = documentLinkRepository.findAllBySourceDocId(doc.getId())
+                .stream()
+                .map(link -> link.getTargetDoc().getId())
+                .collect(Collectors.toList());
+        builder.linkedDocIds(linkedDocIds);
 
         return builder.build();
     }
@@ -213,6 +240,13 @@ public class DocumentService {
         doc.setUpdatedAt(new Date());
         documentRepository.save(doc);
 
+        updateDocumentLinks(doc, request.getContent());
+
+        List<UUID> linkedDocIds = documentLinkRepository.findAllBySourceDocId(doc.getId())
+                .stream()
+                .map(link -> link.getTargetDoc().getId())
+                .collect(Collectors.toList());
+
         return DocumentContentResponse.builder()
                 .documentId(doc.getId())
                 .title(doc.getTitle())
@@ -225,6 +259,7 @@ public class DocumentService {
                 .createdById(doc.getCreatedBy() != null ? doc.getCreatedBy().getId() : null)
                 .createdByName(doc.getCreatedBy() != null ? doc.getCreatedBy().getFullName() : null)
                 .updatedAt(content.getUpdatedAt())
+                .linkedDocIds(linkedDocIds)
                 .build();
     }
 
@@ -334,6 +369,11 @@ public class DocumentService {
         int childCount = documentRepository.findAllByParentId(doc.getId()).size();
         long versionCount = documentVersionRepository.countByDocumentId(doc.getId());
 
+        List<UUID> linkedDocIds = documentLinkRepository.findAllBySourceDocId(doc.getId())
+                .stream()
+                .map(link -> link.getTargetDoc().getId())
+                .collect(Collectors.toList());
+
         DocumentResponse.DocumentResponseBuilder builder = DocumentResponse.builder()
                 .id(doc.getId())
                 .title(doc.getTitle())
@@ -345,7 +385,8 @@ public class DocumentService {
                 .childCount(childCount)
                 .versionCount((int) versionCount)
                 .createdAt(doc.getCreatedAt())
-                .updatedAt(doc.getUpdatedAt());
+                .updatedAt(doc.getUpdatedAt())
+                .linkedDocIds(linkedDocIds);
 
         if (doc.getCreatedBy() != null) {
             builder.createdById(doc.getCreatedBy().getId())
@@ -370,5 +411,88 @@ public class DocumentService {
         }
 
         return builder.build();
+    }
+
+    private void updateDocumentLinks(Document sourceDoc, String contentJson) {
+        if (contentJson == null || contentJson.isBlank()) {
+            List<DocumentLink> existing = documentLinkRepository.findAllBySourceDocId(sourceDoc.getId());
+            documentLinkRepository.deleteAll(existing);
+            return;
+        }
+
+        // 1. Find all href attributes in JSON
+        java.util.Set<String> hrefs = new java.util.HashSet<>();
+        java.util.regex.Pattern hrefPattern = java.util.regex.Pattern.compile(
+            "\"href\"\\s*:\\s*\"([^\"]+)\""
+        );
+        java.util.regex.Matcher hrefMatcher = hrefPattern.matcher(contentJson);
+        while (hrefMatcher.find()) {
+            hrefs.add(hrefMatcher.group(1).trim());
+        }
+
+        // 2. Resolve target document UUIDs
+        java.util.Set<UUID> targetIds = new java.util.HashSet<>();
+        
+        // Find all documents in the project for title/relative matching
+        List<Document> projectDocs = documentRepository.findAllByProjectIdOrderByUpdatedAtDesc(sourceDoc.getProject().getId());
+
+        // Regex for UUID extraction
+        java.util.regex.Pattern uuidPattern = java.util.regex.Pattern.compile(
+            "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})"
+        );
+
+        for (String href : hrefs) {
+            // Case A: UUID match in URL
+            java.util.regex.Matcher uuidMatcher = uuidPattern.matcher(href);
+            if (uuidMatcher.find()) {
+                try {
+                    targetIds.add(UUID.fromString(uuidMatcher.group(1)));
+                    continue;
+                } catch (IllegalArgumentException e) {
+                    // Ignore
+                }
+            }
+
+            // Case B: Title match in project (case-insensitive)
+            String cleanHref = href.toLowerCase().replaceAll("^/+", "").trim();
+            for (Document doc : projectDocs) {
+                if (doc.getId().equals(sourceDoc.getId())) continue;
+                String cleanTitle = doc.getTitle().toLowerCase().trim();
+                
+                if (cleanHref.equals(cleanTitle) || 
+                    cleanHref.endsWith("/" + cleanTitle) || 
+                    cleanHref.equals("dashboard/docs/" + cleanTitle) ||
+                    cleanTitle.equals(cleanHref)) {
+                    targetIds.add(doc.getId());
+                    break;
+                }
+            }
+        }
+
+        targetIds.remove(sourceDoc.getId());
+
+        // 3. Sync database table
+        List<DocumentLink> existingLinks = documentLinkRepository.findAllBySourceDocId(sourceDoc.getId());
+        java.util.Set<UUID> existingTargetIds = existingLinks.stream()
+            .map(link -> link.getTargetDoc().getId())
+            .collect(Collectors.toSet());
+
+        List<DocumentLink> toDelete = existingLinks.stream()
+            .filter(link -> !targetIds.contains(link.getTargetDoc().getId()))
+            .collect(Collectors.toList());
+        documentLinkRepository.deleteAll(toDelete);
+
+        for (UUID targetId : targetIds) {
+            if (!existingTargetIds.contains(targetId)) {
+                documentRepository.findById(targetId).ifPresent(targetDoc -> {
+                    DocumentLink newLink = DocumentLink.builder()
+                        .sourceDoc(sourceDoc)
+                        .targetDoc(targetDoc)
+                        .createdAt(new Date())
+                        .build();
+                    documentLinkRepository.save(newLink);
+                });
+            }
+        }
     }
 }

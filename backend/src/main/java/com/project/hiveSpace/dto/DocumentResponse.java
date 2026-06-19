@@ -3,6 +3,7 @@ package com.project.hiveSpace.dto;
 import lombok.*;
 
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -27,4 +28,6 @@ public class DocumentResponse {
     private int versionCount;
     private Date createdAt;
     private Date updatedAt;
+    private List<UUID> linkedDocIds;
 }
+

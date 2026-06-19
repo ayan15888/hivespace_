@@ -4,6 +4,7 @@ import {
   DocumentContentResponse,
   DocumentVersionResponse,
   getDocumentsByProject,
+  getAllDocumentsByProject,
   getDocumentWithContent,
   getDocumentVersions,
   createDocument,
@@ -16,8 +17,8 @@ import {
 } from "@/lib/api/documents";
 
 interface DocumentState {
-  // Document list for the active project
   documents: DocumentResponse[];
+  allDocuments: DocumentResponse[];
   loading: boolean;
   error: string | null;
 
@@ -44,6 +45,7 @@ interface DocumentState {
 
   // Actions
   fetchDocuments: (projectId: string) => Promise<void>;
+  fetchAllDocuments: (projectId: string) => Promise<void>;
   fetchDocumentContent: (documentId: string) => Promise<void>;
   fetchVersions: (documentId: string) => Promise<void>;
   fetchChildren: (documentId: string) => Promise<void>;
@@ -62,6 +64,7 @@ interface DocumentState {
 
 export const useDocumentStore = create<DocumentState>()((set, get) => ({
   documents: [],
+  allDocuments: [],
   loading: false,
   error: null,
   activeDocument: null,
@@ -82,6 +85,16 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
       set({ documents: data, loading: false });
     } catch (err: any) {
       set({ error: err.message || "Failed to fetch documents", loading: false });
+    }
+  },
+
+  fetchAllDocuments: async (projectId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const data = await getAllDocumentsByProject(projectId);
+      set({ allDocuments: data, loading: false });
+    } catch (err: any) {
+      set({ error: err.message || "Failed to fetch all documents", loading: false });
     }
   },
 
@@ -136,10 +149,16 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
           documents: state.documents.map((d) =>
             d.id === parentId ? { ...d, childCount: d.childCount + 1 } : d
           ),
+          allDocuments: [doc, ...state.allDocuments].map((d) =>
+            d.id === parentId ? { ...d, childCount: d.childCount + 1 } : d
+          ),
         };
       });
     } else {
-      set((state) => ({ documents: [doc, ...state.documents] }));
+      set((state) => ({
+        documents: [doc, ...state.documents],
+        allDocuments: [doc, ...state.allDocuments],
+      }));
     }
     return doc;
   },
@@ -148,6 +167,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
     const updated = await updateDocument(documentId, { title, icon });
     set((state) => ({
       documents: state.documents.map((d) => (d.id === updated.id ? updated : d)),
+      allDocuments: state.allDocuments.map((d) => (d.id === updated.id ? updated : d)),
     }));
     // Also update active document title if it matches
     const active = get().activeDocument;
@@ -162,7 +182,10 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
     // Update the document in the list (updatedAt changed)
     set((state) => ({
       documents: state.documents.map((d) =>
-        d.id === documentId ? { ...d, updatedAt: result.updatedAt } : d
+        d.id === documentId ? { ...d, updatedAt: result.updatedAt, linkedDocIds: result.linkedDocIds } : d
+      ),
+      allDocuments: state.allDocuments.map((d) =>
+        d.id === documentId ? { ...d, updatedAt: result.updatedAt, linkedDocIds: result.linkedDocIds } : d
       ),
     }));
   },
@@ -224,6 +247,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
     await deleteDocument(documentId);
     set((state) => ({
       documents: state.documents.filter((d) => d.id !== documentId),
+      allDocuments: state.allDocuments.filter((d) => d.id !== documentId),
       activeDocument: state.activeDocument?.documentId === documentId ? null : state.activeDocument,
     }));
   },
@@ -232,6 +256,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
     const updated = await publishDocument(documentId);
     set((state) => ({
       documents: state.documents.map((d) => (d.id === updated.id ? updated : d)),
+      allDocuments: state.allDocuments.map((d) => (d.id === updated.id ? updated : d)),
     }));
     const active = get().activeDocument;
     if (active && active.documentId === documentId) {
@@ -243,6 +268,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
     const updated = await unpublishDocument(documentId);
     set((state) => ({
       documents: state.documents.map((d) => (d.id === updated.id ? updated : d)),
+      allDocuments: state.allDocuments.map((d) => (d.id === updated.id ? updated : d)),
     }));
     const active = get().activeDocument;
     if (active && active.documentId === documentId) {

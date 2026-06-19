@@ -36,6 +36,12 @@ public class DocumentController {
         return ResponseEntity.ok(documentService.getDocumentsByProject(projectId));
     }
 
+    @GetMapping("/api/projects/{projectId}/documents/all")
+    public ResponseEntity<List<DocumentResponse>> getAllDocumentsByProject(
+            @PathVariable UUID projectId) {
+        return ResponseEntity.ok(documentService.getAllDocumentsByProject(projectId));
+    }
+
     // ==================== GET SINGLE DOC WITH CONTENT ====================
 
     @GetMapping("/api/documents/{documentId}")

@@ -24,6 +24,7 @@ export interface DocumentResponse {
   versionCount: number;
   createdAt: string;
   updatedAt: string;
+  linkedDocIds?: string[];
 }
 
 export interface DocumentContentRequest {
@@ -43,6 +44,7 @@ export interface DocumentContentResponse {
   createdById: string | null;
   createdByName: string | null;
   updatedAt: string;
+  linkedDocIds?: string[];
 }
 
 export interface DocumentVersionResponse {
@@ -67,6 +69,11 @@ export async function createDocument(projectId: string, data: DocumentRequest): 
 /** List all root-level documents for a project */
 export async function getDocumentsByProject(projectId: string): Promise<DocumentResponse[]> {
   return apiFetch(`/api/projects/${projectId}/documents`);
+}
+
+/** List all documents (recursive) for a project */
+export async function getAllDocumentsByProject(projectId: string): Promise<DocumentResponse[]> {
+  return apiFetch(`/api/projects/${projectId}/documents/all`);
 }
 
 /** Get a single document with its content */
