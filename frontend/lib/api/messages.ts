@@ -66,7 +66,7 @@ export async function removeReaction(messageId: string, emoji: string): Promise<
 export async function sendAiCommand(
   channelId: string,
   input: string
-): Promise<MessageResponse> {
+): Promise<MessageResponse & { isDraft?: boolean; draftContent?: string }> {
   return apiFetch(`/api/channels/${channelId}/ai-command`, {
     method: 'POST',
     body: JSON.stringify({ input }),

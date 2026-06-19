@@ -56,6 +56,19 @@ public class AiCommandController {
             // Call SlashCommandService
             String aiReply = slashCommandService.handleAiCommand(channelId, user.getId(), request.input());
 
+            String cleanedInput = request.input().trim().toLowerCase();
+            if (cleanedInput.startsWith("/ai ")) {
+                cleanedInput = cleanedInput.substring(4).trim();
+            }
+            boolean isDraft = cleanedInput.startsWith("draft ");
+
+            if (isDraft) {
+                return ResponseEntity.ok(Map.of(
+                        "isDraft", true,
+                        "draftContent", aiReply
+                ));
+            }
+
             // Save the AI's response as a new row in the messages table
             Message message = Message.builder()
                     .content(aiReply)

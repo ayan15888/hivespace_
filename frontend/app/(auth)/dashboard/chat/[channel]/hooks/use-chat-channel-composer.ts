@@ -117,14 +117,23 @@ export function useChatChannelComposer({
     }
 
     try {
-      const message = isAi
-        ? await sendAiCommand(channelId, content)
-        : await sendMessage(channelId, { content });
-
-      onMessageSent(message);
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 50);
+      if (isAi) {
+        const response = await sendAiCommand(channelId, content);
+        if (response.isDraft) {
+          setInputValue(response.draftContent || "");
+        } else {
+          onMessageSent(response as MessageResponse);
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          }, 50);
+        }
+      } else {
+        const response = await sendMessage(channelId, { content });
+        onMessageSent(response);
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 50);
+      }
     } catch (error: unknown) {
       console.error("Failed to send message", error);
       toast.error(getErrorMessage(error, "Failed to send message"));
