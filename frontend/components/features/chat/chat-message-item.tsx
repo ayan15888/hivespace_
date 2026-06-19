@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { MessageSquare, Trash2, Edit2, Users } from "lucide-react"
+import { MessageSquare, Trash2, Edit2, Users, Sparkles } from "lucide-react"
 import type { ChannelMemberInfo } from "@/lib/api/channels"
 import type { MessageResponse, UserSummary } from "@/types/messaging"
 import type { ElementType } from "react"
@@ -30,7 +30,7 @@ export function ChatMessageItem({
   themeColor?: string
   channelMembers?: ChannelMemberInfo[]
 }) {
-  const isAI = message.type === "AI"
+  const isAI = message.type === "AI" || !message.sender
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(message.content)
   const isMyMessage = message.sender?.id === currentUserId
@@ -112,7 +112,15 @@ export function ChatMessageItem({
     >
       {!message.isGrouped ? (
         <Avatar className="mt-0.5 h-8 w-8 shrink-0 shadow-lg shadow-black/20">
-          {message.sender?.avatarUrl ? (
+          {isAI ? (
+            <AvatarFallback
+              className="text-xs font-bold text-white bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5 fill-white">
+                <path d="M12,2 C12,7.5 16.5,12 22,12 C16.5,12 12,16.5 12,22 C12,16.5 7.5,12 2,12 C7.5,12 12,7.5 12,2 Z" />
+              </svg>
+            </AvatarFallback>
+          ) : message.sender?.avatarUrl ? (
             <img
               src={message.sender.avatarUrl}
               alt=""
@@ -141,7 +149,7 @@ export function ChatMessageItem({
         {!message.isGrouped && (
           <div className="mb-0.5 flex items-center">
             <span className="cursor-pointer text-sm font-semibold text-foreground hover:underline">
-              {message.sender?.fullName || "Deleted User"}
+              {isAI ? "Hex" : (message.sender?.fullName || "Deleted User")}
             </span>
             <span className="ml-2 text-[10px] font-medium text-muted-foreground">
               {new Date(message.createdAt).toLocaleDateString()}{" "}
@@ -154,7 +162,10 @@ export function ChatMessageItem({
         )}
 
         {isAI && (
-          <span className="mb-1 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
+          <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
+            <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current" style={{ color: themeColor }}>
+              <path d="M12,2 C12,7.5 16.5,12 22,12 C16.5,12 12,16.5 12,22 C12,16.5 7.5,12 2,12 C7.5,12 12,7.5 12,2 Z" />
+            </svg>
             AI Assistant
           </span>
         )}
