@@ -42,6 +42,7 @@ export function useChatChannelPage(channelId: string) {
     appendThreadMessage,
     updateThreadMessage,
     hasMoreMessages,
+    isAiLoading,
   } = useChatStore()
 
   const workspaceChannels = activeWorkspace
@@ -398,6 +399,7 @@ export function useChatChannelPage(channelId: string) {
     inputValue: composer.inputValue,
     insertMention: composer.insertMention,
     isConnected,
+    isAiLoading: isAiLoading[channelId] ?? false,
     loading: loading || isMessagesLoading,
     mentionDropdownVisible: composer.mentionDropdownVisible,
     mentionIndex: composer.mentionIndex,

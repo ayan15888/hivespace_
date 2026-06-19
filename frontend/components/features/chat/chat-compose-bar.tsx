@@ -51,6 +51,7 @@ export function ChatComposeBar({
   onMentionIndexChange: (value: number) => void
   onMentionDropdownVisibleChange: (value: boolean) => void
 }) {
+  const isAiMode = inputValue.toLowerCase().startsWith("/ai")
   const canSend = inputValue.trim().length > 0
 
   return (
@@ -58,11 +59,19 @@ export function ChatComposeBar({
       <div
         className={cn(
           "relative flex flex-col rounded-xl border bg-hs-card/80 backdrop-blur-sm transition-all duration-200",
-          inputFocused
-            ? "shadow-[0_0_15px_rgba(124,92,252,0.1)]"
-            : "border-border"
+          isAiMode
+            ? "shadow-[0_0_20px_rgba(168,85,247,0.25)] border-purple-500/50"
+            : inputFocused
+              ? "shadow-[0_0_15px_rgba(124,92,252,0.1)] border-border"
+              : "border-border"
         )}
-        style={inputFocused ? { borderColor: `${themeColor}80` } : undefined}
+        style={
+          isAiMode
+            ? { borderColor: "#a855f7" }
+            : inputFocused
+              ? { borderColor: `${themeColor}80` }
+              : undefined
+        }
       >
         {inputFocused && (
           <div className="flex h-9 animate-in items-center gap-1 border-b border-zinc-700/50 px-3 fade-in slide-in-from-top-1">
@@ -76,6 +85,17 @@ export function ChatComposeBar({
         )}
 
         <div className="relative flex flex-col p-2">
+          {isAiMode && (
+            <div className="mx-2 mt-1 mb-1.5 flex items-center gap-1.5 rounded-md bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-purple-500/20 px-2.5 py-1 text-[10px] text-foreground w-fit animate-in fade-in slide-in-from-top-1">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current animate-pulse text-purple-400">
+                <path d="M12,2 C12,7.5 16.5,12 22,12 C16.5,12 12,16.5 12,22 C12,16.5 7.5,12 2,12 C7.5,12 12,7.5 12,2 Z" />
+              </svg>
+              <span className="font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 uppercase">
+                HEX AI Command Mode
+              </span>
+            </div>
+          )}
+
           {mentionDropdownVisible && (
             <div className="absolute bottom-full left-0 z-50 mb-2 w-64 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl">
               {filteredMentionMembers.length === 0 ? (
@@ -214,7 +234,13 @@ export function ChatComposeBar({
                   ? "cursor-pointer text-white hover:opacity-90"
                   : "bg-zinc-700 text-zinc-500"
               )}
-              style={canSend ? { backgroundColor: themeColor } : undefined}
+              style={
+                canSend
+                  ? isAiMode
+                    ? { background: "linear-gradient(to right, #7C5CFC, #ec4899)" }
+                    : { backgroundColor: themeColor }
+                  : undefined
+              }
             >
               <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
             </Button>

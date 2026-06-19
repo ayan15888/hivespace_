@@ -40,6 +40,8 @@ public class SlashCommandService {
 
         if (input.equalsIgnoreCase("summarize") || input.equalsIgnoreCase("summarize this channel")) {
             return handleSummarize(channelId);
+        } else if (input.toLowerCase().startsWith("summarize from ")) {
+            return handleSummarizeBetween(channelId, input);
         } else if (input.toLowerCase().startsWith("ask ")) {
             String question = input.substring(4).trim();
             return handleAsk(channelId, question);
@@ -96,14 +98,20 @@ public class SlashCommandService {
     }
 
     private String handleDraftReply(UUID channelId, UUID requestingUserId, String person) {
+        String cleanPerson = person.trim();
+        if (cleanPerson.startsWith("@")) {
+            cleanPerson = cleanPerson.substring(1).trim();
+        }
+        final String searchName = cleanPerson.toLowerCase();
+
         // Resolve <person> in channel members
         List<ChannelMemberResponse> members = channelService.getChannelMembers(channelId, requestingUserId);
         ChannelMemberResponse targetMember = members.stream()
                 .filter(m -> {
                     String fullName = m.getFullName() != null ? m.getFullName() : "";
                     String username = m.getUsername() != null ? m.getUsername() : "";
-                    return fullName.toLowerCase().contains(person.toLowerCase())
-                            || username.toLowerCase().contains(person.toLowerCase());
+                    return fullName.toLowerCase().contains(searchName)
+                            || username.toLowerCase().contains(searchName);
                 })
                 .findFirst()
                 .orElse(null);
@@ -141,9 +149,73 @@ public class SlashCommandService {
     }
 
     private String getHelpMessage() {
-        return "I can help you with these three commands:\n" +
+        return "I can help you with these commands:\n" +
                 "1. `/ai summarize` - Summarizes the last 50 messages in this channel.\n" +
-                "2. `/ai ask <question>` - Answers your question using the last 20 messages as context.\n" +
-                "3. `/ai draft a reply to <person>` - Drafts a reply to a user based on the last 15 messages.";
+                "2. `/ai summarize from <date1> to <date2>` - Summarizes messages in the given date range (format: YYYY-MM-DD).\n" +
+                "3. `/ai ask <question>` - Answers your question using the last 20 messages as context.\n" +
+                "4. `/ai draft a reply to <person>` - Drafts a reply to a user based on the last 15 messages.";
+    }
+
+    private String handleSummarizeBetween(UUID channelId, String input) {
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "(?i)^summarize\\s+from\\s+(\\S+)\\s+to\\s+(\\S+)"
+        );
+        java.util.regex.Matcher matcher = pattern.matcher(input);
+        if (!matcher.matches()) {
+            return "Invalid format. Use: `/ai summarize from YYYY-MM-DD to YYYY-MM-DD`";
+        }
+
+        String startDateStr = matcher.group(1);
+        String endDateStr = matcher.group(2);
+
+        Instant startInstant = parseDate(startDateStr, false);
+        Instant endInstant = parseDate(endDateStr, true);
+
+        if (startInstant == null || endInstant == null) {
+            return "Could not parse dates. Please use YYYY-MM-DD format (e.g. 2026-06-18).";
+        }
+
+        if (startInstant.isAfter(endInstant)) {
+            return "The start date must be before or equal to the end date.";
+        }
+
+        List<Message> messages = messageRepository.findMessagesBetween(channelId, startInstant, endInstant);
+
+        if (messages.isEmpty()) {
+            return "There are no messages in this channel between " + startDateStr + " and " + endDateStr + ".";
+        }
+
+        String context = formatContext(messages);
+
+        String systemPrompt = "You are an AI assistant helping a team summarize their chat channel history for a specific time period. " +
+                "Read the following message history between " + startDateStr + " and " + endDateStr + " and write a concise, clear summary highlighting the key topics discussed, decisions made, and action items. " +
+                "Keep the summary structured and easy to read.";
+
+        return nvidiaAIService.chatCompletion(systemPrompt, context, defaultChatModel);
+    }
+
+    private static final List<java.time.format.DateTimeFormatter> DATE_FORMATTERS = List.of(
+            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+            java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"),
+            java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"),
+            java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+            java.time.format.DateTimeFormatter.ofPattern("MM-dd-yyyy"),
+            java.time.format.DateTimeFormatter.ofPattern("MM/dd/yyyy")
+    );
+
+    private Instant parseDate(String dateStr, boolean isEnd) {
+        for (java.time.format.DateTimeFormatter formatter : DATE_FORMATTERS) {
+            try {
+                java.time.LocalDate localDate = java.time.LocalDate.parse(dateStr, formatter);
+                if (isEnd) {
+                    return localDate.atTime(23, 59, 59).atZone(java.time.ZoneId.systemDefault()).toInstant();
+                } else {
+                    return localDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
+                }
+            } catch (java.time.format.DateTimeParseException e) {
+                // ignore and try next formatter
+            }
+        }
+        return null;
     }
 }

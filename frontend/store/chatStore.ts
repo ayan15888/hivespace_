@@ -16,6 +16,7 @@ interface ChatState {
 
   // ── Typing indicators ────────────────────────────────────────────────────────
   typingUsers: Record<string, TypingUser[]>     // keyed by channelId
+  isAiLoading: Record<string, boolean>          // keyed by channelId
 
   // ── Actions: channels ────────────────────────────────────────────────────────
   setChannels: (workspaceId: string, channels: ChannelResponse[]) => void
@@ -39,6 +40,7 @@ interface ChatState {
 
   // ── Actions: typing ───────────────────────────────────────────────────────────
   setTyping: (channelId: string, userId: string, displayName: string, typing: boolean) => void
+  setAiLoading: (channelId: string, loading: boolean) => void
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -50,6 +52,7 @@ export const useChatStore = create<ChatState>((set) => ({
   activeThreadParentId: null,
   threadMessages: {},
   typingUsers: {},
+  isAiLoading: {},
 
   // ── Channel actions ───────────────────────────────────────────────────────────
 
@@ -222,4 +225,9 @@ export const useChatStore = create<ChatState>((set) => ({
         },
       }
     }),
+
+  setAiLoading: (channelId, loading) =>
+    set((s) => ({
+      isAiLoading: { ...s.isAiLoading, [channelId]: loading },
+    })),
 }))

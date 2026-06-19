@@ -19,6 +19,7 @@ export function ChatMessageList({
   onReact,
   otherTypingUsers,
   channelId,
+  isAiLoading = false,
 }: {
   groupedMessages: GroupedItem[]
   loading: boolean
@@ -36,6 +37,7 @@ export function ChatMessageList({
     typing: boolean
   }>
   channelId: string
+  isAiLoading?: boolean
 }) {
   return (
     <div
@@ -64,6 +66,44 @@ export function ChatMessageList({
             channelMembers={channelMembers}
           />
         )
+      )}
+
+      {isAiLoading && (
+        <div
+          className="group relative flex gap-3 rounded-r-md p-3 transition-colors mt-2"
+          style={{
+            borderLeft: `2px solid ${themeColor}`,
+            backgroundColor: `${themeColor}10`,
+          }}
+        >
+          <Avatar className="mt-0.5 h-8 w-8 shrink-0 shadow-lg shadow-black/20 animate-pulse">
+            <AvatarFallback
+              className="text-xs font-bold text-white bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5 fill-white">
+                <path d="M12,2 C12,7.5 16.5,12 22,12 C16.5,12 12,16.5 12,22 C12,16.5 7.5,12 2,12 C7.5,12 12,7.5 12,2 Z" />
+              </svg>
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="mb-0.5 flex items-center">
+              <span className="text-sm font-semibold text-foreground">
+                Hex
+              </span>
+            </div>
+            <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
+              <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current animate-pulse" style={{ color: themeColor }}>
+                <path d="M12,2 C12,7.5 16.5,12 22,12 C16.5,12 12,16.5 12,22 C12,16.5 7.5,12 2,12 C7.5,12 12,7.5 12,2 Z" />
+              </svg>
+              AI Assistant is thinking
+            </span>
+            <div className="flex items-center gap-1.5 py-2">
+              <div className="h-2 w-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 animate-bounce [animation-delay:-0.3s]" />
+              <div className="h-2 w-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 animate-bounce [animation-delay:-0.15s]" />
+              <div className="h-2 w-2 rounded-full bg-gradient-to-r from-pink-500 to-indigo-500 animate-bounce" />
+            </div>
+          </div>
+        </div>
       )}
 
       {otherTypingUsers.length > 0 && (

@@ -33,6 +33,7 @@ export function ChatChannelPage({ channelId }: { channelId: string }) {
           onReply={page.setActiveThread}
           onReact={page.handleReactionClick}
           otherTypingUsers={page.otherTypingUsers}
+          isAiLoading={page.isAiLoading}
         />
 
         <ChatComposeBar

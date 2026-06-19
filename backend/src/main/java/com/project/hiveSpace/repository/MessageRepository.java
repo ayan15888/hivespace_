@@ -39,6 +39,22 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
         SELECT COUNT(m) FROM Message m
         WHERE m.parent.id = :parentId
           AND m.deletedAt IS NULL
-    """)
+      """)
     int countReplies(@Param("parentId") UUID parentId);
+
+    // Messages in a channel between a start and end time (inclusive, chronologically ordered)
+    @Query("""
+        SELECT m FROM Message m
+        WHERE m.channel.id = :channelId
+          AND m.parent IS NULL
+          AND m.deletedAt IS NULL
+          AND m.createdAt >= :startTime
+          AND m.createdAt <= :endTime
+        ORDER BY m.createdAt ASC
+    """)
+    List<Message> findMessagesBetween(
+        @Param("channelId") UUID channelId,
+        @Param("startTime") Instant startTime,
+        @Param("endTime") Instant endTime
+    );
 }

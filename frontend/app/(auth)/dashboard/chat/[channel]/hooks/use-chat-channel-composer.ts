@@ -9,6 +9,8 @@ import type { MessageResponse } from "@/types/messaging";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { getErrorMessage, buildMentionMembers } from "./chat-channel-helpers";
 
+import { useChatStore } from "@/store/chatStore";
+
 interface UseChatChannelComposerOptions {
   channelId: string;
   themeColor: string;
@@ -30,6 +32,8 @@ export function useChatChannelComposer({
   const [mentionDropdownVisible, setMentionDropdownVisible] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionIndex, setMentionIndex] = useState(0);
+
+  const setAiLoading = useChatStore((s) => s.setAiLoading);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -103,8 +107,17 @@ export function useChatChannelComposer({
       clearTimeout(typingTimeoutRef.current);
     }
 
+    const isAi = content.toLowerCase().startsWith("/ai");
+    if (isAi) {
+      setAiLoading(channelId, true);
+      // Immediately scroll to bottom so user sees the thinking placeholder
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 50);
+    }
+
     try {
-      const message = content.toLowerCase().startsWith("/ai")
+      const message = isAi
         ? await sendAiCommand(channelId, content)
         : await sendMessage(channelId, { content });
 
@@ -115,6 +128,10 @@ export function useChatChannelComposer({
     } catch (error: unknown) {
       console.error("Failed to send message", error);
       toast.error(getErrorMessage(error, "Failed to send message"));
+    } finally {
+      if (isAi) {
+        setAiLoading(channelId, false);
+      }
     }
   };
 
