@@ -95,7 +95,12 @@ export function useChatChannelPage(channelId: string) {
     )
 
     eventSource.onmessage = (event) => {
-      setUnreadSummary((prev) => (prev ?? "") + event.data)
+      try {
+        const parsed = JSON.parse(event.data)
+        setUnreadSummary((prev) => (prev ?? "") + (parsed.text ?? ""))
+      } catch {
+        setUnreadSummary((prev) => (prev ?? "") + event.data)
+      }
     }
 
     eventSource.onerror = (err) => {
@@ -114,10 +119,15 @@ export function useChatChannelPage(channelId: string) {
   const { isLoading: isMessagesLoading } = useQuery({
     queryKey: ["messages", channelId],
     queryFn: async () => {
-      // Capture the unread count from the store before clearing it
-      const currentChannels = useChatStore.getState().channels[activeWorkspace?.id ?? ""] ?? []
-      const ch = currentChannels.find((c) => c.id === channelId)
-      const unreads = ch ? ch.unreadCount : 0
+      const channelsMap = useChatStore.getState().channels
+      let unreads = 0
+      for (const chs of Object.values(channelsMap)) {
+        const ch = chs.find((c) => c.id === channelId)
+        if (ch) {
+          unreads = ch.unreadCount
+          break
+        }
+      }
       setInitialUnreadCount(unreads)
 
       const msgs = await getMessages(channelId)

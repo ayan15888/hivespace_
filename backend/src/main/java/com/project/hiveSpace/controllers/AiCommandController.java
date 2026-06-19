@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -112,6 +114,7 @@ public class AiCommandController {
         }
     }
 
+    @Transactional(readOnly = true)
     @GetMapping(value = "/channels/{channelId}/summarize-unread", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> summarizeUnread(
             @PathVariable UUID channelId,
@@ -154,9 +157,18 @@ public class AiCommandController {
                 "Summarize the following unread message log in a very concise, structured, bulleted format. " +
                 "Focus on what the user missed and any critical action items. Limit the summary to 2-3 sentences/bullets.";
 
-        return nvidiaAIService.streamChatCompletion(systemPrompt, context, defaultChatModel);
+        return nvidiaAIService.streamChatCompletion(systemPrompt, context, defaultChatModel)
+                .map(token -> {
+                    try {
+                        return new com.fasterxml.jackson.databind.ObjectMapper()
+                                .writeValueAsString(java.util.Map.of("text", token));
+                    } catch (Exception e) {
+                        return "{\"text\":\"" + token.replace("\"", "\\\"") + "\"}";
+                    }
+                });
     }
 
+    @Transactional(readOnly = true)
     @GetMapping("/channels/{channelId}/suggested-replies")
     public ResponseEntity<List<String>> getSuggestedReplies(
             @PathVariable UUID channelId,
