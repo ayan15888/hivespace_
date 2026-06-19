@@ -95,7 +95,12 @@ export function useChatChannelPage(channelId: string) {
     )
 
     eventSource.onmessage = (event) => {
-      setUnreadSummary((prev) => (prev ?? "") + event.data)
+      try {
+        const parsed = JSON.parse(event.data)
+        setUnreadSummary((prev) => (prev ?? "") + (parsed.text ?? ""))
+      } catch {
+        setUnreadSummary((prev) => (prev ?? "") + event.data)
+      }
     }
 
     eventSource.onerror = (err) => {

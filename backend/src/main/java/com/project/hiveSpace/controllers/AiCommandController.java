@@ -157,7 +157,15 @@ public class AiCommandController {
                 "Summarize the following unread message log in a very concise, structured, bulleted format. " +
                 "Focus on what the user missed and any critical action items. Limit the summary to 2-3 sentences/bullets.";
 
-        return nvidiaAIService.streamChatCompletion(systemPrompt, context, defaultChatModel);
+        return nvidiaAIService.streamChatCompletion(systemPrompt, context, defaultChatModel)
+                .map(token -> {
+                    try {
+                        return new com.fasterxml.jackson.databind.ObjectMapper()
+                                .writeValueAsString(java.util.Map.of("text", token));
+                    } catch (Exception e) {
+                        return "{\"text\":\"" + token.replace("\"", "\\\"") + "\"}";
+                    }
+                });
     }
 
     @Transactional(readOnly = true)
