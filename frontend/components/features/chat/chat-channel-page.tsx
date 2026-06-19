@@ -26,6 +26,7 @@ export function ChatChannelPage({ channelId }: { channelId: string }) {
           loading={page.loading}
           onScroll={page.handleScroll}
           messagesEndRef={page.messagesEndRef}
+          messagesContainerRef={page.messagesContainerRef}
           currentUserId={page.currentUser?.id}
           themeColor={page.themeColor}
           channelMembers={page.channelMembers}

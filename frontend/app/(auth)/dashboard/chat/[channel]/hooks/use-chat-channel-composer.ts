@@ -2,9 +2,9 @@
 
 import { useRef, useState } from "react";
 import type { RefObject, ChangeEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getChannelMembers } from "@/lib/api/channels";
 import { sendAiCommand, sendMessage } from "@/lib/api/messages";
-import type { ChannelMemberInfo } from "@/lib/api/channels";
 import type { MessageResponse } from "@/types/messaging";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { getErrorMessage, buildMentionMembers } from "./chat-channel-helpers";
@@ -12,8 +12,6 @@ import { getErrorMessage, buildMentionMembers } from "./chat-channel-helpers";
 interface UseChatChannelComposerOptions {
   channelId: string;
   themeColor: string;
-  channelMembers: ChannelMemberInfo[];
-  setChannelMembers: (members: ChannelMemberInfo[]) => void;
   onMessageSent: (message: MessageResponse) => void;
   sendTyping: (typing: boolean) => void;
   messagesEndRef: RefObject<HTMLDivElement | null>;
@@ -22,8 +20,6 @@ interface UseChatChannelComposerOptions {
 export function useChatChannelComposer({
   channelId,
   themeColor,
-  channelMembers,
-  setChannelMembers,
   onMessageSent,
   sendTyping,
   messagesEndRef,
@@ -37,6 +33,14 @@ export function useChatChannelComposer({
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const { data: channelMembersQuery } = useQuery({
+    queryKey: ["channel-members", channelId],
+    queryFn: () => getChannelMembers(channelId),
+    enabled: !!channelId,
+    refetchOnWindowFocus: false,
+  });
+  const channelMembers = channelMembersQuery ?? [];
 
   const handleInputChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     const value = event.target.value;
@@ -52,11 +56,6 @@ export function useChatChannelComposer({
       setMentionQuery(lastWord.slice(1).toLowerCase());
       setMentionDropdownVisible(true);
       setMentionIndex(0);
-      if (channelMembers.length === 0) {
-        getChannelMembers(channelId)
-          .then(setChannelMembers)
-          .catch(() => {});
-      }
     } else {
       setMentionDropdownVisible(false);
     }

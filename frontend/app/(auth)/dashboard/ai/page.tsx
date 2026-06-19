@@ -478,10 +478,7 @@ export function AnimatedAIChat({ onStart }: AnimatedAIChatProps) {
                                     "text-sm focus:outline-none focus:ring-0",
                                     "min-h-[60px]"
                                 )}
-                                style={{ color: '#EDE8E3' } as React.CSSProperties}
-                                style={{
-                                    overflow: "hidden",
-                                }}
+                                style={{ color: '#EDE8E3', overflow: "hidden" }}
                                 showRing={false}
                             />
                         </div>

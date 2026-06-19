@@ -11,6 +11,7 @@ export function ChatMessageList({
   loading,
   onScroll,
   messagesEndRef,
+  messagesContainerRef,
   currentUserId,
   themeColor,
   channelMembers,
@@ -23,6 +24,7 @@ export function ChatMessageList({
   loading: boolean
   onScroll: () => void
   messagesEndRef: RefObject<HTMLDivElement | null>
+  messagesContainerRef: RefObject<HTMLDivElement | null>
   currentUserId?: string
   themeColor: string
   channelMembers: ChannelMemberInfo[]
@@ -37,6 +39,7 @@ export function ChatMessageList({
 }) {
   return (
     <div
+      ref={messagesContainerRef}
       onScroll={onScroll}
       className="flex flex-1 flex-col gap-1 overflow-y-auto px-4 py-6"
     >

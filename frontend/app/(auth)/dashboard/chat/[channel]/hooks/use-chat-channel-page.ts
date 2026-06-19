@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useChannelSocket } from "@/hooks/useChannelSocket"
 import { useProjects } from "@/hooks/useProjects"
 import { useAuthStore } from "@/store/authStore"
@@ -15,7 +16,6 @@ import {
   sendMessage,
 } from "@/lib/api/messages"
 import { getChannelMembers, markChannelRead } from "@/lib/api/channels"
-import type { ChannelMemberInfo } from "@/lib/api/channels"
 import type { MessageResponse } from "@/types/messaging"
 import { buildGroupedMessages } from "../chat-utils"
 import { useChatChannelComposer } from "./use-chat-channel-composer"
@@ -67,43 +67,45 @@ export function useChatChannelPage(channelId: string) {
   )
 
   const [showMembers, setShowMembers] = useState(false)
-  const [channelMembers, setChannelMembers] = useState<ChannelMemberInfo[]>([])
-  const [membersLoading, setMembersLoading] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
+  // Load initial messages with TanStack Query
+  const { isLoading: isMessagesLoading } = useQuery({
+    queryKey: ["messages", channelId],
+    queryFn: async () => {
+      const msgs = await getMessages(channelId)
+      setMessages(channelId, msgs, msgs.length === 50)
+      await markChannelRead(channelId).catch(() => {})
+      clearUnread(channelId)
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop =
+            messagesContainerRef.current.scrollHeight
+        }
+      }, 50)
+      return msgs
+    },
+    enabled: !!channelId,
+    refetchOnWindowFocus: false,
+  })
+
+  // Load channel members with TanStack Query when showMembers is true
+  const { data: channelMembersQuery, isLoading: isMembersLoading } = useQuery({
+    queryKey: ["channel-members", channelId],
+    queryFn: () => getChannelMembers(channelId),
+    enabled: showMembers && !!channelId,
+    refetchOnWindowFocus: false,
+  })
+
+  const channelMembers = channelMembersQuery ?? []
+  const membersLoading = isMembersLoading
+
   useEffect(() => {
     setShowMembers(false)
-    setChannelMembers([])
   }, [channelId])
-
-  useEffect(() => {
-    if (!channelId) return
-
-    setLoading(true)
-    const loadMessages = async () => {
-      try {
-        const msgs = await getMessages(channelId)
-        setMessages(channelId, msgs, msgs.length === 50)
-        await markChannelRead(channelId).catch(() => {})
-        clearUnread(channelId)
-        setTimeout(() => {
-          if (messagesContainerRef.current) {
-            messagesContainerRef.current.scrollTop =
-              messagesContainerRef.current.scrollHeight
-          }
-        }, 50)
-      } catch (error) {
-        console.error("Failed to fetch messages", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    void loadMessages()
-  }, [channelId, clearUnread, setMessages])
 
   useEffect(() => {
     if (channelMessages.length === 0) return
@@ -294,31 +296,13 @@ export function useChatChannelPage(channelId: string) {
       })
   }
 
-  const toggleMembersPanel = async () => {
-    if (showMembers) {
-      setShowMembers(false)
-      return
-    }
-
-    setShowMembers(true)
-    if (channelMembers.length > 0) return
-
-    setMembersLoading(true)
-    try {
-      const members = await getChannelMembers(channelId)
-      setChannelMembers(members)
-    } catch (error) {
-      console.error("Failed to fetch channel members", error)
-    } finally {
-      setMembersLoading(false)
-    }
+  const toggleMembersPanel = () => {
+    setShowMembers((prev) => !prev)
   }
 
   const composer = useChatChannelComposer({
     channelId,
     themeColor,
-    channelMembers,
-    setChannelMembers,
     onMessageSent: (message: MessageResponse) => {
       appendMessage(channelId, message)
     },
@@ -414,7 +398,7 @@ export function useChatChannelPage(channelId: string) {
     inputValue: composer.inputValue,
     insertMention: composer.insertMention,
     isConnected,
-    loading,
+    loading: loading || isMessagesLoading,
     mentionDropdownVisible: composer.mentionDropdownVisible,
     mentionIndex: composer.mentionIndex,
     membersLoading,
@@ -426,7 +410,6 @@ export function useChatChannelPage(channelId: string) {
     setInputValue: composer.setInputValue,
     setMentionDropdownVisible: composer.setMentionDropdownVisible,
     setMentionIndex: composer.setMentionIndex,
-    setMembersLoading,
     setShowMembers,
     setThreadInputValue: composer.setThreadInputValue,
     showMembers,
