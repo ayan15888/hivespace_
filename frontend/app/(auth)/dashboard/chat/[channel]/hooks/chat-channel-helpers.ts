@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import type { ChannelMemberInfo } from "@/lib/api/channels";
-import type { MentionMember } from "../components/chat-utils";
+import type { ChannelMemberInfo } from "@/lib/api/channels"
+import type { MentionMember } from "../chat-utils"
 
 export function buildMentionMembers(
   channelMembers: ChannelMemberInfo[],
@@ -21,11 +21,11 @@ export function buildMentionMembers(
         member.username.toLowerCase().includes(mentionQuery) ||
         member.fullName?.toLowerCase().includes(mentionQuery)
     ),
-  ];
+  ]
 }
 
 export function getErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  return fallback;
+  if (error instanceof Error) return error.message
+  if (typeof error === "string") return error
+  return fallback
 }

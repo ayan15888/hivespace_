@@ -1,18 +1,18 @@
-"use client";
+"use client"
 
-import { useChatChannelPage } from "../hooks/use-chat-channel-page";
-import { ChatChannelHeader } from "./chat-channel-header";
-import { ChatComposeBar } from "./chat-compose-bar";
-import { ChatMembersPanel } from "./chat-members-panel";
-import { ChatMessageList } from "./chat-message-list";
-import { ChatThreadPanel } from "./chat-thread-panel";
+import { useChatChannelPage } from "@/app/(auth)/dashboard/chat/[channel]/hooks/use-chat-channel-page"
+import { ChatChannelHeader } from "./chat-channel-header"
+import { ChatComposeBar } from "./chat-compose-bar"
+import { ChatMembersPanel } from "./chat-members-panel"
+import { ChatMessageList } from "./chat-message-list"
+import { ChatThreadPanel } from "./chat-thread-panel"
 
 export function ChatChannelPage({ channelId }: { channelId: string }) {
-  const page = useChatChannelPage(channelId);
+  const page = useChatChannelPage(channelId)
 
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden">
-      <div className="flex flex-1 flex-col overflow-hidden relative">
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+      <div className="relative flex flex-1 flex-col overflow-hidden">
         <ChatChannelHeader
           currentChannel={page.currentChannel}
           isConnected={page.isConnected}
@@ -53,11 +53,11 @@ export function ChatChannelPage({ channelId }: { channelId: string }) {
         />
       </div>
 
-        <ChatThreadPanel
-          activeThread={page.activeThread}
-          activeThreadParentId={page.activeThreadParentId}
-          channelId={channelId}
-          currentChannelName={page.currentChannel?.name ?? undefined}
+      <ChatThreadPanel
+        activeThread={page.activeThread}
+        activeThreadParentId={page.activeThreadParentId}
+        channelId={channelId}
+        currentChannelName={page.currentChannel?.name ?? undefined}
         currentUserId={page.currentUser?.id}
         themeColor={page.themeColor}
         channelMembers={page.channelMembers}
@@ -77,5 +77,5 @@ export function ChatChannelPage({ channelId }: { channelId: string }) {
         onClose={() => page.setShowMembers(false)}
       />
     </div>
-  );
+  )
 }

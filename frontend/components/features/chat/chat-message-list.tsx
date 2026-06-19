@@ -1,10 +1,10 @@
-"use client";
+"use client"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import type { ChannelMemberInfo } from "@/lib/api/channels";
-import { ChatMessageItem } from "./chat-message-item";
-import type { GroupedItem } from "./chat-utils";
-import type { RefObject } from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import type { ChannelMemberInfo } from "@/lib/api/channels"
+import { ChatMessageItem } from "./chat-message-item"
+import type { GroupedItem } from "@/app/(auth)/dashboard/chat/[channel]/chat-utils"
+import type { RefObject } from "react"
 
 export function ChatMessageList({
   groupedMessages,
@@ -19,22 +19,26 @@ export function ChatMessageList({
   otherTypingUsers,
   channelId,
 }: {
-  groupedMessages: GroupedItem[];
-  loading: boolean;
-  onScroll: () => void;
-  messagesEndRef: RefObject<HTMLDivElement | null>;
-  currentUserId?: string;
-  themeColor: string;
-  channelMembers: ChannelMemberInfo[];
-  onReply: (messageId: string | null) => void;
-  onReact: (messageId: string, emoji: string, reactedByMe: boolean) => void;
-  otherTypingUsers: Array<{ userId: string; displayName: string; typing: boolean }>;
-  channelId: string;
+  groupedMessages: GroupedItem[]
+  loading: boolean
+  onScroll: () => void
+  messagesEndRef: RefObject<HTMLDivElement | null>
+  currentUserId?: string
+  themeColor: string
+  channelMembers: ChannelMemberInfo[]
+  onReply: (messageId: string | null) => void
+  onReact: (messageId: string, emoji: string, reactedByMe: boolean) => void
+  otherTypingUsers: Array<{
+    userId: string
+    displayName: string
+    typing: boolean
+  }>
+  channelId: string
 }) {
   return (
     <div
       onScroll={onScroll}
-      className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-1"
+      className="flex flex-1 flex-col gap-1 overflow-y-auto px-4 py-6"
     >
       {loading && (
         <div className="flex justify-center p-2">
@@ -60,12 +64,14 @@ export function ChatMessageList({
       )}
 
       {otherTypingUsers.length > 0 && (
-        <div className="group mt-2 flex items-center gap-2 animate-in slide-in-from-left-2 duration-300">
+        <div className="group mt-2 flex animate-in items-center gap-2 duration-300 slide-in-from-left-2">
           <Avatar className="h-5 w-5">
-            <AvatarFallback className="bg-zinc-800 text-[8px] text-zinc-400">SA</AvatarFallback>
+            <AvatarFallback className="bg-zinc-800 text-[8px] text-zinc-400">
+              SA
+            </AvatarFallback>
           </Avatar>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs italic text-zinc-500">
+            <span className="text-xs text-zinc-500 italic">
               {otherTypingUsers.map((user) => user.displayName).join(", ")}{" "}
               {otherTypingUsers.length === 1 ? "is" : "are"} typing
             </span>
@@ -80,16 +86,16 @@ export function ChatMessageList({
 
       <div ref={messagesEndRef} />
     </div>
-  );
+  )
 }
 
 function DateSeparator({ date }: { date: string }) {
   return (
     <div className="relative my-6 flex h-px items-center justify-center">
       <div className="absolute inset-x-0 h-px bg-border opacity-30" />
-      <span className="relative z-10 bg-background px-3 text-[11px] font-bold uppercase tracking-[2px] text-muted-foreground">
+      <span className="relative z-10 bg-background px-3 text-[11px] font-bold tracking-[2px] text-muted-foreground uppercase">
         {date}
       </span>
     </div>
-  );
+  )
 }
