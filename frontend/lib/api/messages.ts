@@ -62,3 +62,13 @@ export async function removeReaction(messageId: string, emoji: string): Promise<
     method: 'DELETE',
   })
 }
+
+export async function sendAiCommand(
+  channelId: string,
+  input: string
+): Promise<MessageResponse> {
+  return apiFetch(`/api/channels/${channelId}/ai-command`, {
+    method: 'POST',
+    body: JSON.stringify({ input }),
+  })
+}

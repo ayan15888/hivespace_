@@ -40,11 +40,13 @@ import {
   deleteMessage, 
   getThreadMessages, 
   addReaction, 
-  removeReaction 
+  removeReaction,
+  sendAiCommand 
 } from "@/lib/api/messages";
 import { markChannelRead, getChannelMembers } from "@/lib/api/channels";
 import type { ChannelMemberInfo } from "@/lib/api/channels";
 import type { MessageResponse, UserSummary } from "@/types/messaging";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 
 const EMOJIS = ["👍", "🚀", "❤️", "🔥", "👀", "🙌", "🎉", "😮"];
 
@@ -357,13 +359,19 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
       clearTimeout(typingTimeoutRef.current);
     }
     try {
-      const msg = await sendMessage(channelId, { content });
+      let msg;
+      if (content.toLowerCase().startsWith("/ai")) {
+        msg = await sendAiCommand(channelId, content);
+      } else {
+        msg = await sendMessage(channelId, { content });
+      }
       appendMessage(channelId, msg);
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 50);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to send message", err);
+      toast.error(err.message || "Failed to send message");
     }
   };
 
@@ -604,7 +612,7 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
                               idx === mentionIndex ? "bg-white/10" : "hover:bg-white/5"
                             )}
                           >
-                            {member.isAll ? (
+                            {(member as any).isAll ? (
                               <div className="h-6 w-6 rounded-full bg-zinc-800 flex items-center justify-center shrink-0">
                                 <Users className="h-3 w-3 text-zinc-400" />
                               </div>
@@ -615,7 +623,7 @@ export default function ChatPage({ params }: { params: Promise<{ channel: string
                             )}
                             <div className="flex flex-col min-w-0">
                               <span className="text-xs font-medium text-foreground truncate">{member.fullName || member.username}</span>
-                              {!member.isAll && <span className="text-[10px] text-zinc-500 truncate">@{member.username}</span>}
+                              {!(member as any).isAll && <span className="text-[10px] text-zinc-500 truncate">@{member.username}</span>}
                             </div>
                           </div>
                         ))}
