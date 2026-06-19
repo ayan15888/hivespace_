@@ -132,3 +132,11 @@ export async function getDocumentVersion(documentId: string, versionId: string):
 export async function getChildDocuments(documentId: string): Promise<DocumentResponse[]> {
   return apiFetch(`/api/documents/${documentId}/children`);
 }
+
+/** Redesign document with AI */
+export async function redesignDocumentWithAi(title: string, content: string): Promise<{ html: string }> {
+  return apiFetch(`/api/documents/redesign`, {
+    method: "POST",
+    body: JSON.stringify({ title, content }),
+  });
+}

@@ -232,4 +232,45 @@ public class AiCommandController {
 
         return ResponseEntity.ok(List.of("Got it, thanks!", "I'll take a look.", "Sure thing!"));
     }
+
+    @PostMapping("/documents/redesign")
+    public ResponseEntity<?> redesignDocument(
+            @RequestBody Map<String, String> request,
+            @AuthenticationPrincipal User user
+    ) {
+        String currentContent = request.get("content");
+        String documentTitle = request.get("title");
+        
+        String systemPrompt = "You are an expert technical writer and document designer. Your job is to redesign the provided document. " +
+                "You MUST format the redesigned document using clean, semantic HTML tags (such as <h1>, <h2>, <p>, <ul>, <li>, <strong>, <em>, <blockquote>). " +
+                "Do NOT wrap the output in a markdown code block (like ```html). Return ONLY the raw HTML body content.\n\n" +
+                "To make the document highly professional, interactive, and premium, you should incorporate the following elements where appropriate/required based on the document's content:\n" +
+                "1. Structured rich-text layout with clear headings, paragraphs, and list items.\n" +
+                "2. A well-formatted HTML table (`<table>`, `<tr>`, `<th>`, `<td>`) summarizing key metrics, project roles, timelines, or comparisons (highly recommended and should be added if the document contains structured, tabular, list-based, or numeric data). The table MUST NOT be plain black and white; style it using inline CSS (e.g. vibrant purple header background, indigo borders, colored data highlights, or alternate row styling) to make it visually rich.\n" +
+                "3. A beautiful inline visual flowchart or block diagram using a clean, well-aligned inline SVG element (`<svg>`) representing the relationship or workflow (highly recommended if the document details a process, workflow, architecture, or sequence of steps). The SVG should be fully responsive (using viewBox) and scale nicely.\n" +
+                "4. Decorative graphic elements such as styled horizontal dividers using gradient backgrounds (e.g. `<hr style=\"border: 0; height: 1px; background: linear-gradient(to right, #7C5CFC, transparent); margin: 2rem 0;\">`), styled alert/info callout boxes, and beautiful inline SVG icons next to headers to elevate the document's design and look.\n\n" +
+                "To make the UI extremely appealing and visually stunning, you MUST use a harmonious, premium color palette with vibrant accents. The UI must not look dull, grey, or black-and-white. Incorporate inline CSS styles (using style attributes) on headings, table headers, table cells, blockquote borders, and SVG elements. Use modern color tones like deep violets/purples, soft emeralds, indigo, or slate-glow gradients to highlight key sections, tags, or table metrics, avoiding basic colors.\n\n" +
+                "Ensure all content is written in a professional, clear, and engaging tone, replacing any placeholder or poorly formatted sections.";
+
+        String userPrompt = "Document Title: " + documentTitle + "\n\nCurrent Content (Text/HTML):\n" + (currentContent != null ? currentContent : "");
+
+        try {
+            String redesignedHtml = nvidiaAIService.chatCompletion(systemPrompt, userPrompt, "moonshotai/kimi-k2.6", 16384, 1.0);
+            // Clean markdown code blocks if AI wrapped them anyway
+            redesignedHtml = redesignedHtml.trim();
+            if (redesignedHtml.startsWith("```")) {
+                int firstLineEnd = redesignedHtml.indexOf('\n');
+                if (firstLineEnd != -1) {
+                    redesignedHtml = redesignedHtml.substring(firstLineEnd).trim();
+                }
+                if (redesignedHtml.endsWith("```")) {
+                    redesignedHtml = redesignedHtml.substring(0, redesignedHtml.length() - 3).trim();
+                }
+            }
+            return ResponseEntity.ok(Map.of("html", redesignedHtml));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "AI Redesign failed: " + e.getMessage()));
+        }
+    }
 }

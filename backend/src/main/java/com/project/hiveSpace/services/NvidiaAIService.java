@@ -28,6 +28,10 @@ public class NvidiaAIService {
     }
 
     public String chatCompletion(String systemPrompt, String userPrompt, String model) {
+        return chatCompletion(systemPrompt, userPrompt, model, 1000, 0.5);
+    }
+
+    public String chatCompletion(String systemPrompt, String userPrompt, String model, int maxTokens, double temperature) {
         try {
             AiRequest request = new AiRequest(
                     model,
@@ -35,8 +39,8 @@ public class NvidiaAIService {
                             new AiMessage("system", systemPrompt),
                             new AiMessage("user", userPrompt)
                     ),
-                    1000,
-                    0.5,
+                    maxTokens,
+                    temperature,
                     false
             );
 

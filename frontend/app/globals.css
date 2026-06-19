@@ -694,4 +694,86 @@
   transform: translate(-50%, -50%) scale(2.5);
   opacity: 1;
   transition: transform 0s, opacity 0s;
+}
+
+/* Tiptap Editor Styling */
+.ProseMirror {
+  outline: none;
+  min-height: 150px;
+}
+
+.ProseMirror h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--foreground);
+}
+
+.ProseMirror h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: var(--foreground);
+}
+
+.ProseMirror p {
+  margin-bottom: 0.75rem;
+  line-height: 1.625;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.ProseMirror blockquote {
+  border-left: 4px solid var(--hs-accent);
+  padding-left: 1rem;
+  color: var(--muted-foreground);
+  font-style: italic;
+  margin: 1rem 0;
+}
+
+/* Premium Table Styling for Document Editor */
+.ProseMirror table {
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  overflow: hidden;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  border: 1px solid var(--border);
+  box-sizing: border-box;
+  min-width: 1em;
+  padding: 10px 14px;
+  position: relative;
+  vertical-align: top;
+  text-align: left;
+}
+
+.ProseMirror th {
+  background-color: var(--secondary);
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.ProseMirror td {
+  background-color: transparent;
+}
+
+.ProseMirror tr:hover td {
+  background-color: var(--muted);
 }

@@ -23,7 +23,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { createTask, TaskRequest } from "@/lib/api/tasks";
 import { getProjectMembers, getProjectTeamMembers, ProjectMemberResponse, getProjectTeams, addProjectMember } from "@/lib/api/projects";
-import { getTeamMembers, TeamResponse } from "@/lib/api/teams";
+import { getTeamMembers, TeamResponse, TeamMemberResponse } from "@/lib/api/teams";
 import { columnNameToStatus, priorityToBackend } from "@/lib/taskUtils";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { motion, AnimatePresence } from "framer-motion";
@@ -60,7 +60,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
   // Teams-related state
   const [projectTeams, setProjectTeams] = useState<TeamResponse[]>([]);
   const [teamId, setTeamId] = useState("");
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([]);
   const [addingTeamMembers, setAddingTeamMembers] = useState(false);
 
   useEffect(() => {
@@ -163,7 +163,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
         const parsed = JSON.parse(saved);
         const projectMatrix = parsed?.project?.matrix;
         if (projectMatrix) {
-          const createRow = projectMatrix.find((row: any) => row.action === "Create & Dispatch Tasks");
+          const createRow = projectMatrix.find((row: { action: string; rolesGranted: string[] }) => row.action === "Create & Dispatch Tasks");
           if (createRow) {
             allowedRoles = createRow.rolesGranted;
           }
@@ -239,7 +239,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       setTeamMembers([]);
       onSuccess?.();
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to create task:", error);
       toast.error(error instanceof Error ? error.message : "Failed to create task. Please try again.");
     } finally {

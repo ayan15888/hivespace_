@@ -5,6 +5,18 @@ import { BubbleMenu } from "@tiptap/react/menus"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import Link from "@tiptap/extension-link"
+import { TextStyle } from "@tiptap/extension-text-style"
+import { Color } from "@tiptap/extension-color"
+import { Table } from "@tiptap/extension-table"
+import { TableRow } from "@tiptap/extension-table-row"
+import { TableHeader } from "@tiptap/extension-table-header"
+import { TableCell } from "@tiptap/extension-table-cell"
+import Heading from "@tiptap/extension-heading"
+import Paragraph from "@tiptap/extension-paragraph"
+import Blockquote from "@tiptap/extension-blockquote"
+import BulletList from "@tiptap/extension-bullet-list"
+import OrderedList from "@tiptap/extension-ordered-list"
+import ListItem from "@tiptap/extension-list-item"
 import { Node, mergeAttributes } from "@tiptap/core"
 import {
   Bold,
@@ -20,6 +32,7 @@ import {
   CheckSquare,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { parseStoredContent } from "@/components/features/docs/docHelpers"
 import { useState, useEffect } from "react"
 import type React from "react"
@@ -119,6 +132,63 @@ function deepEqual(a: any, b: any): boolean {
   return true
 }
 
+const COLORS = [
+  { name: "Default", value: "reset" },
+  { name: "White", value: "#ffffff" },
+  { name: "Gray", value: "#9ca3af" },
+  { name: "Red", value: "#f87171" },
+  { name: "Orange", value: "#fb923c" },
+  { name: "Amber", value: "#fbbf24" },
+  { name: "Green", value: "#4ade80" },
+  { name: "Emerald", value: "#34d399" },
+  { name: "Blue", value: "#60a5fa" },
+  { name: "Indigo", value: "#818cf8" },
+  { name: "Violet", value: "#a78bfa" },
+  { name: "Purple", value: "#c084fc" },
+  { name: "Fuchsia", value: "#e879f9" },
+  { name: "Pink", value: "#f472b6" },
+  { name: "Rose", value: "#fb7185" },
+]
+
+function extendNodeWithStyle(node: any) {
+  return node.extend({
+    addAttributes() {
+      return {
+        ...this.parent?.(),
+        style: {
+          default: null,
+          parseHTML: (element: HTMLElement) => element.getAttribute("style"),
+          renderHTML: (attributes: any) => {
+            if (!attributes.style) return {}
+            return { style: attributes.style }
+          },
+        },
+      }
+    },
+  })
+}
+
+const CustomHeading = extendNodeWithStyle(Heading).configure({
+  HTMLAttributes: {
+    class: "text-white font-bold tracking-tight",
+  },
+})
+const CustomParagraph = extendNodeWithStyle(Paragraph)
+const CustomBlockquote = extendNodeWithStyle(Blockquote)
+const CustomBulletList = extendNodeWithStyle(BulletList)
+const CustomOrderedList = extendNodeWithStyle(OrderedList)
+const CustomListItem = extendNodeWithStyle(ListItem)
+
+const CustomTable = extendNodeWithStyle(Table).configure({
+  resizable: true,
+  HTMLAttributes: {
+    class: "border-collapse border border-zinc-700 w-full my-4 rounded-lg overflow-hidden",
+  },
+})
+const CustomTableRow = extendNodeWithStyle(TableRow)
+const CustomTableHeader = extendNodeWithStyle(TableHeader)
+const CustomTableCell = extendNodeWithStyle(TableCell)
+
 // --- EDITOR COMPONENT ---
 
 export interface EditorContentPayload {
@@ -144,18 +214,25 @@ export function HivespaceEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({
+        heading: false,
+        paragraph: false,
+        blockquote: false,
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
         codeBlock: {
           HTMLAttributes: {
             class:
               "bg-zinc-800 rounded-lg p-4 font-mono text-xs text-zinc-300 border border-zinc-700/50 shadow-inner my-4",
           },
         },
-        heading: {
-          HTMLAttributes: {
-            class: "text-white font-bold tracking-tight",
-          },
-        },
       }),
+      CustomHeading,
+      CustomParagraph,
+      CustomBlockquote,
+      CustomBulletList,
+      CustomOrderedList,
+      CustomListItem,
       Placeholder.configure({
         placeholder: "Start writing, or type '/' for commands...",
         emptyEditorClass: "is-editor-empty",
@@ -166,6 +243,16 @@ export function HivespaceEditor({
           class: "text-violet-400 underline underline-offset-4 cursor-pointer",
         },
       }),
+      TextStyle.configure({
+        HTMLAttributes: {
+          style: null,
+        },
+      }),
+      Color,
+      CustomTable,
+      CustomTableRow,
+      CustomTableHeader,
+      CustomTableCell,
       HivespaceTask,
     ],
     content: parseStoredContent(initialContent),
@@ -205,7 +292,7 @@ export function HivespaceEditor({
 
     if (next.startsWith("<")) {
       if (editor.getHTML() !== next) {
-        editor.commands.setContent(next, { emitUpdate: false })
+        editor.commands.setContent(next, { emitUpdate: true })
       }
       return
     }
@@ -291,6 +378,48 @@ export function HivespaceEditor({
               const url = window.prompt("URL");
               if (url) editor.chain().focus().setLink({ href: url }).run();
             }} icon={Link2} />
+            <div className="w-px h-4 bg-zinc-800 mx-1" />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "p-1.5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors relative flex items-center justify-center cursor-pointer"
+                  )}
+                  title="Text Color"
+                >
+                  <span className="text-[13px] font-bold font-serif underline decoration-2 decoration-violet-500">A</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-40 border-zinc-700 bg-zinc-900 p-2 text-zinc-200 flex flex-col gap-1.5 shadow-2xl z-[150]">
+                <div className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase px-1">Text Color</div>
+                <div className="grid grid-cols-5 gap-1.5 p-0.5">
+                  {COLORS.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => {
+                        if (c.value === "reset") {
+                          editor.chain().focus().unsetColor().run();
+                        } else {
+                          editor.chain().focus().setColor(c.value).run();
+                        }
+                      }}
+                      className="w-5 h-5 rounded-full border border-zinc-800 cursor-pointer flex items-center justify-center hover:scale-110 transition-transform relative group"
+                      style={{ backgroundColor: c.value === "reset" ? "transparent" : c.value }}
+                      title={c.name}
+                    >
+                      {c.value === "reset" && (
+                        <div className="w-full h-px bg-red-500/80 rotate-45" />
+                      )}
+                      {editor.isActive("textStyle", { color: c.value }) && (
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-in zoom-in-50" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </BubbleMenu>
       )}
