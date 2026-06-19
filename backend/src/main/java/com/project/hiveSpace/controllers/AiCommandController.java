@@ -78,7 +78,11 @@ public class AiCommandController {
 
         } catch (AiServiceException e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(Map.of("message", "AI is temporarily unavailable, please try again in a moment."));
+                    .body(Map.of("message", "AI is temporarily unavailable, please try again in a moment. Details: " + e.getMessage()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Internal error: " + e.getClass().getName() + " - " + e.getMessage()));
         }
     }
 }
