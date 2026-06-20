@@ -1,8 +1,12 @@
 package com.project.hiveSpace.services;
 
 import com.project.hiveSpace.dto.ChannelMemberResponse;
+import com.project.hiveSpace.dto.FusedCandidate;
+import com.project.hiveSpace.dto.RAGResponse;
 import com.project.hiveSpace.models.Message;
+import com.project.hiveSpace.models.Channel;
 import com.project.hiveSpace.repository.MessageRepository;
+import com.project.hiveSpace.repository.ChannelRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
@@ -24,6 +28,10 @@ public class SlashCommandService {
     private final NvidiaAIService nvidiaAIService;
     private final MessageRepository messageRepository;
     private final ChannelService channelService;
+    private final ChannelRepository channelRepository;
+    private final HybridSearchService hybridSearchService;
+    private final RerankerService rerankerService;
+    private final RAGAnswerService ragAnswerService;
 
     @Value("${nvidia.model.default}")
     private String defaultChatModel;
@@ -88,13 +96,52 @@ public class SlashCommandService {
 
         List<Message> messages = new ArrayList<>(dbMessages);
         Collections.reverse(messages);
-        String context = formatContext(messages);
 
+        // Fetch channel to see if it is linked to a project
+        Channel channel = channelRepository.findById(channelId).orElse(null);
+        if (channel != null && channel.getProject() != null) {
+            try {
+                UUID projectId = channel.getProject().getId();
+                // 1. Hybrid Search (Stage 2)
+                List<FusedCandidate> candidates = hybridSearchService.performHybridSearch(projectId, question, 50);
+
+                // 2. Reranker (Stage 3)
+                List<FusedCandidate> topKCandidates = rerankerService.rerankCandidates(question, candidates, 5);
+
+                // 3. Context Builder (Stage 4) & LLM Answer Generation (Stage 5) & Safety Validation (Stage 6)
+                RAGResponse ragResponse = ragAnswerService.generateAnswer(question, topKCandidates, messages);
+
+                // 4. Response Assembly with Citations (Stage 7)
+                String citationSection = formatCitations(ragResponse.citations());
+                return ragResponse.answer() + citationSection;
+            } catch (Exception e) {
+                System.err.println("RAG pipeline failed, falling back to chat-history-only context: " + e.getMessage());
+            }
+        }
+
+        // Fallback: standard chat-history-only context
+        String context = formatContext(messages);
         String systemPrompt = "You are an AI assistant. Answer the user's question using ONLY the provided conversation context. " +
                 "If the conversation doesn't contain the answer to the question, you must reply exactly with: 'I don't have enough context to answer that'. " +
                 "Do not try to make up or extrapolate information. Here is the conversation context:\n\n" + context;
 
         return nvidiaAIService.chatCompletion(systemPrompt, question, defaultChatModel);
+    }
+
+    private String formatCitations(List<FusedCandidate> citations) {
+        if (citations == null || citations.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n\n**Sources:**\n");
+        for (FusedCandidate citation : citations) {
+            sb.append(String.format("- [%s](/dashboard/docs/%s) (Chunk #%d)\n",
+                    citation.getDocumentTitle(),
+                    citation.getDocumentId(),
+                    citation.getChunkIndex() + 1
+            ));
+        }
+        return sb.toString();
     }
 
     private String handleDraftReply(UUID channelId, UUID requestingUserId, String person) {
