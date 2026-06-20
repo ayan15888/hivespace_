@@ -29,12 +29,14 @@ interface HivespaceEditorProps {
   documentId?: string;
   initialContent?: string | null;
   onUpdate?: (payload: EditorContentPayload) => void;
+  onEditorReady?: (editor: any) => void;
 }
 
 export function HivespaceEditor({
   documentId,
   initialContent,
   onUpdate,
+  onEditorReady,
 }: HivespaceEditorProps) {
   const [isSlashMenuOpen, setIsSlashMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -112,6 +114,12 @@ export function HivespaceEditor({
     },
     [documentId],
   );
+
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      onEditorReady?.(editor);
+    }
+  }, [editor, onEditorReady]);
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;

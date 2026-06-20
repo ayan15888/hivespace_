@@ -355,9 +355,10 @@ export function ChatMessageItem({
         ) : (
           <div
             className={cn(
-              "text-sm leading-relaxed",
+              "text-sm leading-relaxed tracking-wide",
               message.isDeleted ? "text-zinc-500 italic" : "text-foreground"
             )}
+            style={{ wordSpacing: "0.03em" }}
           >
             {message.isDeleted ? (
               message.content

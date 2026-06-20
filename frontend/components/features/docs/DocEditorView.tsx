@@ -49,6 +49,7 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [editorKey, setEditorKey] = useState(0);
   const [isRedesigning, setIsRedesigning] = useState(false);
+  const [editor, setEditor] = useState<any>(null);
   const [ragStatus, setRagStatus] = useState<"SYNCING" | "READY">("READY");
 
   useDocumentSocket({
@@ -134,12 +135,24 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
       const title = activeDocument.title || "Untitled";
       const res = await redesignDocumentWithAi(title, currentText);
 
-      const plainText = res.html
-        .replace(/<[^>]*>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+      if (editor) {
+        // Set HTML into Tiptap to parse it into ProseMirror format, then read it back
+        editor.commands.setContent(res.html, { emitUpdate: true });
+        const newJson = JSON.stringify(editor.getJSON());
+        const plainText = editor.getText();
+        await saveContent(documentId, newJson, plainText);
+      } else {
+        const plainText = res.html
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        const minimalJson = JSON.stringify({
+          type: "doc",
+          content: [{ type: "paragraph", content: [{ type: "text", text: plainText }] }]
+        });
+        await saveContent(documentId, minimalJson, plainText);
+      }
 
-      await saveContent(documentId, res.html, plainText);
       setEditorKey((prev) => prev + 1);
       toast.success("Document redesigned successfully!");
     } catch (err) {
@@ -148,7 +161,7 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
     } finally {
       setIsRedesigning(false);
     }
-  }, [activeDocument, saveContent, documentId]);
+  }, [activeDocument, saveContent, documentId, editor]);
 
   const graphDocuments = useMemo(() => {
     return allDocuments.length > 0 ? allDocuments : documents;
@@ -263,6 +276,7 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
                     documentId={documentId}
                     initialContent={activeDocument?.content || ""}
                     onUpdate={handleContentChange}
+                    onEditorReady={setEditor}
                   />
                 </div>
               </div>
