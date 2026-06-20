@@ -44,7 +44,7 @@ public class RAGAnswerService {
 
         // 2. Format channel message context (Stage 4)
         StringBuilder chatContextBuilder = new StringBuilder();
-        chatContextBuilder.append("=== CONVERSATION CONTEXT ===\n");
+        chatContextBuilder.append("=== CONVERSATION CONTEXT (Chat Transcripts & Developer Discussions) ===\n");
         if (channelMessages == null || channelMessages.isEmpty()) {
             chatContextBuilder.append("No conversation context available.\n");
         } else {
@@ -68,8 +68,9 @@ public class RAGAnswerService {
         String systemPrompt = "You are an AI assistant. Answer the user's question using ONLY the provided Document Context and Conversation Context.\n\n" +
                 "Guidelines:\n" +
                 "1. Answer using ONLY the provided contexts. If the contexts do not contain the answer, reply exactly with: 'I don't have enough context to answer that.'\n" +
-                "2. Do not extrapolate, assume, or guess.\n" +
-                "3. Cite the source document title when referencing information from the Document Context (e.g. \"[Source: <title>]\").";
+                "2. You MUST check both the 'Document Context' and the 'Conversation Context (Chat Transcripts & Developer Discussions)'. Synthesize and reconcile the formal specifications, rules, or procedures from the documents with any related real-world incidents, discussions, proposed overrides, or final decisions found in the conversation. Ensure your answer incorporates both aspects (e.g. state the rule/procedure, and then explain any related chats). Specifically, if the user asks a hypothetical question about a system failure or outage (e.g. \"What happens if Redis goes down?\"), check the conversation to see if that specific failure or outage has actually occurred in the past, and if so, report the details of that past incident (such as latency spikes, stuck workers, how it was resolved, or future monitoring plans like Prometheus/Grafana).\n" +
+                "3. Do not extrapolate, assume, or guess beyond the provided contexts.\n" +
+                "4. Cite the source document title when referencing information from the Document Context (e.g. \"[Source: <title>]\").";
 
         // 5. Call LLM
         String answer = nvidiaAIService.chatCompletion(systemPrompt, userPrompt, defaultChatModel);

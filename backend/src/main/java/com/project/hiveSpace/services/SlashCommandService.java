@@ -87,11 +87,11 @@ public class SlashCommandService {
     }
 
     private String handleAsk(UUID channelId, String question) {
-        // Fetch last 20 messages
+        // Fetch last 50 messages to expand chat history context
         List<Message> dbMessages = messageRepository.findPageByChannel(
                 channelId,
                 Instant.now(),
-                PageRequest.of(0, 20)
+                PageRequest.of(0, 50)
         );
 
         List<Message> messages = new ArrayList<>(dbMessages);
@@ -105,8 +105,8 @@ public class SlashCommandService {
                 // 1. Hybrid Search (Stage 2)
                 List<FusedCandidate> candidates = hybridSearchService.performHybridSearch(projectId, question, 50);
 
-                // 2. Reranker (Stage 3)
-                List<FusedCandidate> topKCandidates = rerankerService.rerankCandidates(question, candidates, 5);
+                // 2. Reranker (Stage 3) - Increase top-K from 5 to 10 to include both official docs and informal notes/logs
+                List<FusedCandidate> topKCandidates = rerankerService.rerankCandidates(question, candidates, 10);
 
                 // 3. Context Builder (Stage 4) & LLM Answer Generation (Stage 5) & Safety Validation (Stage 6)
                 RAGResponse ragResponse = ragAnswerService.generateAnswer(question, topKCandidates, messages);
