@@ -79,7 +79,7 @@ export function HivespaceEditorChrome({
       </BubbleMenu>
 
       {isSlashMenuOpen && (
-        <div className="fixed z-[100] w-64 animate-in rounded-lg border border-zinc-800 bg-zinc-900 p-1 shadow-2xl duration-200 fade-in slide-in-from-top-2" style={{ top: menuPos.top, left: menuPos.left }}>
+        <div className="fixed z-100 w-64 animate-in rounded-lg border border-zinc-800 bg-zinc-900 p-1 shadow-2xl duration-200 fade-in slide-in-from-top-2" style={{ top: menuPos.top, left: menuPos.left }}>
           <div className="mb-1 flex items-center gap-2 border-b border-zinc-800/50 px-3 py-2">
             <Search className="h-3 w-3 text-zinc-500" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Editor Commands</span>

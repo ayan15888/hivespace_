@@ -52,6 +52,9 @@ public class AiCommandController {
     @Value("${nvidia.model.fast:meta/llama-3.1-8b-instruct}")
     private String fastChatModel;
 
+    @Value("${nvidia.model.redesign:moonshotai/kimi-k2.6}")
+    private String redesignModel;
+
     @PostMapping("/channels/{channelId}/ai-command")
     public ResponseEntity<?> handleAiCommand(
             @PathVariable UUID channelId,
@@ -254,23 +257,54 @@ public class AiCommandController {
 
         String userPrompt = "Document Title: " + documentTitle + "\n\nCurrent Content (Text/HTML):\n" + (currentContent != null ? currentContent : "");
 
+        String redesignedHtml = null;
+        Exception lastException = null;
+
+        // Try primary configured redesign model (default: moonshotai/kimi-k2.6)
         try {
-            String redesignedHtml = nvidiaAIService.chatCompletion(systemPrompt, userPrompt, "moonshotai/kimi-k2.6", 16384, 1.0);
-            // Clean markdown code blocks if AI wrapped them anyway
-            redesignedHtml = redesignedHtml.trim();
-            if (redesignedHtml.startsWith("```")) {
-                int firstLineEnd = redesignedHtml.indexOf('\n');
-                if (firstLineEnd != -1) {
-                    redesignedHtml = redesignedHtml.substring(firstLineEnd).trim();
-                }
-                if (redesignedHtml.endsWith("```")) {
-                    redesignedHtml = redesignedHtml.substring(0, redesignedHtml.length() - 3).trim();
-                }
-            }
-            return ResponseEntity.ok(Map.of("html", redesignedHtml));
+            redesignedHtml = nvidiaAIService.chatCompletion(systemPrompt, userPrompt, redesignModel, 4096, 0.1);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("message", "AI Redesign failed: " + e.getMessage()));
+            System.err.println("Primary AI redesign model (" + redesignModel + ") failed: " + e.getMessage() + ". Trying fallback model.");
+            lastException = e;
         }
+
+        // Fallback to defaultChatModel if primary fails
+        if (redesignedHtml == null && defaultChatModel != null && !defaultChatModel.equals(redesignModel)) {
+            try {
+                redesignedHtml = nvidiaAIService.chatCompletion(systemPrompt, userPrompt, defaultChatModel, 4096, 0.1);
+            } catch (Exception e) {
+                System.err.println("Fallback AI redesign model (" + defaultChatModel + ") failed: " + e.getMessage());
+                lastException = e;
+            }
+        }
+
+        // Fallback to fastChatModel if defaultChatModel also fails
+        if (redesignedHtml == null && fastChatModel != null && !fastChatModel.equals(redesignModel) && !fastChatModel.equals(defaultChatModel)) {
+            try {
+                redesignedHtml = nvidiaAIService.chatCompletion(systemPrompt, userPrompt, fastChatModel, 4096, 0.1);
+            } catch (Exception e) {
+                System.err.println("Second fallback AI redesign model (" + fastChatModel + ") failed: " + e.getMessage());
+                lastException = e;
+            }
+        }
+
+        if (redesignedHtml == null) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "AI Redesign failed: " + (lastException != null ? lastException.getMessage() : "Unknown error")));
+        }
+
+        // Clean markdown code blocks if AI wrapped them anyway
+        redesignedHtml = redesignedHtml.trim();
+        if (redesignedHtml.startsWith("```")) {
+            int firstLineEnd = redesignedHtml.indexOf('\n');
+            if (firstLineEnd != -1) {
+                redesignedHtml = redesignedHtml.substring(firstLineEnd).trim();
+            }
+            if (redesignedHtml.endsWith("```")) {
+                redesignedHtml = redesignedHtml.substring(0, redesignedHtml.length() - 3).trim();
+            }
+        }
+
+        return ResponseEntity.ok(Map.of("html", redesignedHtml));
     }
 }
