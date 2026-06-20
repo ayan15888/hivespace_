@@ -145,6 +145,43 @@ public class NvidiaAIService {
         }
     }
 
+    @Value("${nvidia.url.rerank}")
+    private String rerankUrl;
+
+    @Value("${nvidia.model.rerank}")
+    private String rerankModel;
+
+    public List<RerankResult> rerank(String queryText, List<String> passagesText) {
+        try {
+            List<RerankPassage> passages = passagesText.stream()
+                    .map(RerankPassage::new)
+                    .toList();
+
+            RerankRequest request = new RerankRequest(
+                    rerankModel,
+                    new RerankQuery(queryText),
+                    passages,
+                    "END"
+            );
+
+            RerankResponse response = restClient.post()
+                    .uri(rerankUrl)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .body(RerankResponse.class);
+
+            if (response == null || response.rankings() == null) {
+                throw new AiServiceException("Invalid response format received from Nvidia Rerank API.");
+            }
+
+            return response.rankings();
+        } catch (Exception e) {
+            throw new AiServiceException("Failed to call Nvidia Rerank API: " + e.getMessage(), e);
+        }
+    }
+
     // Request/Response representation (Records)
     public record AiMessage(String role, String content) {}
 
@@ -175,5 +212,20 @@ public class NvidiaAIService {
     public record EmbeddingResponse(
             List<EmbeddingData> data
     ) {}
+
+    public record RerankQuery(String text) {}
+
+    public record RerankPassage(String text) {}
+
+    public record RerankRequest(
+            String model,
+            RerankQuery query,
+            List<RerankPassage> passages,
+            String truncate
+    ) {}
+
+    public record RerankResult(int index, double logit) {}
+
+    public record RerankResponse(List<RerankResult> rankings) {}
 }
 
