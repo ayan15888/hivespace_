@@ -110,6 +110,41 @@ public class NvidiaAIService {
         }
     }
 
+    @Value("${nvidia.model.embedding}")
+    private String embeddingModel;
+
+    public float[] getEmbedding(String text, String inputType) {
+        try {
+            EmbeddingRequest request = new EmbeddingRequest(
+                    embeddingModel,
+                    List.of(text),
+                    inputType,
+                    "float"
+            );
+
+            EmbeddingResponse response = restClient.post()
+                    .uri("/embeddings")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .body(EmbeddingResponse.class);
+
+            if (response == null || response.data() == null || response.data().isEmpty()) {
+                throw new AiServiceException("Invalid response format received from Nvidia Embeddings API.");
+            }
+
+            List<Double> embList = response.data().get(0).embedding();
+            float[] vector = new float[embList.size()];
+            for (int i = 0; i < embList.size(); i++) {
+                vector[i] = embList.get(i).floatValue();
+            }
+            return vector;
+        } catch (Exception e) {
+            throw new AiServiceException("Failed to call Nvidia Embeddings API: " + e.getMessage(), e);
+        }
+    }
+
     // Request/Response representation (Records)
     public record AiMessage(String role, String content) {}
 
@@ -124,4 +159,21 @@ public class NvidiaAIService {
     public record AiChoice(AiMessage message) {}
 
     public record AiResponse(List<AiChoice> choices) {}
+
+    public record EmbeddingRequest(
+            String model,
+            List<String> input,
+            String input_type,
+            String encoding_format
+    ) {}
+
+    public record EmbeddingData(
+            List<Double> embedding,
+            int index
+    ) {}
+
+    public record EmbeddingResponse(
+            List<EmbeddingData> data
+    ) {}
 }
+

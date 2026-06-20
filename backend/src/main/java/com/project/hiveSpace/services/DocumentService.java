@@ -28,6 +28,7 @@ public class DocumentService {
     private final WorkspaceRepository workspaceRepository;
     private final RbacService rbacService;
     private final ObjectMapper objectMapper;
+    private final DocumentEmbeddingService documentEmbeddingService;
 
     // ==================== CREATE ====================
 
@@ -246,6 +247,9 @@ public class DocumentService {
                 .stream()
                 .map(link -> link.getTargetDoc().getId())
                 .collect(Collectors.toList());
+
+        // Trigger chunking and embedding asynchronously (RAG Stage 1)
+        documentEmbeddingService.triggerEmbeddingAsync(doc.getId(), request.getTextContent(), doc.getProject().getId());
 
         return DocumentContentResponse.builder()
                 .documentId(doc.getId())
