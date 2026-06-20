@@ -77,7 +77,7 @@ export function NavRail() {
     { name: "Home", href: "/dashboard", icon: Home },
     { name: "Inbox", href: "/dashboard/inbox", icon: Inbox, badge: "4" },
     { name: "Tasks", href: "/dashboard/tasks", icon: KanbanSquare },
-    { name: "Chat", href: "/dashboard/chat/backend-ops", icon: MessageSquare },
+    { name: "Chat", href: "/dashboard/chat", icon: MessageSquare },
     { name: "Docs", href: "/dashboard/docs", icon: BookOpen },
     { name: "GitHub", href: "/dashboard/github", icon: GitGraph },
     { name: "Mail", href: "/dashboard/mail", icon: Mail },

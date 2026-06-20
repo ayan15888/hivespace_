@@ -46,3 +46,17 @@ export const canAssignTeamToProject = (ctx: ProjectContext): boolean =>
 
 export const canViewProject = (ctx: ProjectContext): boolean =>
   canAdminWorkspace(ctx) || ctx.projectRole != null;
+
+// --- DOCUMENT PERMISSIONS ---
+
+export const canCreateDocument = (ctx: ProjectContext): boolean =>
+  ctx.projectRole === 'LEAD' || ctx.projectRole === 'MEMBER' || canAdminWorkspace(ctx);
+
+export const canEditDocument = (ctx: ProjectContext): boolean =>
+  canCreateDocument(ctx);
+
+export const canPublishDocument = (ctx: ProjectContext): boolean =>
+  ctx.projectRole === 'LEAD' || canAdminWorkspace(ctx);
+
+export const canDeleteDocument = (ctx: ProjectContext): boolean =>
+  ctx.projectRole === 'LEAD' || canAdminWorkspace(ctx);

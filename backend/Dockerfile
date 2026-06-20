@@ -42,6 +42,12 @@ USER spring:spring
 # Copy only the compiled executable JAR from the builder stage
 COPY --chown=spring:spring --from=builder /app/build/libs/*.jar app.jar
 
+# Optional: Copy .env file if it exists in the build context.
+# Using wildcard (*) ensures that the build does not fail if the .env file is missing (e.g., in CI/CD or production builds).
+# We copy to both root and backend subdirectory to align with the application's dotenv loading paths.
+COPY --chown=spring:spring .env* ./
+COPY --chown=spring:spring .env* ./backend/
+
 # Inform Docker that the container listens on port 8080 (Render dynamically overrides this using $PORT)
 EXPOSE 8080
 
@@ -51,5 +57,8 @@ EXPOSE 8080
 # - -XX:+ExitOnOutOfMemoryError: Ensures the container exits and restarts if JVM runs out of memory.
 ENV JAVA_OPTS="-XX:+UseG1GC -XX:MaxRAMPercentage=75.0 -XX:MinRAMPercentage=50.0 -XX:+ExitOnOutOfMemoryError"
 
-# Start the Spring Boot application
+# Start the Spring Boot application.
+# If running locally, you can run the built image and supply/connect with Supabase via:
+#   docker build -t hivespace-backend backend/
+#   docker run -p 8080:8080 --env-file backend/.env hivespace-backend
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

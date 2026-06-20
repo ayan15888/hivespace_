@@ -231,3 +231,128 @@ CREATE TABLE public.shareable_links (
   CONSTRAINT shareable_links_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
   CONSTRAINT shareable_links_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );
+CREATE TABLE public.documents (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title character varying NOT NULL DEFAULT 'Untitled'::character varying,
+  icon character varying,
+  workspace_id uuid NOT NULL,
+  project_id uuid,
+  team_id uuid,
+  parent_id uuid,
+  created_by uuid,
+  is_published boolean NOT NULL DEFAULT false,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT documents_pkey PRIMARY KEY (id),
+  CONSTRAINT documents_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+  CONSTRAINT documents_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
+  CONSTRAINT documents_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT documents_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT documents_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.documents(id)
+);
+CREATE TABLE public.document_content (
+  document_id uuid NOT NULL,
+  content jsonb,
+  text_content text,
+  version integer NOT NULL DEFAULT 1,
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT document_content_pkey PRIMARY KEY (document_id),
+  CONSTRAINT document_content_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id)
+);
+CREATE TABLE public.document_versions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  document_id uuid NOT NULL,
+  content jsonb NOT NULL,
+  saved_by uuid,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT document_versions_pkey PRIMARY KEY (id),
+  CONSTRAINT document_versions_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id),
+  CONSTRAINT document_versions_saved_by_fkey FOREIGN KEY (saved_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.document_links (
+  source_doc_id uuid NOT NULL,
+  target_doc_id uuid NOT NULL,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT document_links_pkey PRIMARY KEY (source_doc_id, target_doc_id),
+  CONSTRAINT document_links_source_doc_id_fkey FOREIGN KEY (source_doc_id) REFERENCES public.documents(id),
+  CONSTRAINT document_links_target_doc_id_fkey FOREIGN KEY (target_doc_id) REFERENCES public.documents(id)
+);
+CREATE TABLE public.channels (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name character varying,
+  type character varying NOT NULL DEFAULT 'PUBLIC'::character varying CHECK (type::text = ANY (ARRAY['PUBLIC'::character varying, 'PRIVATE'::character varying, 'DM'::character varying, 'THREAD'::character varying]::text[])),
+  workspace_id uuid NOT NULL,
+  project_id uuid,
+  team_id uuid,
+  created_by uuid,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT channels_pkey PRIMARY KEY (id),
+  CONSTRAINT channels_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
+  CONSTRAINT channels_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT channels_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT channels_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.channel_members (
+  channel_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  last_read_at timestamp without time zone,
+  joined_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT channel_members_pkey PRIMARY KEY (channel_id, user_id),
+  CONSTRAINT channel_members_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.channels(id),
+  CONSTRAINT channel_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  content text NOT NULL,
+  type character varying NOT NULL DEFAULT 'TEXT'::character varying CHECK (type::text = ANY (ARRAY['TEXT'::character varying, 'FILE'::character varying, 'SYSTEM'::character varying, 'AI'::character varying]::text[])),
+  channel_id uuid NOT NULL,
+  sender_id uuid,
+  parent_id uuid,
+  edited_at timestamp without time zone,
+  deleted_at timestamp without time zone,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT messages_pkey PRIMARY KEY (id),
+  CONSTRAINT messages_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.channels(id),
+  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.users(id),
+  CONSTRAINT messages_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.messages(id)
+);
+CREATE TABLE public.message_reactions (
+  message_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  emoji character varying NOT NULL,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT message_reactions_pkey PRIMARY KEY (message_id, user_id, emoji),
+  CONSTRAINT message_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT message_reactions_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.messages(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL,
+  content character varying NOT NULL,
+  created_at timestamp without time zone NOT NULL,
+  is_read boolean NOT NULL,
+  type character varying NOT NULL CHECK (type::text = ANY (ARRAY['MENTION'::character varying, 'TASK_ASSIGNED'::character varying, 'SYSTEM'::character varying]::text[])),
+  actor_id uuid,
+  channel_id uuid,
+  message_id uuid,
+  user_id uuid NOT NULL,
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT fk4sd9fik0uthbk6d9rsxco4uja FOREIGN KEY (actor_id) REFERENCES public.users(id),
+  CONSTRAINT fkmiftu2o020axe0hjhdvebm2sh FOREIGN KEY (channel_id) REFERENCES public.channels(id),
+  CONSTRAINT fkibag5l76gvbhaumitjend434e FOREIGN KEY (message_id) REFERENCES public.messages(id),
+  CONSTRAINT fk9y21adhxn0ayjhfocscqox7bh FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.document_chunks (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  document_id uuid NOT NULL,
+  project_id uuid NOT NULL,
+  chunk_index integer NOT NULL,
+  content text NOT NULL,
+  embedding USER-DEFINED,
+  content_tsv tsvector DEFAULT to_tsvector('english'::regconfig, content),
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT document_chunks_pkey PRIMARY KEY (id),
+  CONSTRAINT document_chunks_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id),
+  CONSTRAINT document_chunks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);

@@ -41,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/share/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/i/*").permitAll()
                         .requestMatchers("/api/health").permitAll()
+                        .requestMatchers("/ws", "/ws/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -58,14 +59,7 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Port/host wildcards: IPv6 localhost, alternate ports, and LAN dev (direct API calls).
-        configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",
-                "http://127.0.0.1:*",
-                "http://[::1]:*",
-                "http://192.168.*:*",
-                "http://10.*:*",
-                "http://*.local:*"));
+        configuration.setAllowedOriginPatterns(List.of("*"));
         
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList(

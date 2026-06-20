@@ -32,21 +32,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        String jwt = null;
         final String authHeader = request.getHeader("Authorization");
 
-        if (authHeader == null) {
-            filterChain.doFilter(request, response);
-            return;
+        if (authHeader != null) {
+            final String trimmedHeader = authHeader.trim();
+            if (trimmedHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
+                jwt = trimmedHeader.substring(7).trim();
+            }
         }
 
-        final String trimmedHeader = authHeader.trim();
-        if (!trimmedHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
-            filterChain.doFilter(request, response);
-            return;
+        if (jwt == null || jwt.isEmpty()) {
+            jwt = request.getParameter("token");
         }
 
-        final String jwt = trimmedHeader.substring(7).trim();
-        if (jwt.isEmpty()) {
+        if (jwt == null || jwt.isEmpty()) {
             filterChain.doFilter(request, response);
             return;
         }

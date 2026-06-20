@@ -29,6 +29,7 @@ public class RbacService {
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
     private final ProjectTeamRepository projectTeamRepository;
+    private final DocumentRepository documentRepository;
     // private final TenantRepository tenantRepository;
 
     public User getCurrentUser() {
@@ -276,6 +277,80 @@ public class RbacService {
         return canAddTaskAssignee(taskId);
     }
 
+    // --- DOCUMENT LEVEL ---
+
+    /**
+     * Project MEMBER+ or team member assigned to the project can create docs.
+     */
+    public boolean canCreateDocument(UUID projectId) {
+        User user = getCurrentUser();
+        if (user == null || projectId == null) return false;
+        if (hasProjectRole(projectId, ProjectMemberRole.MEMBER)) return true;
+        if (isUserInTeamAssignedToProject(user.getId(), projectId)) return true;
+        return projectRepository.findById(projectId)
+                .map(project -> canAdminWorkspace(project.getWorkspace().getId()))
+                .orElse(false);
+    }
+
+    /**
+     * Project MEMBER+ or team member assigned to the project can edit docs.
+     */
+    public boolean canEditDocument(UUID documentId) {
+        User user = getCurrentUser();
+        if (user == null || documentId == null) return false;
+        return documentRepository.findById(documentId)
+                .map(doc -> {
+                    UUID projectId = doc.getProject().getId();
+                    if (hasProjectRole(projectId, ProjectMemberRole.MEMBER)) return true;
+                    if (isUserInTeamAssignedToProject(user.getId(), projectId)) return true;
+                    return canAdminWorkspace(doc.getWorkspace().getId());
+                })
+                .orElse(false);
+    }
+
+    /**
+     * Project VIEWER+ can view docs.
+     */
+    public boolean canViewDocument(UUID documentId) {
+        User user = getCurrentUser();
+        if (user == null || documentId == null) return false;
+        return documentRepository.findById(documentId)
+                .map(doc -> canViewProject(doc.getProject().getId()))
+                .orElse(false);
+    }
+
+    /**
+     * Only Workspace ADMIN or Project LEAD can publish/unpublish docs.
+     */
+    public boolean canPublishDocument(UUID documentId) {
+        User user = getCurrentUser();
+        if (user == null || documentId == null) return false;
+        return documentRepository.findById(documentId)
+                .map(doc -> {
+                    UUID projectId = doc.getProject().getId();
+                    if (hasProjectRole(projectId, ProjectMemberRole.LEAD)) return true;
+                    return canAdminWorkspace(doc.getWorkspace().getId());
+                })
+                .orElse(false);
+    }
+
+    /**
+     * Workspace ADMIN, Project LEAD, or the doc creator can delete.
+     */
+    public boolean canDeleteDocument(UUID documentId) {
+        User user = getCurrentUser();
+        if (user == null || documentId == null) return false;
+        return documentRepository.findById(documentId)
+                .map(doc -> {
+                    // Creator can delete their own doc
+                    if (doc.getCreatedBy() != null && doc.getCreatedBy().getId().equals(user.getId())) return true;
+                    UUID projectId = doc.getProject().getId();
+                    if (hasProjectRole(projectId, ProjectMemberRole.LEAD)) return true;
+                    return canAdminWorkspace(doc.getWorkspace().getId());
+                })
+                .orElse(false);
+    }
+
     public boolean canManageInvite(UUID tenantId) {
         User user = getCurrentUser();
         if (user == null || tenantId == null) return false;
@@ -376,6 +451,11 @@ public class RbacService {
             case TASK -> {
                 belongs = taskRepository.findById(resourceId)
                         .map(task -> task.getProject() != null && task.getProject().getWorkspace() != null && task.getProject().getWorkspace().getTenant() != null && task.getProject().getWorkspace().getTenant().getId().equals(tenantId))
+                        .orElse(false);
+            }
+            case DOCUMENT -> {
+                belongs = documentRepository.findById(resourceId)
+                        .map(doc -> doc.getWorkspace() != null && doc.getWorkspace().getTenant() != null && doc.getWorkspace().getTenant().getId().equals(tenantId))
                         .orElse(false);
             }
         }

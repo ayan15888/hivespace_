@@ -24,6 +24,9 @@ import { CreateOrgModal } from "@/components/features/organizations/CreateOrgMod
 import { JoinOrgModal } from "@/components/features/organizations/JoinOrgModal";
 import { useTasks } from "@/hooks/useTasks";
 import { useProjects } from "@/hooks/useProjects";
+import { useWorkspaceStore } from "@/store/workspaceStore";
+import { useChatStore } from "@/store/chatStore";
+import { getMessages } from "@/lib/api/messages";
 import { cn, getAvatarColorClass } from "@/lib/utils";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
 
@@ -36,6 +39,37 @@ function DashboardPageContent() {
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const { tasks, loading: tasksLoading } = useTasks();
   const { projects, loading: projectsLoading } = useProjects();
+  const { activeWorkspace } = useWorkspaceStore();
+  const { channels } = useChatStore();
+  const workspaceChannels = activeWorkspace ? (channels[activeWorkspace.id] ?? []) : [];
+  
+  const [lastMessages, setLastMessages] = useState<Record<string, { content: string; createdAt: string }>>({});
+
+  useEffect(() => {
+    if (workspaceChannels.length === 0) return;
+    workspaceChannels.forEach((channel) => {
+      if (lastMessages[channel.id]) return;
+      getMessages(channel.id)
+        .then((msgs) => {
+          if (msgs && msgs.length > 0) {
+            const latest = msgs[0];
+            setLastMessages(prev => {
+              if (prev[channel.id]) return prev;
+              return {
+                ...prev,
+                [channel.id]: {
+                  content: latest.content,
+                  createdAt: latest.createdAt
+                }
+              };
+            });
+          }
+        })
+        .catch((err) => {
+          console.error(`Failed to fetch messages for channel ${channel.id}`, err);
+        });
+    });
+  }, [workspaceChannels]);
 
   const action = searchParams.get("action");
   /** User came from onboarding to open create/join modals — do not bounce back to /onboarding or block the page. */
@@ -263,119 +297,141 @@ function DashboardPageContent() {
             <div className="col-span-6 flex flex-col gap-6 w-full">
               
               {/* My Tasks */}
-              <Card className="bg-hs-card border border-border/30 rounded-[28px] p-6 shadow-2xl shadow-black/10 overflow-hidden">
-                <div className="flex flex-row items-center justify-between mb-5 px-1">
-                  <h3 className="text-xs font-bold tracking-widest text-zinc-500 uppercase">My Tasks</h3>
+              <Card className="bg-hs-main border-none shadow-none rounded-[24px] overflow-hidden relative">
+                <CardHeader className="py-4 px-5 flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">My Tasks</CardTitle>
                   <Button variant="ghost" size="sm" className="h-8 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800/40 rounded-md">
                     View all
                   </Button>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {tasks.length > 0 ? (
-                    tasks.slice(0, 5).map((task) => (
-                      <div key={task.id} className="flex flex-col">
+                </CardHeader>
+                <div className="p-5 pt-0">
+                  <div className="flex flex-col gap-2.5 relative z-10">
+                    {tasks.length > 0 ? (
+                      tasks.slice(0, 5).map((task) => (
                         <div 
+                          key={task.id}
                           onClick={() => {
                             if (task.projectId) {
                               router.push(`/dashboard/projects/${task.projectId}/board`);
                             }
                           }}
-                          className="flex items-center justify-between py-3 px-4 hover:bg-white/5 transition-all duration-200 cursor-pointer group rounded-xl border border-transparent hover:border-zinc-800/30"
+                          className="flex items-center gap-3.5 py-3 px-4 bg-zinc-900/10 border border-zinc-800/35 hover:border-zinc-700/40 hover:bg-zinc-900/30 transition-all duration-200 cursor-pointer group rounded-2xl"
                         >
-                          <div className="flex items-center gap-4 min-w-0 flex-1">
-                            {/* Priority Glow Dot */}
+                          {/* Checkbox / Completion Ring */}
+                          <div className="flex items-center justify-center shrink-0">
                             {(() => {
-                              const p = (task.priority || "normal").toLowerCase();
-                              const isUrgent = p === "urgent";
-                              const isHigh = p === "high" || p === "medium";
-                              const dotColor = isUrgent ? "bg-[#E24B4A]" : isHigh ? "bg-[#EF9F27]" : "bg-zinc-500";
-                              const shadowColor = isUrgent ? "shadow-[0_0_8px_#E24B4A]" : isHigh ? "shadow-[0_0_8px_#EF9F27]" : "shadow-none";
+                              const isDone = ["done", "completed", "DONE", "COMPLETED"].includes(task.status);
                               return (
-                                <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", dotColor, shadowColor)} />
+                                <div className={cn(
+                                  "h-4 w-4 rounded-full border flex items-center justify-center transition-all duration-300",
+                                  isDone 
+                                    ? "border-emerald-500/80 bg-emerald-500/10 text-emerald-400" 
+                                    : "border-zinc-700 group-hover:border-zinc-500 text-transparent"
+                                )}>
+                                  <svg viewBox="0 0 24 24" className="h-2.5 w-2.5 fill-none stroke-current" strokeWidth={3}>
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                </div>
                               );
                             })()}
-
-                            {/* ID */}
-                            <span className="font-mono text-xs text-zinc-500 tracking-tight shrink-0 select-none">
-                              {task.taskIdentifier || task.id.slice(0, 6)}
-                            </span>
-
-                            {/* Title */}
-                            <span className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors truncate max-w-[240px]">
-                              {task.title}
-                            </span>
-
-                            {/* Project Badge */}
-                            <Badge 
-                              variant="outline" 
-                              className="text-[10px] font-semibold rounded-md px-2 py-0.5 border-l-2 bg-transparent select-none shrink-0"
-                              style={{ 
-                                color: task.projectColor ? PROJECT_COLOR_MAP[task.projectColor] : "inherit",
-                                borderColor: task.projectColor ? PROJECT_COLOR_MAP[task.projectColor] : "var(--border)"
-                              }}
-                            >
-                              {task.projectName || "Project"}
-                            </Badge>
-
-                            {/* Status Badge */}
-                            <Badge 
-                              variant="outline" 
-                              className="text-[9px] font-bold bg-zinc-900/30 border-zinc-800/40 text-zinc-400 rounded-md uppercase tracking-wider px-1.5 py-0.5 select-none shrink-0"
-                            >
-                              {task.status.replace('_', ' ').toLowerCase()}
-                            </Badge>
                           </div>
 
-                          {/* Right elements: Due Date & Avatar */}
-                          <div className="flex items-center gap-4 shrink-0">
-                            {task.dueDate && (
-                              <div className="flex items-center gap-1.5 text-xs text-zinc-500 select-none">
-                                <Calendar className="h-3 w-3" strokeWidth={1.5} />
-                                <span>
+                          {/* Task Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                "text-sm font-medium transition-colors truncate max-w-[320px]",
+                                ["done", "completed", "DONE", "COMPLETED"].includes(task.status)
+                                  ? "text-zinc-500 line-through decoration-zinc-700"
+                                  : "text-zinc-200 group-hover:text-white"
+                              )}>
+                                {task.title}
+                              </span>
+                            </div>
+                            
+                            {/* Metadata Subtitle */}
+                            <div className="flex items-center flex-wrap gap-2 mt-1.5 text-[11px] text-zinc-500 select-none">
+                              <span className="font-mono text-zinc-500 bg-zinc-900/35 px-1.5 py-0.5 rounded border border-zinc-800/40 text-[10px]">{task.taskIdentifier || task.id.slice(0, 6)}</span>
+                              
+                              {/* Grouped Project & Status Capsule */}
+                              <div className="flex items-center gap-1.5 bg-zinc-900/40 border border-zinc-800/45 px-2 py-0.5 rounded-full">
+                                <span 
+                                  style={{ color: task.projectColor ? PROJECT_COLOR_MAP[task.projectColor] : "inherit" }}
+                                  className="font-bold text-[9px] uppercase tracking-wider"
+                                >
+                                  {task.projectName || "Project"}
+                                </span>
+                                <span className="text-zinc-700 font-light text-[9px]">•</span>
+                                <span className="capitalize text-zinc-400 font-medium text-[10px]">{task.status.replace('_', ' ').toLowerCase()}</span>
+                              </div>
+
+                              {task.dueDate && (
+                                <span className="flex items-center gap-1 text-zinc-500 text-[10px]">
+                                  <Calendar className="h-3 w-3 text-zinc-600" strokeWidth={1.5} />
                                   {new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                 </span>
-                              </div>
-                            )}
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Right Elements (Priority Indicator & Assignee) */}
+                          <div className="flex items-center gap-3 shrink-0">
+                            {/* Priority Indicator Pill */}
+                            {(() => {
+                              const p = (task.priority || "normal").toLowerCase();
+                              if (p === "urgent" || p === "high") {
+                                return (
+                                  <Badge 
+                                    variant="outline"
+                                    className="text-[9px] font-bold rounded-full bg-rose-500/10 text-rose-400 border-rose-500/20 px-2 py-0.5 select-none uppercase tracking-wider"
+                                  >
+                                    {p}
+                                  </Badge>
+                                );
+                              }
+                              return null;
+                            })()}
+                            
                             <Avatar 
-                              className="h-6.5 w-6.5 rounded-full border border-zinc-800"
+                              className="h-6 w-6 rounded-full border border-zinc-800 shrink-0"
                               username={task.assigneeName || "Unassigned"}
                               email={task.assigneeName ? `${task.assigneeInitials?.toLowerCase() || "user"}@hivespace.io` : undefined}
                             >
-                              <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass(task.assigneeInitials || task.assigneeName || task.id))}>
+                              <AvatarFallback className={cn("text-[9px] font-bold", getAvatarColorClass(task.assigneeInitials || task.assigneeName || task.id))}>
                                 {task.assigneeInitials || "??"}
                               </AvatarFallback>
                             </Avatar>
                           </div>
                         </div>
-                      </div>
-                    ))
-                  ) : tasksLoading ? (
-                    // Skeleton loading state
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="flex items-center justify-between py-4 px-5 border-b border-border/10 last:border-0">
-                        <div className="flex items-center gap-4">
-                          <div className="h-2 w-2 rounded-full bg-muted animate-pulse" />
-                          <div className="h-3 w-12 bg-muted animate-pulse rounded" />
-                          <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+                      ))
+                    ) : tasksLoading ? (
+                      // Skeleton loading state
+                      Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="flex items-center justify-between py-4 px-5 border-b border-border/10 last:border-0">
+                          <div className="flex items-center gap-4">
+                            <div className="h-2 w-2 rounded-full bg-muted animate-pulse" />
+                            <div className="h-3 w-12 bg-muted animate-pulse rounded" />
+                            <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+                            <div className="h-7 w-7 rounded-full bg-muted animate-pulse" />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="h-3 w-16 bg-muted animate-pulse rounded" />
-                          <div className="h-7 w-7 rounded-full bg-muted animate-pulse" />
-                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+                        <p className="text-sm text-muted-foreground">No tasks assigned to you yet.</p>
+                        <Button 
+                          variant="link" 
+                          className="text-primary text-xs mt-1"
+                          onClick={() => setIsTaskModalOpen(true)}
+                        >
+                          Create your first task
+                        </Button>
                       </div>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-                      <p className="text-sm text-muted-foreground">No tasks assigned to you yet.</p>
-                      <Button 
-                        variant="link" 
-                        className="text-primary text-xs mt-1"
-                        onClick={() => setIsTaskModalOpen(true)}
-                      >
-                        Create your first task
-                      </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </Card>
 
@@ -475,31 +531,63 @@ function DashboardPageContent() {
                   <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Channels</CardTitle>
                 </CardHeader>
                 <div className="flex flex-col pb-2">
-                  {[
-                    { name: "engineering", msg: "Are we deploying today?", time: "10:24 AM", unread: 3 },
-                    { name: "design", msg: "Updated the figma components...", time: "Yesterday", unread: 0 },
-                    { name: "general", msg: "Townhall at 3pm tomorrow.", time: "Monday", unread: 0 }
-                  ].map((channel, i) => (
-                    <div key={i} className="flex items-center justify-between py-3 px-5 hover:bg-muted/30 transition-colors cursor-pointer">
-                      <div className="flex flex-col flex-1 gap-1 min-w-0 pr-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground text-lg font-light leading-none">#</span>
-                          <span className="text-sm font-medium truncate text-foreground">
-                            {channel.name}
-                          </span>
-                          {channel.unread > 0 && (
-                            <Badge className="h-5 rounded-full bg-destructive hover:opacity-90 px-1.5 py-0 text-[10px] text-white border-none">
-                              {channel.unread}
-                            </Badge>
+                  {workspaceChannels.length > 0 ? (
+                    workspaceChannels
+                      .filter(c => c.type === 'PUBLIC' || c.type === 'PRIVATE')
+                      .slice(0, 5)
+                      .map((channel) => (
+                        <div 
+                          key={channel.id} 
+                          onClick={() => router.push(`/dashboard/chat/${channel.id}`)}
+                          className="flex items-center justify-between py-3 px-5 hover:bg-muted/30 transition-colors cursor-pointer border-b border-border/10 last:border-0"
+                        >
+                          <div className="flex flex-col flex-1 gap-1 min-w-0 pr-4">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground text-sm font-light leading-none">#</span>
+                              <span className="text-sm font-medium truncate text-foreground">
+                                {channel.name}
+                              </span>
+                              {channel.unreadCount > 0 && (
+                                <Badge className="h-4.5 rounded-full bg-destructive hover:opacity-90 px-1.5 py-0 text-[9px] text-white border-none shrink-0 font-bold">
+                                  {channel.unreadCount}
+                                </Badge>
+                              )}
+                            </div>
+                            {lastMessages[channel.id] ? (
+                              <p className={`text-xs truncate ${channel.unreadCount > 0 ? 'text-zinc-200 font-semibold' : 'text-zinc-400'}`}>
+                                {lastMessages[channel.id].content}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-zinc-500/60 italic">No messages yet</p>
+                            )}
+                          </div>
+                          
+                          {lastMessages[channel.id] && (
+                            <span className="text-[10px] text-zinc-500 shrink-0 whitespace-nowrap self-start pt-0.5">
+                              {(() => {
+                                try {
+                                  const date = new Date(lastMessages[channel.id].createdAt);
+                                  const now = new Date();
+                                  if (date.toDateString() === now.toDateString()) {
+                                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                  }
+                                  if (now.getTime() - date.getTime() < 7 * 24 * 60 * 60 * 1000) {
+                                    return date.toLocaleDateString([], { weekday: 'short' });
+                                  }
+                                  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                                } catch {
+                                  return "";
+                                }
+                              })()}
+                            </span>
                           )}
                         </div>
-                        <p className={`text-xs truncate ${channel.unread ? 'text-foreground/80' : 'text-muted-foreground'}`}>
-                          {channel.msg}
-                        </p>
-                      </div>
-                      <span className="text-xs text-muted-foreground  shrink-0 whitespace-nowrap">{channel.time}</span>
+                      ))
+                  ) : (
+                    <div className="py-8 px-6 text-center">
+                      <p className="text-xs text-muted-foreground">No channels in this workspace.</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </Card>
 
