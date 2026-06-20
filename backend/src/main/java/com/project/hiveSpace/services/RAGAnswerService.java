@@ -12,12 +12,14 @@ import java.util.stream.Collectors;
 public class RAGAnswerService {
 
     private final NvidiaAIService nvidiaAIService;
+    private final ValidationService validationService;
 
     @Value("${nvidia.model.default}")
     private String defaultChatModel;
 
-    public RAGAnswerService(NvidiaAIService nvidiaAIService) {
+    public RAGAnswerService(NvidiaAIService nvidiaAIService, ValidationService validationService) {
         this.nvidiaAIService = nvidiaAIService;
+        this.validationService = validationService;
     }
 
     /**
@@ -71,6 +73,16 @@ public class RAGAnswerService {
 
         // 5. Call LLM
         String answer = nvidiaAIService.chatCompletion(systemPrompt, userPrompt, defaultChatModel);
+
+        // TODO: Add answer-level caching in Upstash Redis to bypass generation + validation latency for identical queries.
+        // Cache key format: rag-answer:{projectId}:{normalized-question-hash}
+
+        // 6. Content Guardrails & Validation (Stage 6)
+        boolean isSafe = validationService.isSafe(answer);
+        if (!isSafe) {
+            System.err.println("WARNING: Generated AI answer flagged as UNSAFE: " + answer);
+            answer = "I'm sorry, but I cannot provide that information as it may violate safety guidelines.";
+        }
 
         return new RAGResponse(answer, chunks);
     }
