@@ -343,3 +343,17 @@ CREATE TABLE public.notifications (
   CONSTRAINT fkibag5l76gvbhaumitjend434e FOREIGN KEY (message_id) REFERENCES public.messages(id),
   CONSTRAINT fk9y21adhxn0ayjhfocscqox7bh FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.document_chunks (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  document_id uuid NOT NULL,
+  project_id uuid NOT NULL,
+  chunk_index integer NOT NULL,
+  content text NOT NULL,
+  embedding USER-DEFINED,
+  content_tsv tsvector DEFAULT to_tsvector('english'::regconfig, content),
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT document_chunks_pkey PRIMARY KEY (id),
+  CONSTRAINT document_chunks_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id),
+  CONSTRAINT document_chunks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);

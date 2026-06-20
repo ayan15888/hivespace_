@@ -588,6 +588,44 @@ CREATE INDEX idx_message_reactions_message ON message_reactions(message_id);
 -- Soft deletes   : YES — messages.deleted_at, tombstone content at service layer
 -- =============================================================================
 
+-- =============================================================================
+-- DOCUMENT RAG VECTOR TABLE
+-- =============================================================================
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE document_chunks (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id   UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  chunk_index   INTEGER NOT NULL,
+  content       TEXT NOT NULL,
+  embedding     vector(4096),
+  content_tsv   tsvector GENERATED ALWAYS AS (to_tsvector('english', content)) STORED,
+  created_at    TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMP NOT NULL DEFAULT now(),
+
+  UNIQUE (document_id, chunk_index)
+);
+
+-- No vector index — 4096 dims exceeds pgvector's 2000-dim cap for both
+-- ivfflat and hnsw. Cosine similarity queries still work via sequential
+-- scan, which is fine at small per-project chunk counts.
+
+CREATE INDEX idx_document_chunks_content_tsv
+  ON document_chunks
+  USING GIN (content_tsv);
+
+CREATE INDEX idx_document_chunks_project
+  ON document_chunks (project_id);
+
+CREATE INDEX idx_document_chunks_document
+  ON document_chunks (document_id);
+
+CREATE TRIGGER trigger_document_chunks_updated_at
+  BEFORE UPDATE ON document_chunks
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
 ==========================================================================
 ---------------------------------------------------------------------------
 ---------------------- NOT ADDED IN THE DB YET ----------------------------
