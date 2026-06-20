@@ -11,15 +11,18 @@ public class DocumentEmbeddingService {
     private final NvidiaAIService nvidiaAIService;
     private final RedisService redisService;
     private final DocumentChunkRepository documentChunkRepository;
+    private final MessagingBroadcastService messagingBroadcastService;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
 
     public DocumentEmbeddingService(
             NvidiaAIService nvidiaAIService,
             RedisService redisService,
-            DocumentChunkRepository documentChunkRepository) {
+            DocumentChunkRepository documentChunkRepository,
+            MessagingBroadcastService messagingBroadcastService) {
         this.nvidiaAIService = nvidiaAIService;
         this.redisService = redisService;
         this.documentChunkRepository = documentChunkRepository;
+        this.messagingBroadcastService = messagingBroadcastService;
     }
 
     /**
@@ -64,6 +67,9 @@ public class DocumentEmbeddingService {
             return;
         }
 
+        // Broadcast SYNCING status to subscribers
+        messagingBroadcastService.broadcastDocumentRagStatus(documentId, "SYNCING");
+
         try {
             // Chunk the text content
             List<String> chunks = chunkText(textContent, 450, 50);
@@ -103,6 +109,8 @@ public class DocumentEmbeddingService {
         } finally {
             // Release lock
             redisService.releaseLock(lockKey);
+            // Broadcast READY status to subscribers
+            messagingBroadcastService.broadcastDocumentRagStatus(documentId, "READY");
         }
     }
 

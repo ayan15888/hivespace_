@@ -77,4 +77,17 @@ public class MessagingBroadcastService {
                 )
         );
     }
+
+    /**
+     * Broadcast RAG processing status to subscribers of /topic/documents.{documentId}
+     */
+    public void broadcastDocumentRagStatus(UUID documentId, String status) {
+        messagingTemplate.convertAndSend(
+                "/topic/documents." + documentId,
+                Map.of(
+                        "documentId", documentId,
+                        "status", status
+                )
+        );
+    }
 }
