@@ -134,12 +134,15 @@ public class SlashCommandService {
         }
         StringBuilder sb = new StringBuilder();
         sb.append("\n\n**Sources:**\n");
+        java.util.Set<UUID> seenDocIds = new java.util.HashSet<>();
         for (FusedCandidate citation : citations) {
-            sb.append(String.format("- [%s](/dashboard/docs/%s) (Chunk #%d)\n",
-                    citation.getDocumentTitle(),
-                    citation.getDocumentId(),
-                    citation.getChunkIndex() + 1
-            ));
+            // Deduplicate: only show each document once in the references
+            if (citation.getDocumentId() != null && seenDocIds.add(citation.getDocumentId())) {
+                sb.append(String.format("- [%s](/dashboard/docs/%s)\n",
+                        citation.getDocumentTitle(),
+                        citation.getDocumentId()
+                ));
+            }
         }
         return sb.toString();
     }

@@ -70,7 +70,8 @@ public class RAGAnswerService {
                 "1. Answer using ONLY the provided contexts. If the contexts do not contain the answer, reply exactly with: 'I don't have enough context to answer that.'\n" +
                 "2. You MUST check both the 'Document Context' and the 'Conversation Context (Chat Transcripts & Developer Discussions)'. Synthesize and reconcile the formal specifications, rules, or procedures from the documents with any related real-world incidents, discussions, proposed overrides, or final decisions found in the conversation. Ensure your answer incorporates both aspects (e.g. state the rule/procedure, and then explain any related chats). Specifically, if the user asks a hypothetical question about a system failure or outage (e.g. \"What happens if Redis goes down?\"), check the conversation to see if that specific failure or outage has actually occurred in the past, and if so, report the details of that past incident (such as latency spikes, stuck workers, how it was resolved, or future monitoring plans like Prometheus/Grafana).\n" +
                 "3. Do not extrapolate, assume, or guess beyond the provided contexts.\n" +
-                "4. Cite the source document title when referencing information from the Document Context (e.g. \"[Source: <title>]\").";
+                "4. Cite the source document title when referencing information from the Document Context (e.g. \"[Source: <title>]\").\n" +
+                "5. Do NOT append or list a 'Sources' or reference section at the end of your answer. Citations must only be placed inline using \"[Source: <title>]\" style. The system will handle appending the document list automatically.";
 
         // 5. Call LLM
         String answer = nvidiaAIService.chatCompletion(systemPrompt, userPrompt, defaultChatModel);
