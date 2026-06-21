@@ -174,3 +174,17 @@ export async function applyTriageSuggestions(
   });
 }
 
+// ── AI Retro Agent ───────────────────────────────────────────────────────────
+
+export async function generateSprintRetro(
+  projectId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ documentId: string }> {
+  return apiFetch(`/api/projects/${projectId}/ai/retro`, {
+    method: "POST",
+    body: JSON.stringify({ startDate, endDate }),
+  });
+}
+
+

@@ -34,6 +34,7 @@ import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { useTaskStore } from "@/store/taskStore";
 import { CreateTaskModal } from "@/components/features/tasks/CreateTaskModal";
 import { TriageDrawer } from "@/components/features/tasks/TriageDrawer";
+import { RetroModal } from "@/components/features/projects/RetroModal";
 
 import { useBoardStore } from "./store";
 import { TaskCard } from "./components/TaskCard";
@@ -72,6 +73,7 @@ export default function SprintThreeBoardPage() {
   const [quickAddTitle, setQuickAddTitle] = useState("");
   const [quickAddLoading, setQuickAddLoading] = useState(false);
   const [isTriageOpen, setIsTriageOpen] = useState(false);
+  const [isRetroOpen, setIsRetroOpen] = useState(false);
 
   // Derive selectedTask directly from store tasks list so it updates reactively
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
@@ -310,6 +312,13 @@ export default function SprintThreeBoardPage() {
               <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" />
               Smart Triage
             </Button>
+            <Button
+              onClick={() => setIsRetroOpen(true)}
+              className="h-8 text-xs gap-1.5 px-3 rounded-md border transition-all font-medium select-none cursor-pointer bg-[#1C1B1F] text-violet-400 border-violet-500/20 hover:text-violet-300 hover:bg-violet-500/5 hover:border-violet-500/40"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-violet-400 animate-pulse" />
+              Sprint Retro
+            </Button>
             <Button 
               onClick={toggleSortByPriority}
               className={cn(
@@ -484,6 +493,13 @@ export default function SprintThreeBoardPage() {
         onClose={() => setIsTriageOpen(false)}
         projectId={projectId}
         onSuccess={refresh}
+      />
+
+      {/* --- RETRO MODAL --- */}
+      <RetroModal
+        isOpen={isRetroOpen}
+        onClose={() => setIsRetroOpen(false)}
+        projectId={projectId}
       />
     </div>
   );
