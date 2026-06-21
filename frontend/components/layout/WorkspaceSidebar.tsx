@@ -676,43 +676,48 @@ export function WorkspaceSidebar() {
         <button
           onClick={toggleAiSidebar}
           className={cn(
-            "group relative w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-all duration-300",
+            "group relative w-full flex items-center justify-between gap-2.5 rounded-lg px-2 py-1.5 transition-all duration-200 border border-transparent",
             isAiSidebarOpen
-              ? "bg-gradient-to-r from-violet-600/25 to-fuchsia-600/15 border border-violet-500/40"
-              : "bg-gradient-to-r from-violet-600/10 to-fuchsia-600/5 border border-violet-500/20 hover:from-violet-600/20 hover:to-fuchsia-600/10 hover:border-violet-500/35"
+              ? "text-foreground"
+              : "text-zinc-400 hover:text-zinc-200"
           )}
         >
-          {/* Glow pulse */}
-          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600/10 to-fuchsia-600/10 opacity-0 group-hover:opacity-100 blur-md transition-opacity duration-300" />
+          {/* Animated gradient border on hover or active */}
+          <div className={cn(
+            "absolute inset-0 rounded-lg p-[1px] bg-gradient-to-r from-violet-600 via-pink-500 to-fuchsia-600 transition-opacity duration-300 -z-20 bg-[size:200%_auto] animate-[flow-right-to-left_4s_linear_infinite] pointer-events-none",
+            isAiSidebarOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          )} />
 
-          {/* Hex icon */}
-          <div className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-md shadow-violet-900/40">
+          {/* Inner background overlay */}
+          <div className={cn(
+            "absolute inset-[1px] rounded-[7px] -z-10 transition-colors pointer-events-none",
+            isAiSidebarOpen
+              ? "bg-muted/50"
+              : "bg-hs-nav group-hover:bg-zinc-950/80"
+          )} />
+
+          {/* Hex icon & label */}
+          <div className="flex items-center gap-2 min-w-0">
             <Hexagon
               className={cn(
-                "h-3.5 w-3.5 fill-white/20 text-white",
-                isAiSidebarOpen && "animate-pulse"
+                "h-4 w-4 shrink-0 transition-colors",
+                isAiSidebarOpen ? "text-violet-400" : "text-zinc-500 group-hover:text-zinc-300"
               )}
               strokeWidth={1.5}
             />
+            <span className="text-sm font-medium truncate">Hex AI</span>
           </div>
 
-          <div className="flex-1 text-left min-w-0">
-            <p className="text-[12px] font-semibold text-violet-200 leading-tight">Hex AI</p>
-            <p className="text-[10px] text-violet-400/60 leading-tight truncate">
-              {isAiSidebarOpen ? "Chat open" : "Create tasks with AI"}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0 relative z-10">
+          <div className="flex items-center gap-1.5 shrink-0">
             {mounted && (
-              <Kbd className="bg-violet-950/50 text-violet-300 border border-violet-500/25 text-[9px] px-1 h-4 font-sans select-none pointer-events-none">
+              <Kbd className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 text-[9px] px-1 h-4 font-sans select-none pointer-events-none">
                 {/Macintosh|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "⌘⇧H" : "Ctrl+Shift+H"}
               </Kbd>
             )}
             <Sparkles
               className={cn(
                 "h-3.5 w-3.5 transition-colors",
-                isAiSidebarOpen ? "text-violet-300" : "text-violet-500/60 group-hover:text-violet-400"
+                isAiSidebarOpen ? "text-violet-400" : "text-zinc-500 group-hover:text-zinc-300"
               )}
               strokeWidth={1.5}
             />
