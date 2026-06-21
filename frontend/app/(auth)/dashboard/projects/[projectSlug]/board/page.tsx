@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { getProjectMembers, ProjectMemberResponse } from "@/lib/api/projects";
 
 import { cn, getAvatarColorClass } from "@/lib/utils";
 import { useTasks } from "@/hooks/useTasks";
@@ -69,6 +72,28 @@ export default function SprintThreeBoardPage() {
 
   // Derive selectedTask directly from store tasks list so it updates reactively
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
+
+  // Query Project Members
+  const { data: projectMembers = [] } = useQuery<ProjectMemberResponse[], Error>({
+    queryKey: ["projectMembers", projectId],
+    queryFn: () => getProjectMembers(projectId),
+    enabled: !!projectId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId),
+    staleTime: 30_000,
+  });
+
+  // Calculate dynamic project dates
+  const startDateStr = currentProject?.startDate 
+    ? new Date(currentProject.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) 
+    : "";
+  const endDateStr = currentProject?.endDate 
+    ? new Date(currentProject.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) 
+    : "";
+  const dateRangeStr = startDateStr && endDateStr ? `${startDateStr} – ${endDateStr}` : "No dates set";
+
+  // Calculate task progress metrics
+  const totalTasksCount = tasks.length;
+  const completedTasksCount = tasks.filter(t => t.status === "DONE").length;
+  const progressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
 
   const handleDeleteTask = async (taskId: string) => {
     try {
@@ -195,7 +220,7 @@ export default function SprintThreeBoardPage() {
           <span className="text-xs font-medium text-foreground">{displayTitle}</span>
           
           <div className="ml-3 flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] text-muted-foreground font-medium">
-            {displayTitle} · Apr 1–15
+            {displayTitle} · {dateRangeStr}
           </div>
         </div>
 
@@ -208,13 +233,13 @@ export default function SprintThreeBoardPage() {
             Board
             <div className="absolute bottom-0 left-0 h-[2px] w-full" style={{ backgroundColor: themeColor }} />
           </button>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-not-allowed opacity-60">
             List
           </button>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <Link href={`/dashboard/projects/${projectId}/timeline`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Timeline
-          </button>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          </Link>
+          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-not-allowed opacity-60">
             Backlog
           </button>
         </nav>
@@ -229,19 +254,20 @@ export default function SprintThreeBoardPage() {
           </Button>
           
           <div className="flex items-center ml-2 mr-2">
-            {["MV", "RK", "PL", "RS"].map((initials) => {
-              const details = {
-                "MV": { name: "Max Valenzuela", email: "max@hivespace.io" },
-                "RK": { name: "Rajesh Kumar", email: "rajesh@hivespace.io" },
-                "PL": { name: "Pierre Laurent", email: "pierre@hivespace.io" },
-                "RS": { name: "Reid Smith", email: "reid@hivespace.io" },
-              }[initials] || { name: initials, email: `${initials.toLowerCase()}@hivespace.io` };
+            {projectMembers.slice(0, 5).map((member) => {
+              const name = member.fullName || member.username;
+              const initials = name.trim().split(/\s+/).map(n => n[0]).join("").toUpperCase().substring(0, 2) || "--";
               return (
-                <Avatar key={initials} className={`h-6 w-6 ring-2 ring-background -ml-1.5 first:ml-0 border border-border/50`} username={details.name} email={details.email}>
+                <Avatar key={member.id} className="h-6 w-6 ring-2 ring-background -ml-1.5 first:ml-0 border border-border/50" username={name} email={member.email || `${member.username.toLowerCase()}@hivespace.io`}>
                   <AvatarFallback className={cn("text-[9px] font-semibold", getAvatarColorClass(initials))}>{initials}</AvatarFallback>
                 </Avatar>
               );
             })}
+            {projectMembers.length > 5 && (
+              <div className="h-6 w-6 rounded-full ring-2 ring-background bg-zinc-900 border border-border/50 flex items-center justify-center text-[9px] text-zinc-400 font-extrabold -ml-1.5 z-30">
+                +{projectMembers.length - 5}
+              </div>
+            )}
           </div>
 
           <Button 
@@ -262,13 +288,13 @@ export default function SprintThreeBoardPage() {
           <div className="flex flex-col gap-2.5 flex-1">
             <div className="flex items-baseline gap-3">
               <h1 className="text-sm font-medium text-[#E5E1E4]">{displayTitle}</h1>
-              <span className="text-xs text-zinc-400">Apr 1 – Apr 15, 2026</span>
+              <span className="text-xs text-zinc-400">{dateRangeStr}</span>
             </div>
             <div className="flex items-center gap-4">
               <div className="relative h-1.5 flex-1 max-w-[400px] bg-muted rounded-full overflow-hidden">
-                <div className="absolute top-0 left-0 h-full rounded-full transition-all" style={{ width: '68%', backgroundColor: themeColor }} />
+                <div className="absolute top-0 left-0 h-full rounded-full transition-all" style={{ width: `${progressPercent}%`, backgroundColor: themeColor }} />
               </div>
-              <span className="text-[10px] font-medium text-muted-foreground">17/25 tasks complete</span>
+              <span className="text-[10px] font-medium text-muted-foreground">{completedTasksCount}/{totalTasksCount} tasks complete</span>
             </div>
           </div>
 

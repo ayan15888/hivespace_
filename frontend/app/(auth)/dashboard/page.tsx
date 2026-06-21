@@ -175,7 +175,7 @@ function DashboardPageContent() {
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">My Open Tasks</span>
                     <div className="flex items-baseline gap-2 mt-2.5">
-                      <span className="text-4xl font-extralight text-foreground tracking-tight group-hover:text-violet-400 transition-colors duration-300">
+                      <span className="text-6xl font-extralight text-foreground tracking-tight group-hover:text-violet-400 transition-colors duration-300">
                         {totalTasks}
                       </span>
                     </div>
@@ -204,7 +204,7 @@ function DashboardPageContent() {
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Due Date</span>
                     <div className="flex items-baseline gap-2 mt-2.5">
-                      <span className="text-4xl font-extralight text-foreground tracking-tight group-hover:text-amber-400 transition-colors duration-300">
+                      <span className="text-6xl font-extralight text-foreground tracking-tight group-hover:text-amber-400 transition-colors duration-300">
                         {dueTodayCount}
                       </span>
                     </div>
@@ -242,7 +242,7 @@ function DashboardPageContent() {
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Unread Messages</span>
                     <div className="flex items-baseline gap-2 mt-2.5">
-                      <span className="text-4xl font-extralight text-foreground tracking-tight group-hover:text-blue-400 transition-colors duration-300">
+                      <span className="text-6xl font-extralight text-foreground tracking-tight group-hover:text-blue-400 transition-colors duration-300">
                         8
                       </span>
                     </div>
@@ -269,7 +269,7 @@ function DashboardPageContent() {
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">PRs Awaiting Review</span>
                     <div className="flex items-baseline gap-2 mt-2.5">
-                      <span className="text-4xl font-extralight text-foreground tracking-tight group-hover:text-emerald-400 transition-colors duration-300">
+                      <span className="text-6xl font-extralight text-foreground tracking-tight group-hover:text-emerald-400 transition-colors duration-300">
                         2
                       </span>
                     </div>

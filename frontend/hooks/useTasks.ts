@@ -4,6 +4,8 @@ import { useEffect, useCallback } from "react";
 import { useTaskStore } from "@/store/taskStore";
 import { useParams } from "next/navigation";
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function useTasks(projectId?: string) {
   const params = useParams();
   const resolvedProjectId = projectId || (params?.projectSlug as string);
@@ -11,12 +13,18 @@ export function useTasks(projectId?: string) {
   const { tasks, loading, error, fetchTasks } = useTaskStore();
 
   const refresh = useCallback(() => {
-    return fetchTasks(resolvedProjectId);
+    const isUuid = UUID_REGEX.test(resolvedProjectId || "");
+    if (isUuid) {
+      return fetchTasks(resolvedProjectId);
+    }
   }, [fetchTasks, resolvedProjectId]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    const isUuid = UUID_REGEX.test(resolvedProjectId || "");
+    if (isUuid) {
+      refresh();
+    }
+  }, [refresh, resolvedProjectId]);
 
   return { tasks, loading, error, refresh };
 }
