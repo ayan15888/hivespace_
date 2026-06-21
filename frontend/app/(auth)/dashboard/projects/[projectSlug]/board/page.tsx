@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   ChevronRight, 
   SlidersHorizontal, 
   LayoutList, 
   PlusCircle,
   MoreHorizontal,
-  Plus
+  Plus,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -32,6 +33,13 @@ import { columnNameToStatus, statusMatchesColumn } from "@/lib/taskUtils";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { useTaskStore } from "@/store/taskStore";
 import { CreateTaskModal } from "@/components/features/tasks/CreateTaskModal";
+import { TriageDrawer } from "@/components/features/tasks/TriageDrawer";
+import { RetroModal } from "@/components/features/projects/RetroModal";
+import { BulkCreateModal } from "@/components/features/tasks/BulkCreateModal";
+import { StaleTasksModal } from "@/components/features/tasks/StaleTasksModal";
+import { getSprintsForProject, getBurndownData, SprintResponse, BurndownPoint } from "@/lib/api/sprints";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+
 
 import { useBoardStore } from "./store";
 import { TaskCard } from "./components/TaskCard";
@@ -69,6 +77,51 @@ export default function SprintThreeBoardPage() {
   const [quickAddColumn, setQuickAddColumn] = useState<string | null>(null);
   const [quickAddTitle, setQuickAddTitle] = useState("");
   const [quickAddLoading, setQuickAddLoading] = useState(false);
+  const [isTriageOpen, setIsTriageOpen] = useState(false);
+  const [isRetroOpen, setIsRetroOpen] = useState(false);
+  const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
+  const [isStaleTasksOpen, setIsStaleTasksOpen] = useState(false);
+  const [sprints, setSprints] = useState<SprintResponse[]>([]);
+  const [selectedSprintId, setSelectedSprintId] = useState<string>("all");
+  const [burndownPoints, setBurndownPoints] = useState<BurndownPoint[]>([]);
+  const [isBurndownOpen, setIsBurndownOpen] = useState(false);
+  const [loadingBurndown, setLoadingBurndown] = useState(false);
+
+  const fetchSprints = async () => {
+    try {
+      const data = await getSprintsForProject(projectId);
+      setSprints(data);
+      const active = data.find(s => s.status === "ACTIVE");
+      if (active) {
+        setSelectedSprintId(active.id);
+      } else {
+        setSelectedSprintId("all");
+      }
+    } catch (err) {
+      console.error("Failed to load sprints on board", err);
+    }
+  };
+
+  useEffect(() => {
+    if (projectId) {
+      fetchSprints();
+    }
+  }, [projectId]);
+
+  const handleOpenBurndown = async () => {
+    if (selectedSprintId === "all" || selectedSprintId === "backlog") return;
+    setLoadingBurndown(true);
+    setIsBurndownOpen(true);
+    try {
+      const data = await getBurndownData(selectedSprintId);
+      setBurndownPoints(data);
+    } catch (err) {
+      toast.error("Failed to load burndown data");
+    } finally {
+      setLoadingBurndown(false);
+    }
+  };
+
 
   // Derive selectedTask directly from store tasks list so it updates reactively
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
@@ -191,7 +244,16 @@ export default function SprintThreeBoardPage() {
   // Group tasks by status
   const columns = COLUMN_NAMES.map(name => {
     let filteredTasks = tasks.filter(t => statusMatchesColumn(String(t.status), name));
+    
+    // Filter by sprint
+    if (selectedSprintId === "backlog") {
+      filteredTasks = filteredTasks.filter(t => !t.sprintId);
+    } else if (selectedSprintId !== "all") {
+      filteredTasks = filteredTasks.filter(t => t.sprintId === selectedSprintId);
+    }
+
     if (sortByPriority) {
+
       filteredTasks = [...filteredTasks].sort((a, b) => {
         const orderA = PRIORITY_ORDER[a.priority.toLowerCase()] || 0;
         const orderB = PRIORITY_ORDER[b.priority.toLowerCase()] || 0;
@@ -239,9 +301,10 @@ export default function SprintThreeBoardPage() {
           <Link href={`/dashboard/projects/${projectId}/timeline`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Timeline
           </Link>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-not-allowed opacity-60">
+          <Link href={`/dashboard/projects/${projectId}/backlog`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Backlog
-          </button>
+          </Link>
+
         </nav>
 
         {/* Right: Actions */}
@@ -300,6 +363,60 @@ export default function SprintThreeBoardPage() {
 
           {/* Sort Toggle Button */}
           <div className="flex items-center gap-3 shrink-0 ml-4">
+            {/* Sprint Dropdown */}
+            <div className="flex items-center bg-[#1C1B1F] border border-border/40 rounded-md px-2.5 h-8 gap-1.5">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Sprint</span>
+              <select
+                value={selectedSprintId}
+                onChange={(e) => setSelectedSprintId(e.target.value)}
+                className="bg-transparent border-none text-xs font-semibold text-foreground outline-none cursor-pointer"
+              >
+                <option value="all" className="bg-zinc-900">All Sprints</option>
+                <option value="backlog" className="bg-zinc-900">Backlog (No Sprint)</option>
+                {sprints.map(s => (
+                  <option key={s.id} value={s.id} className="bg-zinc-900">{s.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            {selectedSprintId !== "all" && selectedSprintId !== "backlog" && (
+              <Button
+                onClick={handleOpenBurndown}
+                className="h-8 text-xs font-medium px-3 rounded-md border bg-[#1C1B1F] text-blue-400 border-blue-500/20 hover:text-blue-300 hover:bg-blue-500/5 hover:border-blue-500/40"
+              >
+                Burndown
+              </Button>
+            )}
+
+            <Button
+
+              onClick={() => setIsTriageOpen(true)}
+              className="h-8 text-xs gap-1.5 px-3 rounded-md border transition-all font-medium select-none cursor-pointer bg-[#1C1B1F] text-indigo-400 border-indigo-500/20 hover:text-indigo-300 hover:bg-indigo-500/5 hover:border-indigo-500/40"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" />
+              Smart Triage
+            </Button>
+            <Button
+              onClick={() => setIsRetroOpen(true)}
+              className="h-8 text-xs gap-1.5 px-3 rounded-md border transition-all font-medium select-none cursor-pointer bg-[#1C1B1F] text-violet-400 border-violet-500/20 hover:text-violet-300 hover:bg-violet-500/5 hover:border-violet-500/40"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-violet-400 animate-pulse" />
+              Sprint Retro
+            </Button>
+            <Button
+              onClick={() => setIsBulkCreateOpen(true)}
+              className="h-8 text-xs gap-1.5 px-3 rounded-md border transition-all font-medium select-none cursor-pointer bg-[#1C1B1F] text-emerald-400 border-emerald-500/20 hover:text-emerald-300 hover:bg-emerald-500/5 hover:border-emerald-500/40"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
+              AI Brief Import
+            </Button>
+            <Button
+              onClick={() => setIsStaleTasksOpen(true)}
+              className="h-8 text-xs gap-1.5 px-3 rounded-md border transition-all font-medium select-none cursor-pointer bg-[#1C1B1F] text-amber-400 border-amber-500/20 hover:text-amber-300 hover:bg-amber-500/5 hover:border-amber-500/40"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
+              Stale Tasks
+            </Button>
             <Button 
               onClick={toggleSortByPriority}
               className={cn(
@@ -448,7 +565,7 @@ export default function SprintThreeBoardPage() {
         </ScrollArea>
       </div>
 
-      {/* --- TASK DETAIL SHEET --- */}
+      {/* --- TASK DETAIL SHEET OVERLAY --- */}
       <TaskDetailSheet 
         selectedTask={selectedTask}
         onClose={() => setSelectedTaskId(null)}
@@ -459,6 +576,98 @@ export default function SprintThreeBoardPage() {
         onDeleteTask={handleDeleteTask}
       />
 
+      {/* --- DIALOG: BURNDOWN CHART --- */}
+      <Dialog open={isBurndownOpen} onOpenChange={setIsBurndownOpen}>
+        <DialogContent className="bg-hs-main border-border/50 text-foreground rounded-[28px] max-w-[540px] w-full">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-foreground">Sprint Burndown</DialogTitle>
+            <DialogDescription className="text-xs text-zinc-400">
+              Track daily remaining story points against the ideal burndown trajectory.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingBurndown ? (
+            <div className="h-64 flex items-center justify-center text-xs text-muted-foreground">
+              Loading chart...
+            </div>
+          ) : burndownPoints.length > 0 ? (
+            <div className="flex flex-col gap-4 p-4">
+              <div className="h-60 w-full bg-black/40 rounded-xl p-4 relative border border-border/20 flex items-center justify-center">
+                <svg viewBox="0 0 500 200" className="w-full h-full overflow-visible">
+                  {/* Grid Lines */}
+                  <line x1="40" y1="20" x2="460" y2="20" stroke="#27272A" strokeWidth="1" strokeDasharray="2 2" />
+                  <line x1="40" y1="100" x2="460" y2="100" stroke="#27272A" strokeWidth="1" strokeDasharray="2 2" />
+                  
+                  {/* Draw Ideal Line (dashed gray) */}
+                  <line x1="40" y1="20" x2="460" y2="180" stroke="#71717A" strokeWidth="2" strokeDasharray="4 4" />
+                  
+                  {/* Draw Actual Remaining Line (solid themeColor) */}
+                  <path 
+                    d={`M ${burndownPoints.map((pt, idx) => {
+                      const totalPts = pt.totalPoints || 1;
+                      const remPts = pt.remainingPoints;
+                      const x = 40 + (idx * (420 / (burndownPoints.length - 1 || 1)));
+                      const y = 180 - (remPts * 160 / totalPts);
+                      return `${x},${y}`;
+                    }).join(" L ")}`}
+                    fill="none" 
+                    stroke={themeColor} 
+                    strokeWidth="3" 
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  {/* Draw Actual Dots */}
+                  {burndownPoints.map((pt, idx) => {
+                    const totalPts = pt.totalPoints || 1;
+                    const remPts = pt.remainingPoints;
+                    const x = 40 + (idx * (420 / (burndownPoints.length - 1 || 1)));
+                    const y = 180 - (remPts * 160 / totalPts);
+                    return (
+                      <circle 
+                        key={idx} 
+                        cx={x} 
+                        cy={y} 
+                        r="4" 
+                        fill={themeColor} 
+                        stroke="#09090b" 
+                        strokeWidth="1.5" 
+                      />
+                    );
+                  })}
+
+                  {/* Axis lines */}
+                  <line x1="40" y1="180" x2="460" y2="180" stroke="#3F3F46" strokeWidth="1.5" />
+                  <line x1="40" y1="20" x2="40" y2="180" stroke="#3F3F46" strokeWidth="1.5" />
+
+                  {/* Y Axis Labels */}
+                  <text x="30" y="24" fill="#71717A" fontSize="9" textAnchor="end">Max</text>
+                  <text x="30" y="104" fill="#71717A" fontSize="9" textAnchor="end">50%</text>
+                  <text x="30" y="184" fill="#71717A" fontSize="9" textAnchor="end">0</text>
+                </svg>
+              </div>
+              <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+                <span>Start: {new Date(burndownPoints[0]?.date).toLocaleDateString()}</span>
+                <span>End: {new Date(burndownPoints[burndownPoints.length - 1]?.date).toLocaleDateString()}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="h-60 flex flex-col items-center justify-center text-xs text-zinc-500 p-8 text-center">
+              No daily points recorded. Make sure tasks are estimated (points &gt; 0) and the sprint has started.
+            </div>
+          )}
+          <DialogFooter>
+            <Button 
+              onClick={() => setIsBurndownOpen(false)}
+              className="rounded-xl text-xs font-semibold text-white px-4 h-9"
+              style={{ backgroundColor: themeColor }}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* --- CREATE TASK MODAL --- */}
       <CreateTaskModal 
         isOpen={isCreateModalOpen} 
@@ -466,6 +675,36 @@ export default function SprintThreeBoardPage() {
         projectId={projectId} 
         onSuccess={refresh}
         defaultStatus={defaultStatus}
+      />
+
+      {/* --- TRIAGE DRAWER --- */}
+      <TriageDrawer
+        isOpen={isTriageOpen}
+        onClose={() => setIsTriageOpen(false)}
+        projectId={projectId}
+        onSuccess={refresh}
+      />
+
+      {/* --- RETRO MODAL --- */}
+      <RetroModal
+        isOpen={isRetroOpen}
+        onClose={() => setIsRetroOpen(false)}
+        projectId={projectId}
+      />
+
+      {/* --- BULK CREATE MODAL --- */}
+      <BulkCreateModal
+        isOpen={isBulkCreateOpen}
+        onClose={() => setIsBulkCreateOpen(false)}
+        projectId={projectId}
+        onSuccess={refresh}
+      />
+
+      {/* --- STALE TASKS MODAL --- */}
+      <StaleTasksModal
+        isOpen={isStaleTasksOpen}
+        onClose={() => setIsStaleTasksOpen(false)}
+        projectId={projectId}
       />
     </div>
   );

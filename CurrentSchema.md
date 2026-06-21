@@ -142,11 +142,13 @@ CREATE TABLE public.tasks (
   parent_id uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  sprint_id uuid,
   CONSTRAINT tasks_pkey PRIMARY KEY (id),
   CONSTRAINT tasks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
   CONSTRAINT tasks_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
   CONSTRAINT tasks_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
-  CONSTRAINT tasks_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.tasks(id)
+  CONSTRAINT tasks_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.tasks(id),
+  CONSTRAINT tasks_sprint_id_fkey FOREIGN KEY (sprint_id) REFERENCES public.sprints(id)
 );
 CREATE TABLE public.task_assignees (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -356,4 +358,30 @@ CREATE TABLE public.document_chunks (
   CONSTRAINT document_chunks_pkey PRIMARY KEY (id),
   CONSTRAINT document_chunks_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id),
   CONSTRAINT document_chunks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);
+CREATE TABLE public.task_embeddings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  task_id uuid NOT NULL UNIQUE,
+  project_id uuid NOT NULL,
+  embedding USER-DEFINED,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT task_embeddings_pkey PRIMARY KEY (id),
+  CONSTRAINT task_embeddings_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.tasks(id),
+  CONSTRAINT task_embeddings_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);
+CREATE TABLE public.sprints (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name character varying NOT NULL,
+  goal text,
+  status character varying NOT NULL DEFAULT 'PLANNING'::character varying CHECK (status::text = ANY (ARRAY['PLANNING'::character varying, 'ACTIVE'::character varying, 'COMPLETED'::character varying]::text[])),
+  project_id uuid NOT NULL,
+  start_date timestamp without time zone,
+  end_date timestamp without time zone,
+  created_by uuid,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT sprints_pkey PRIMARY KEY (id),
+  CONSTRAINT sprints_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT sprints_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );

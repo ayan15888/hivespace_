@@ -25,4 +25,6 @@ public class TaskRequest {
     private UUID assigneeId;
     private UUID teamId;
     private UUID parentId;
+    private UUID sprintId;
 }
+

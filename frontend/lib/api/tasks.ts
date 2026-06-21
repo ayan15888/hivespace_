@@ -44,9 +44,10 @@ export interface TaskResponse {
   parentId?: string;
   taskIdentifier?: string;
   subtaskCount?: number;
-  completedSubtaskCount?: number;
   assignees?: TaskAssigneeResponse[];
   subtasks?: TaskResponse[];
+  sprintId?: string;
+  sprintName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -146,3 +147,110 @@ export interface TaskActivityResponse {
 export async function getTaskActivities(taskId: string): Promise<TaskActivityResponse[]> {
   return apiFetch(`/api/tasks/${taskId}/activities`);
 }
+
+// ── AI Triage Agent ──────────────────────────────────────────────────────────
+
+export interface TriageSuggestion {
+  taskId: string;
+  taskIdentifier: string;
+  title: string;
+  currentPriority: string;
+  suggestedPriority: string;
+  currentStatus: string;
+  suggestedStatus: string;
+  reason: string;
+}
+
+export async function getTriageSuggestions(projectId: string): Promise<TriageSuggestion[]> {
+  return apiFetch(`/api/projects/${projectId}/ai/triage`);
+}
+
+export async function applyTriageSuggestions(
+  projectId: string,
+  suggestions: TriageSuggestion[]
+): Promise<void> {
+  await apiFetch(`/api/projects/${projectId}/ai/triage/apply`, {
+    method: "POST",
+    body: JSON.stringify(suggestions),
+  });
+}
+
+// ── AI Retro Agent ───────────────────────────────────────────────────────────
+
+export async function generateSprintRetro(
+  projectId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ documentId: string }> {
+  return apiFetch(`/api/projects/${projectId}/ai/retro`, {
+    method: "POST",
+    body: JSON.stringify({ startDate, endDate }),
+  });
+}
+
+// ── AI Task Generator ────────────────────────────────────────────────────────
+
+export interface GeneratedTaskSuggestion {
+  title: string;
+  description: string;
+  priority: string;
+  points: number;
+}
+
+export async function generateTasksFromBrief(
+  projectId: string,
+  brief: string
+): Promise<GeneratedTaskSuggestion[]> {
+  return apiFetch(`/api/projects/${projectId}/ai/generate-tasks`, {
+    method: "POST",
+    body: JSON.stringify({ brief }),
+  });
+}
+
+// ── AI Stale Task Nudger ─────────────────────────────────────────────────────
+
+export interface StaleTask {
+  taskId: string;
+  taskIdentifier: string;
+  title: string;
+  assigneeId: string;
+  assigneeName: string;
+  daysStale: number;
+  activeInChat: boolean;
+  nudgeMessage: string;
+}
+
+export async function getStaleTasks(projectId: string): Promise<StaleTask[]> {
+  return apiFetch(`/api/projects/${projectId}/ai/stale-tasks`);
+}
+
+export async function nudgeStaleTask(taskId: string): Promise<void> {
+  await apiFetch(`/api/tasks/${taskId}/ai/nudge`, {
+    method: "POST",
+  });
+}
+
+
+export interface DuplicateCheckResult {
+  id: string;
+  title: string;
+  status: string;
+  assigneeName: string | null;
+  distance: number;
+}
+
+export async function detectDuplicates(
+  projectId: string,
+  title: string,
+  description: string
+): Promise<DuplicateCheckResult[]> {
+  return apiFetch(`/api/projects/${projectId}/tasks/detect-duplicates`, {
+    method: "POST",
+    body: JSON.stringify({ title, description }),
+  });
+}
+
+
+
+
+

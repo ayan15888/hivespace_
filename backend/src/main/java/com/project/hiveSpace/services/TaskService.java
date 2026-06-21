@@ -38,6 +38,10 @@ public class TaskService {
     private final ProjectTeamRepository projectTeamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final RbacService rbacService;
+    private final AiDuplicateDetectorService aiDuplicateDetectorService;
+    private final SprintRepository sprintRepository;
+
+
 
     @Transactional
     public TaskResponse createTask(UUID projectId, TaskRequest request, User creator) {
@@ -73,12 +77,23 @@ public class TaskService {
             }
         }
 
+        // Resolve Sprint if sprintId is provided
+        Sprint sprint = null;
+        if (request.getSprintId() != null) {
+            sprint = sprintRepository.findById(request.getSprintId())
+                    .orElseThrow(() -> new NotFoundException("Sprint not found"));
+            if (!sprint.getProject().getId().equals(projectId)) {
+                throw new DomainValidationException("Sprint does not belong to this project");
+            }
+        }
+
         // 5. Increment project task sequence and create the task
         project.setTaskSequence(project.getTaskSequence() + 1);
         project = projectRepository.saveAndFlush(project);
         int seq = project.getTaskSequence();
 
         Task task = Task.builder()
+
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .status(status)
@@ -90,9 +105,11 @@ public class TaskService {
                 .parentTask(parentTask)
                 .team(team)
                 .createdBy(creator)
+                .sprint(sprint)
                 .createdAt(new Date())
                 .build();
         task.setSequenceNumber(seq);
+
 
         // 6. Assign the owner
         User ownerUser = creator;
@@ -126,8 +143,11 @@ public class TaskService {
                 .build();
         taskActivityRepository.save(activity);
 
+        aiDuplicateDetectorService.updateTaskEmbeddingAsync(savedTask);
+
         return mapToResponse(savedTask);
     }
+
 
     @Transactional(readOnly = true)
     public TaskResponse getTaskById(UUID taskId) {
@@ -424,14 +444,41 @@ public class TaskService {
             }
         }
 
+        if (request.getSprintId() != null) {
+            Sprint newSprint = sprintRepository.findById(request.getSprintId())
+                    .orElseThrow(() -> new NotFoundException("Sprint not found"));
+            if (!newSprint.getProject().getId().equals(task.getProject().getId())) {
+                throw new DomainValidationException("Sprint does not belong to this project");
+            }
+            Sprint oldSprint = task.getSprint();
+            if (oldSprint == null || !newSprint.getId().equals(oldSprint.getId())) {
+                task.setSprint(newSprint);
+                taskActivityRepository.save(TaskActivity.builder()
+                        .task(task)
+                        .user(actor)
+                        .type("SPRINT_CHANGED")
+                        .oldValue(oldSprint != null ? oldSprint.getName() : "Backlog")
+                        .newValue(newSprint.getName())
+                        .createdAt(new Date())
+                        .build());
+                changed = true;
+            }
+        }
+
         if (changed) {
             task.setUpdatedAt(new Date());
         }
 
+
         Task saved = taskRepository.save(task);
+
+        if (changed) {
+            aiDuplicateDetectorService.updateTaskEmbeddingAsync(saved);
+        }
 
         return mapToResponse(saved);
     }
+
 
     @Transactional
     public void deleteTask(UUID taskId, User actor) {
@@ -443,8 +490,10 @@ public class TaskService {
             throw new ForbiddenException("Access denied: Only project leads and workspace admins can delete tasks");
         }
 
+        aiDuplicateDetectorService.deleteTaskEmbedding(taskId);
         taskRepository.delete(task);
     }
+
 
     @Transactional(readOnly = true)
     public List<TaskActivityResponse> getTaskActivities(UUID taskId) {
@@ -503,7 +552,13 @@ public class TaskService {
             response.setParentId(task.getParentTask().getId());
         }
 
+        if (task.getSprint() != null) {
+            response.setSprintId(task.getSprint().getId());
+            response.setSprintName(task.getSprint().getName());
+        }
+
         response.setTaskIdentifier("HS-" + String.format("%03d", task.getSequenceNumber()));
+
 
 
         // Subtask counts

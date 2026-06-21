@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
-import { createTask, TaskRequest } from "@/lib/api/tasks";
+import { createTask, TaskRequest, detectDuplicates, DuplicateCheckResult } from "@/lib/api/tasks";
 import { getProjectMembers, getProjectTeamMembers, ProjectMemberResponse, getProjectTeams, addProjectMember } from "@/lib/api/projects";
 import { getTeamMembers, TeamResponse, TeamMemberResponse } from "@/lib/api/teams";
 import { columnNameToStatus, priorityToBackend } from "@/lib/taskUtils";
@@ -62,6 +62,9 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
   const [teamId, setTeamId] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([]);
   const [addingTeamMembers, setAddingTeamMembers] = useState(false);
+  const [similarTasks, setSimilarTasks] = useState<DuplicateCheckResult[]>([]);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+
 
   useEffect(() => {
     if (!isOpen || !projectId) {
@@ -110,6 +113,28 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
         setProjectTeams([]);
       });
   }, [isOpen, projectId]);
+
+  useEffect(() => {
+    if (!title.trim() || !projectId) {
+      setSimilarTasks([]);
+      return;
+    }
+
+    const handler = setTimeout(async () => {
+      setCheckingDuplicates(true);
+      try {
+        const results = await detectDuplicates(projectId, title, description);
+        setSimilarTasks(results);
+      } catch (err) {
+        console.error("Failed to check similar tasks:", err);
+      } finally {
+        setCheckingDuplicates(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(handler);
+  }, [title, description, projectId]);
+
 
   useEffect(() => {
     if (!teamId) {
@@ -229,6 +254,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       
       setTitle("");
       setDescription("");
+      setSimilarTasks([]);
       setStatus(defaultStatus || "Todo");
       setPriority("normal");
       setDueDate("");
@@ -291,7 +317,10 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                       </div>
                     )}
                     <div className="grid gap-2">
-                      <Label htmlFor="title" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Title</Label>
+                      <Label htmlFor="title" className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex justify-between items-center">
+                        <span>Title</span>
+                        {checkingDuplicates && <span className="text-[10px] text-zinc-500 animate-pulse normal-case font-normal">Checking duplicates...</span>}
+                      </Label>
                       <Input
                          id="title"
                          value={title}
@@ -301,6 +330,31 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                          disabled={loading}
                       />
                     </div>
+                    {similarTasks.length > 0 && (
+                      <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs p-3 rounded-xl flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <span className="font-semibold flex items-center gap-1.5">
+                          ⚠️ Similar task(s) already exist:
+                        </span>
+                        <div className="flex flex-col gap-1.5 max-h-[100px] overflow-y-auto pr-1">
+                          {similarTasks.map((t) => (
+                            <div key={t.id} className="bg-black/20 p-2 rounded-lg flex items-center justify-between gap-2 border border-zinc-800/40">
+                              <span className="truncate font-medium">{t.title}</span>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {t.assigneeName && (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {t.assigneeName}
+                                  </span>
+                                )}
+                                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded uppercase font-semibold">
+                                  {t.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="grid gap-2 flex-1">
                       <Label htmlFor="description" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Description</Label>
                       <Textarea
