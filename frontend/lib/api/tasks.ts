@@ -206,5 +206,29 @@ export async function generateTasksFromBrief(
   });
 }
 
+// ── AI Stale Task Nudger ─────────────────────────────────────────────────────
+
+export interface StaleTask {
+  taskId: string;
+  taskIdentifier: string;
+  title: string;
+  assigneeId: string;
+  assigneeName: string;
+  daysStale: number;
+  activeInChat: boolean;
+  nudgeMessage: string;
+}
+
+export async function getStaleTasks(projectId: string): Promise<StaleTask[]> {
+  return apiFetch(`/api/projects/${projectId}/ai/stale-tasks`);
+}
+
+export async function nudgeStaleTask(taskId: string): Promise<void> {
+  await apiFetch(`/api/tasks/${taskId}/ai/nudge`, {
+    method: "POST",
+  });
+}
+
+
 
 

@@ -36,6 +36,7 @@ import { CreateTaskModal } from "@/components/features/tasks/CreateTaskModal";
 import { TriageDrawer } from "@/components/features/tasks/TriageDrawer";
 import { RetroModal } from "@/components/features/projects/RetroModal";
 import { BulkCreateModal } from "@/components/features/tasks/BulkCreateModal";
+import { StaleTasksModal } from "@/components/features/tasks/StaleTasksModal";
 
 import { useBoardStore } from "./store";
 import { TaskCard } from "./components/TaskCard";
@@ -76,6 +77,7 @@ export default function SprintThreeBoardPage() {
   const [isTriageOpen, setIsTriageOpen] = useState(false);
   const [isRetroOpen, setIsRetroOpen] = useState(false);
   const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
+  const [isStaleTasksOpen, setIsStaleTasksOpen] = useState(false);
 
   // Derive selectedTask directly from store tasks list so it updates reactively
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
@@ -328,6 +330,13 @@ export default function SprintThreeBoardPage() {
               <Sparkles className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
               AI Brief Import
             </Button>
+            <Button
+              onClick={() => setIsStaleTasksOpen(true)}
+              className="h-8 text-xs gap-1.5 px-3 rounded-md border transition-all font-medium select-none cursor-pointer bg-[#1C1B1F] text-amber-400 border-amber-500/20 hover:text-amber-300 hover:bg-amber-500/5 hover:border-amber-500/40"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
+              Stale Tasks
+            </Button>
             <Button 
               onClick={toggleSortByPriority}
               className={cn(
@@ -517,6 +526,13 @@ export default function SprintThreeBoardPage() {
         onClose={() => setIsBulkCreateOpen(false)}
         projectId={projectId}
         onSuccess={refresh}
+      />
+
+      {/* --- STALE TASKS MODAL --- */}
+      <StaleTasksModal
+        isOpen={isStaleTasksOpen}
+        onClose={() => setIsStaleTasksOpen(false)}
+        projectId={projectId}
       />
     </div>
   );
