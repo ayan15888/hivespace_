@@ -29,6 +29,8 @@ public class TaskResponse {
     private UUID teamId;
     private String createdByName;
     private UUID parentId;
+    private UUID sprintId;
+    private String sprintName;
     private String taskIdentifier;
     private Integer subtaskCount;
     private Integer completedSubtaskCount;
@@ -37,3 +39,4 @@ public class TaskResponse {
     private Date createdAt;
     private Date updatedAt;
 }
+

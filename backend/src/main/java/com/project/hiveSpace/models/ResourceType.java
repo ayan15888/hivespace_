@@ -5,5 +5,7 @@ public enum ResourceType {
     TEAM,
     PROJECT,
     TASK,
-    DOCUMENT
+    DOCUMENT,
+    SPRINT
 }
+

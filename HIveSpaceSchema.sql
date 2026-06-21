@@ -635,6 +635,36 @@ CREATE TRIGGER trigger_document_chunks_updated_at
   updated_at    TIMESTAMP NOT NULL DEFAULT now()
 );
 
+-- -------------------------------------------------------------
+-- SPRINTS TABLE
+-- -------------------------------------------------------------
+CREATE TABLE sprints (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          VARCHAR NOT NULL,
+  goal          TEXT,
+  status        VARCHAR NOT NULL DEFAULT 'PLANNING' 
+                  CHECK (status IN ('PLANNING', 'ACTIVE', 'COMPLETED')),
+  project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  start_date    TIMESTAMP,
+  end_date      TIMESTAMP,
+  created_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at    TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMP NOT NULL DEFAULT now()
+);
+
+-- Link Tasks to Sprints (Nullable: tasks can live in the backlog without a sprint)
+ALTER TABLE tasks ADD COLUMN sprint_id UUID REFERENCES sprints(id) ON DELETE SET NULL;
+
+-- Indexes
+CREATE INDEX idx_sprints_project ON sprints(project_id);
+CREATE INDEX idx_tasks_sprint ON tasks(sprint_id);
+
+-- Enforce Business Rule: Only one ACTIVE sprint per project at a database level
+CREATE UNIQUE INDEX idx_one_active_sprint_per_project
+  ON sprints (project_id)
+  WHERE status = 'ACTIVE';
+
+
 
 ==========================================================================
 ---------------------------------------------------------------------------

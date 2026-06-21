@@ -24,4 +24,6 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     int countByParentTaskAndStatus(Task parentTask, TaskStatus status);
     
     java.util.Optional<Task> findByProjectAndSequenceNumber(Project project, Integer sequenceNumber);
+    List<Task> findAllBySprintId(UUID sprintId);
 }
+
