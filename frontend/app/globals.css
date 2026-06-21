@@ -258,63 +258,64 @@
 /* Charcoal backgrounds · Coral-orange #d97757 accent */
 /* ─────────────────────────────────────────────────── */
 .claude {
-  --background: #262624;
-  --foreground: #c3c0b6;
+  --background: #171614;
+  --foreground: #f4efe6;
 
-  --card: #2c2b29;
-  --card-foreground: #ede9de;
+  --card: #22201d;
+  --card-foreground: #fcfaf7;
 
-  --popover: #30302e;
-  --popover-foreground: #e5e5e2;
+  --popover: #292724;
+  --popover-foreground: #fcfaf7;
 
-  /* Coral-orange — the key accent, not white */
-  --primary: #d97757;
-  --primary-foreground: #ffffff;
+  /* Premium soft terracotta coral brand highlight */
+  --primary: #e07a5f;
+  --primary-foreground: #121110;
 
-  /* Dark warm secondary — not cream */
-  --secondary: #35342f;
-  --secondary-foreground: #c3c0b6;
+  /* Warm dark-coffee secondary elements */
+  --secondary: #2c2a26;
+  --secondary-foreground: #f4efe6;
 
-  --muted: #1b1b19;
-  --muted-foreground: #b7b5a9;
+  --muted: #1e1d1a;
+  --muted-foreground: #a69f94;
 
-  --accent: #3a3830;
-  --accent-foreground: #f5f4ee;
+  --accent: #33312c;
+  --accent-foreground: #fcfaf7;
 
-  --destructive: #ef4444;
+  --destructive: #e05a47;
   --destructive-foreground: #ffffff;
 
-  --border: #3e3e38;
-  --input: #52514a;
-  --ring: #d97757;
+  --border: #32302b;
+  --input: #383530;
+  --ring: #e07a5f;
 
   --radius: 0.5rem;
 
-  --chart-1: #d97757;
-  --chart-2: #9c87f5;
-  --chart-3: #3a3830;
-  --chart-4: #b4552d;
-  --chart-5: #b7b5a9;
+  --chart-1: #e07a5f;
+  --chart-2: #cca285;
+  --chart-3: #3b3834;
+  --chart-4: #c95d3c;
+  --chart-5: #a8a296;
 
-  /* Sidebar */
-  --sidebar: #1f1e1d;
-  --sidebar-foreground: #c3c0b6;
-  --sidebar-primary: #d97757;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #2a2927;
-  --sidebar-accent-foreground: #c3c0b6;
-  --sidebar-border: #3e3e38;
-  --sidebar-ring: #d97757;
+  /* Sidebar - warm deep obsidian */
+  --sidebar: #121110;
+  --sidebar-foreground: #eadecc;
+  --sidebar-primary: #e07a5f;
+  --sidebar-primary-foreground: #121110;
+  --sidebar-accent: #242220;
+  --sidebar-accent-foreground: #fcfaf7;
+  --sidebar-border: #242220;
+  --sidebar-ring: #e07a5f;
 
   /* Hivespace Claude Design System */
-  --hs-base: #262624;
-  --hs-nav: #1f1e1d;
-  --hs-main: #1b1b19;
-  --hs-card: #2c2b29;
-  --hs-text: #c3c0b6;
-  --hs-accent: #d97757;
-  --cta-gradient: linear-gradient(145deg, #f09060, #d97757);
+  --hs-base: #171614;
+  --hs-nav: #121110;
+  --hs-main: #1c1b18;
+  --hs-card: #22201d;
+  --hs-text: #f4efe6;
+  --hs-accent: #e07a5f;
+  --cta-gradient: linear-gradient(135deg, #f29a7c 0%, #e07a5f 100%);
 }
+
 
 @layer base {
   * {

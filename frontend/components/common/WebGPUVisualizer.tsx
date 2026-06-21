@@ -248,11 +248,11 @@ export default function WebGPUVisualizer({
               col = mix(col, cCyan * 0.38, r.x * 0.45);
               col = mix(col, vec3f(1.0), clamp(f - 0.68, 0.0, 1.0) * 0.06);
             } else {
-              // Claude (dark terracotta) theme - charcoal (#262624) and warm coral #d97757
-              let cBg = vec3f(0.149, 0.149, 0.141);
-              let cCharcoal = vec3f(0.122, 0.122, 0.114);
-              let cCoral = vec3f(0.851, 0.467, 0.341); // #d97757
-              let cAccent = vec3f(0.769, 0.706, 0.659);
+              // Claude (dark terracotta) theme - charcoal (#171614) and warm coral #e07a5f
+              let cBg = vec3f(0.09, 0.086, 0.078);
+              let cCharcoal = vec3f(0.07, 0.066, 0.062);
+              let cCoral = vec3f(0.878, 0.478, 0.373); // #e07a5f
+              let cAccent = vec3f(0.651, 0.623, 0.58);
               
               col = mix(cBg, cCharcoal, f * 0.5);
               col = mix(col, cCoral * 0.35, r.y * 0.4);
@@ -419,11 +419,11 @@ export default function WebGPUVisualizer({
         connectionCol = "rgba(14,165,233,0.04)"
         pulseCol = "rgba(79,70,229,0.15)"
       } else if (resolvedTheme === "claude") {
-        bgCol = "#262624"
-        strokeCol = "rgba(217,119,87,0.08)"
-        agentBaseCol = "rgba(217,119,87,0.75)"
-        connectionCol = "rgba(217,119,87,0.05)"
-        pulseCol = "rgba(217,119,87,0.2)"
+        bgCol = "#171614"
+        strokeCol = "rgba(224,122,95,0.08)"
+        agentBaseCol = "rgba(224,122,95,0.75)"
+        connectionCol = "rgba(224,122,95,0.05)"
+        pulseCol = "rgba(224,122,95,0.2)"
       }
 
       ctx.fillStyle = bgCol
