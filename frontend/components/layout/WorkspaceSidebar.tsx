@@ -710,7 +710,7 @@ export function WorkspaceSidebar() {
 
           <div className="flex items-center gap-1.5 shrink-0">
             {mounted && (
-              <Kbd className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 text-[9px] px-1 h-4 font-sans select-none pointer-events-none">
+              <Kbd className="bg-transparent text-[10px] text-zinc-500/80 border-none px-0 h-auto font-sans select-none pointer-events-none group-hover:text-zinc-400/80 transition-colors">
                 {/Macintosh|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "⌘⇧H" : "Ctrl+Shift+H"}
               </Kbd>
             )}
