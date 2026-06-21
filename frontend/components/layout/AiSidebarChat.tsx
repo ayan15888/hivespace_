@@ -260,7 +260,7 @@ export function AiSidebarChat() {
             transition={{ type: "spring", damping: 28, stiffness: 260 }}
           >
             {/* ── Header ── */}
-            <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] px-4">
+            <header className="flex h-[48px] shrink-0 items-center justify-between border-b border-white/[0.06] px-4">
               <div className="flex items-center gap-2.5">
                 {/* Hex logo */}
                 <div className="relative flex h-7 w-7 items-center justify-center">
