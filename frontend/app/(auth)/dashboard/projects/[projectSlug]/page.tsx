@@ -117,24 +117,26 @@ export default function ProjectOverviewPage() {
   const queryClient = useQueryClient();
 
   // TanStack Queries
+  const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
   const { data: projectMembers = [] } = useQuery<ProjectMemberResponse[], Error>({
     queryKey: ["projectMembers", projectId],
     queryFn: () => getProjectMembers(projectId),
-    enabled: !!projectId,
+    enabled: !!projectId && isUuid(projectId),
     staleTime: 30_000,
   });
 
   const { data: tasks = [], isLoading: loadingTasks } = useQuery<TaskResponse[], Error>({
     queryKey: ["projectTasks", projectId],
     queryFn: () => getTasksByProject(projectId),
-    enabled: !!projectId,
+    enabled: !!projectId && isUuid(projectId),
     staleTime: 10_000,
   });
 
   const { data: documents = [], isLoading: loadingDocs } = useQuery<DocumentResponse[], Error>({
     queryKey: queryKeys.documents(projectId),
     queryFn: () => getDocumentsByProject(projectId),
-    enabled: !!projectId,
+    enabled: !!projectId && isUuid(projectId),
     staleTime: 15_000,
   });
 
@@ -320,9 +322,9 @@ export default function ProjectOverviewPage() {
             <button className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors cursor-not-allowed opacity-60">
               List
             </button>
-            <button className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors cursor-not-allowed opacity-60">
+            <Link href={`/dashboard/projects/${projectId}/timeline`} className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors">
               Timeline
-            </button>
+            </Link>
             <button className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors cursor-not-allowed opacity-60">
               Backlog
             </button>

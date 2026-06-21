@@ -1,11 +1,11 @@
 "use client";
 
-import { 
-  PlusCircle, 
-  Bell, 
-  TrendingUp, 
-  Clock, 
-  MessageSquare, 
+import {
+  PlusCircle,
+  Bell,
+  TrendingUp,
+  Clock,
+  MessageSquare,
   GitPullRequest,
   Calendar
 } from "lucide-react";
@@ -42,7 +42,7 @@ function DashboardPageContent() {
   const { activeWorkspace } = useWorkspaceStore();
   const { channels } = useChatStore();
   const workspaceChannels = activeWorkspace ? (channels[activeWorkspace.id] ?? []) : [];
-  
+
   const [lastMessages, setLastMessages] = useState<Record<string, { content: string; createdAt: string }>>({});
 
   useEffect(() => {
@@ -104,7 +104,7 @@ function DashboardPageContent() {
   const totalTasks = tasks.length;
   const inProgressTasksCount = tasks.filter(t => t.status === "in_progress" || t.status === "IN_PROGRESS").length;
   const todoTasksCount = tasks.filter(t => t.status === "todo" || t.status === "TODO").length;
-  
+
   const todayStr = new Date().toDateString();
   const tasksDueToday = tasks.filter(t => {
     if (!t.dueDate) return false;
@@ -145,9 +145,9 @@ function DashboardPageContent() {
             <p className="text-sm text-muted-foreground">Here&apos;s what needs your attention today.</p>
           </div>
           <div className="flex items-center gap-4">
-            <Button 
+            <Button
               className="relative font-medium border-none shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 text-sm rounded-xl px-4.5 py-2 text-white flex items-center justify-center gap-2 cursor-pointer"
-              style={{ 
+              style={{
                 backgroundColor: "var(--hs-accent)"
               }}
               onClick={() => setIsTaskModalOpen(true)}
@@ -165,7 +165,7 @@ function DashboardPageContent() {
         </header>
 
         <div className="flex flex-col gap-8 p-8 max-w-7xl mx-auto">
-          
+
           {/* STATS ROW */}
           <div className="grid grid-cols-4 gap-5">
             {/* Card 1: My Open Tasks */}
@@ -175,7 +175,7 @@ function DashboardPageContent() {
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">My Open Tasks</span>
                     <div className="flex items-baseline gap-2 mt-2.5">
-                      <span className="text-4xl font-extralight text-foreground tracking-tight group-hover:text-violet-400 transition-colors duration-300">
+                      <span className="text-5xl font-extralight text-foreground tracking-tight group-hover:text-violet-400 transition-colors duration-300">
                         {totalTasks}
                       </span>
                     </div>
@@ -184,7 +184,7 @@ function DashboardPageContent() {
                     <TrendingUp strokeWidth={1.5} className="h-4 w-4" />
                   </div>
                 </div>
-                
+
                 <div className="mt-6 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/25 pt-3.5">
                   <span className="flex items-center gap-1.5 font-medium">
                     <span className="h-1.5 w-1.5 rounded-full bg-violet-500/60" />
@@ -204,7 +204,7 @@ function DashboardPageContent() {
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Due Date</span>
                     <div className="flex items-baseline gap-2 mt-2.5">
-                      <span className="text-4xl font-extralight text-foreground tracking-tight group-hover:text-amber-400 transition-colors duration-300">
+                      <span className="text-5xl font-extralight text-foreground tracking-tight group-hover:text-amber-400 transition-colors duration-300">
                         {dueTodayCount}
                       </span>
                     </div>
@@ -213,7 +213,7 @@ function DashboardPageContent() {
                     <Clock strokeWidth={1.5} className="h-4 w-4" />
                   </div>
                 </div>
-                
+
                 <div className="mt-6 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/25 pt-3.5">
                   <span className="flex items-center gap-1.5 font-medium">
                     {overdueTasksCount > 0 ? (
@@ -242,7 +242,7 @@ function DashboardPageContent() {
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Unread Messages</span>
                     <div className="flex items-baseline gap-2 mt-2.5">
-                      <span className="text-4xl font-extralight text-foreground tracking-tight group-hover:text-blue-400 transition-colors duration-300">
+                      <span className="text-5xl font-extralight text-foreground tracking-tight group-hover:text-blue-400 transition-colors duration-300">
                         8
                       </span>
                     </div>
@@ -251,7 +251,7 @@ function DashboardPageContent() {
                     <MessageSquare strokeWidth={1.5} className="h-4 w-4" />
                   </div>
                 </div>
-                
+
                 <div className="mt-6 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/25 pt-3.5">
                   <span className="flex items-center gap-1.5 font-medium">
                     <span className="h-1.5 w-1.5 rounded-full bg-blue-500/60" />
@@ -269,7 +269,7 @@ function DashboardPageContent() {
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">PRs Awaiting Review</span>
                     <div className="flex items-baseline gap-2 mt-2.5">
-                      <span className="text-4xl font-extralight text-foreground tracking-tight group-hover:text-emerald-400 transition-colors duration-300">
+                      <span className="text-5xl font-extralight text-foreground tracking-tight group-hover:text-emerald-400 transition-colors duration-300">
                         2
                       </span>
                     </div>
@@ -278,7 +278,7 @@ function DashboardPageContent() {
                     <GitPullRequest strokeWidth={1.5} className="h-4 w-4" />
                   </div>
                 </div>
-                
+
                 <div className="mt-6 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/25 pt-3.5">
                   <span className="flex items-center gap-1.5 font-medium">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/60" />
@@ -292,10 +292,10 @@ function DashboardPageContent() {
 
           {/* MAIN GRID */}
           <div className="grid grid-cols-10 gap-6 items-start">
-            
+
             {/* LEFT COLUMN (60%) */}
             <div className="col-span-6 flex flex-col gap-6 w-full">
-              
+
               {/* My Tasks */}
               <Card className="bg-hs-main border-none shadow-none rounded-[24px] overflow-hidden relative">
                 <CardHeader className="py-4 px-5 flex flex-row items-center justify-between space-y-0 pb-2">
@@ -308,7 +308,7 @@ function DashboardPageContent() {
                   <div className="flex flex-col gap-2.5 relative z-10">
                     {tasks.length > 0 ? (
                       tasks.slice(0, 5).map((task) => (
-                        <div 
+                        <div
                           key={task.id}
                           onClick={() => {
                             if (task.projectId) {
@@ -324,8 +324,8 @@ function DashboardPageContent() {
                               return (
                                 <div className={cn(
                                   "h-4 w-4 rounded-full border flex items-center justify-center transition-all duration-300",
-                                  isDone 
-                                    ? "border-emerald-500/80 bg-emerald-500/10 text-emerald-400" 
+                                  isDone
+                                    ? "border-emerald-500/80 bg-emerald-500/10 text-emerald-400"
                                     : "border-zinc-700 group-hover:border-zinc-500 text-transparent"
                                 )}>
                                   <svg viewBox="0 0 24 24" className="h-2.5 w-2.5 fill-none stroke-current" strokeWidth={3}>
@@ -348,14 +348,14 @@ function DashboardPageContent() {
                                 {task.title}
                               </span>
                             </div>
-                            
+
                             {/* Metadata Subtitle */}
                             <div className="flex items-center flex-wrap gap-2 mt-1.5 text-[11px] text-zinc-500 select-none">
                               <span className="font-mono text-zinc-500 bg-zinc-900/35 px-1.5 py-0.5 rounded border border-zinc-800/40 text-[10px]">{task.taskIdentifier || task.id.slice(0, 6)}</span>
-                              
+
                               {/* Grouped Project & Status Capsule */}
                               <div className="flex items-center gap-1.5 bg-zinc-900/40 border border-zinc-800/45 px-2 py-0.5 rounded-full">
-                                <span 
+                                <span
                                   style={{ color: task.projectColor ? PROJECT_COLOR_MAP[task.projectColor] : "inherit" }}
                                   className="font-bold text-[9px] uppercase tracking-wider"
                                 >
@@ -381,7 +381,7 @@ function DashboardPageContent() {
                               const p = (task.priority || "normal").toLowerCase();
                               if (p === "urgent" || p === "high") {
                                 return (
-                                  <Badge 
+                                  <Badge
                                     variant="outline"
                                     className="text-[9px] font-bold rounded-full bg-rose-500/10 text-rose-400 border-rose-500/20 px-2 py-0.5 select-none uppercase tracking-wider"
                                   >
@@ -391,8 +391,8 @@ function DashboardPageContent() {
                               }
                               return null;
                             })()}
-                            
-                            <Avatar 
+
+                            <Avatar
                               className="h-6 w-6 rounded-full border border-zinc-800 shrink-0"
                               username={task.assigneeName || "Unassigned"}
                               email={task.assigneeName ? `${task.assigneeInitials?.toLowerCase() || "user"}@hivespace.io` : undefined}
@@ -422,8 +422,8 @@ function DashboardPageContent() {
                     ) : (
                       <div className="flex flex-col items-center justify-center py-12 text-center px-6">
                         <p className="text-sm text-muted-foreground">No tasks assigned to you yet.</p>
-                        <Button 
-                          variant="link" 
+                        <Button
+                          variant="link"
                           className="text-primary text-xs mt-1"
                           onClick={() => setIsTaskModalOpen(true)}
                         >
@@ -454,7 +454,7 @@ function DashboardPageContent() {
                         {i !== arr.length - 1 && (
                           <div className="absolute left-[13px] top-6 bottom-0 w-px border-l-2 border-border h-[calc(100%-2px)]" />
                         )}
-                        
+
                         <Avatar className="h-7 w-7 rounded-full shrink-0 relative z-10 ring-4 ring-hs-main mt-0.5">
                           <AvatarFallback className={cn("text-xs font-semibold", getAvatarColorClass(activity.initials || activity.text))}>
                             {activity.initials}
@@ -469,12 +469,12 @@ function DashboardPageContent() {
                   </div>
                 </div>
               </Card>
-              
+
             </div>
 
             {/* RIGHT COLUMN (40%) */}
             <div className="col-span-4 flex flex-col gap-6 w-full">
-              
+
               {/* My Projects */}
               <Card className="bg-hs-main border-border/50 shadow-none rounded-[24px] overflow-hidden">
                 <CardHeader className="py-4 px-5">
@@ -487,8 +487,8 @@ function DashboardPageContent() {
                       return (
                         <div key={project.id} className="flex items-center justify-between py-3 px-5 hover:bg-muted/30 transition-colors cursor-pointer group">
                           <div className="flex items-center gap-4 min-w-0">
-                            <div 
-                              className="h-[32px] w-[32px] rounded-lg shrink-0 flex items-center justify-center text-white text-xs font-bold shadow-sm" 
+                            <div
+                              className="h-[32px] w-[32px] rounded-lg shrink-0 flex items-center justify-center text-white text-xs font-bold shadow-sm"
                               style={{ backgroundColor: projectColor }}
                             >
                               {project.name.charAt(0)}
@@ -504,12 +504,12 @@ function DashboardPageContent() {
                           </div>
                           <div className="flex items-center gap-4 w-1/3 justify-end shrink-0">
                             <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
-                              <div 
-                                className="h-full rounded-full" 
-                                style={{ 
-                                  width: '20%', 
-                                  backgroundColor: projectColor 
-                                }} 
+                              <div
+                                className="h-full rounded-full"
+                                style={{
+                                  width: '20%',
+                                  backgroundColor: projectColor
+                                }}
                               />
                             </div>
                             <span className="text-[10px] font-medium text-muted-foreground w-8 text-right">20%</span>
@@ -536,8 +536,8 @@ function DashboardPageContent() {
                       .filter(c => c.type === 'PUBLIC' || c.type === 'PRIVATE')
                       .slice(0, 5)
                       .map((channel) => (
-                        <div 
-                          key={channel.id} 
+                        <div
+                          key={channel.id}
                           onClick={() => router.push(`/dashboard/chat/${channel.id}`)}
                           className="flex items-center justify-between py-3 px-5 hover:bg-muted/30 transition-colors cursor-pointer border-b border-border/10 last:border-0"
                         >
@@ -561,7 +561,7 @@ function DashboardPageContent() {
                               <p className="text-xs text-zinc-500/60 italic">No messages yet</p>
                             )}
                           </div>
-                          
+
                           {lastMessages[channel.id] && (
                             <span className="text-[10px] text-zinc-500 shrink-0 whitespace-nowrap self-start pt-0.5">
                               {(() => {
@@ -621,15 +621,15 @@ function DashboardPageContent() {
 
             </div>
           </div>
-          
+
         </div>
         <CreateOrgModal isOpen={isCreateModalOpen} onClose={handleCloseCreateModal} />
         <JoinOrgModal isOpen={isJoinModalOpen} onClose={handleCloseJoinModal} />
       </ScrollArea>
 
-      <CreateTaskModal 
-        isOpen={isTaskModalOpen} 
-        onClose={() => setIsTaskModalOpen(false)} 
+      <CreateTaskModal
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
       />
     </>
   );
