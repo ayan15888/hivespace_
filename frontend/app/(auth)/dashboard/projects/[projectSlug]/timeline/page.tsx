@@ -238,9 +238,10 @@ export default function ProjectTimelinePage() {
             Timeline
             <div className="absolute bottom-0 left-0 h-[2px] w-full" style={{ backgroundColor: themeColor }} />
           </button>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-not-allowed opacity-60">
+          <Link href={`/dashboard/projects/${projectId}/backlog`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Backlog
-          </button>
+          </Link>
+
         </nav>
 
         {/* Right Members Avatars */}

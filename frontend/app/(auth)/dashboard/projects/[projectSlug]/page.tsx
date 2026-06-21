@@ -23,7 +23,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
-import { useEffect } from "react";
 import { 
   getProjectMembers, 
   ProjectMemberResponse,
@@ -107,12 +106,6 @@ export default function ProjectOverviewPage() {
   const { activeOrg } = useOrgStore();
 
   const activeLink = currentProject ? shareLinks[currentProject.id] : null;
-
-  useEffect(() => {
-    if (currentProject?.id) {
-      fetchOrCreateShareLink(currentProject.id);
-    }
-  }, [currentProject?.id, fetchOrCreateShareLink]);
 
   const queryClient = useQueryClient();
 
@@ -325,9 +318,10 @@ export default function ProjectOverviewPage() {
             <Link href={`/dashboard/projects/${projectId}/timeline`} className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors">
               Timeline
             </Link>
-            <button className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors cursor-not-allowed opacity-60">
+            <Link href={`/dashboard/projects/${projectId}/backlog`} className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors">
               Backlog
-            </button>
+            </Link>
+
             <Link href="/dashboard/docs" className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors">
               Docs
             </Link>

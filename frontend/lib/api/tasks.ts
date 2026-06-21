@@ -44,9 +44,10 @@ export interface TaskResponse {
   parentId?: string;
   taskIdentifier?: string;
   subtaskCount?: number;
-  completedSubtaskCount?: number;
   assignees?: TaskAssigneeResponse[];
   subtasks?: TaskResponse[];
+  sprintId?: string;
+  sprintName?: string;
   createdAt: string;
   updatedAt: string;
 }

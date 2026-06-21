@@ -36,9 +36,8 @@ public class ShareableLinkService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new NotFoundException("Project not found"));
 
-        // Caller must have role VIEWER or higher in the project
-        if (!rbacService.hasProjectRole(projectId, ProjectMemberRole.VIEWER) && 
-            !rbacService.canAdminWorkspace(project.getWorkspace().getId())) {
+        // Caller must be able to view the project (member, team member, or workspace admin)
+        if (!rbacService.canViewProject(projectId)) {
             throw new ForbiddenException("Access denied: You do not have permission to share this project");
         }
 
