@@ -146,3 +146,31 @@ export interface TaskActivityResponse {
 export async function getTaskActivities(taskId: string): Promise<TaskActivityResponse[]> {
   return apiFetch(`/api/tasks/${taskId}/activities`);
 }
+
+// ── AI Triage Agent ──────────────────────────────────────────────────────────
+
+export interface TriageSuggestion {
+  taskId: string;
+  taskIdentifier: string;
+  title: string;
+  currentPriority: string;
+  suggestedPriority: string;
+  currentStatus: string;
+  suggestedStatus: string;
+  reason: string;
+}
+
+export async function getTriageSuggestions(projectId: string): Promise<TriageSuggestion[]> {
+  return apiFetch(`/api/projects/${projectId}/ai/triage`);
+}
+
+export async function applyTriageSuggestions(
+  projectId: string,
+  suggestions: TriageSuggestion[]
+): Promise<void> {
+  await apiFetch(`/api/projects/${projectId}/ai/triage/apply`, {
+    method: "POST",
+    body: JSON.stringify(suggestions),
+  });
+}
+

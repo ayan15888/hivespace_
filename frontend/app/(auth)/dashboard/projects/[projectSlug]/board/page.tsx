@@ -7,7 +7,8 @@ import {
   LayoutList, 
   PlusCircle,
   MoreHorizontal,
-  Plus
+  Plus,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -32,6 +33,7 @@ import { columnNameToStatus, statusMatchesColumn } from "@/lib/taskUtils";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { useTaskStore } from "@/store/taskStore";
 import { CreateTaskModal } from "@/components/features/tasks/CreateTaskModal";
+import { TriageDrawer } from "@/components/features/tasks/TriageDrawer";
 
 import { useBoardStore } from "./store";
 import { TaskCard } from "./components/TaskCard";
@@ -69,6 +71,7 @@ export default function SprintThreeBoardPage() {
   const [quickAddColumn, setQuickAddColumn] = useState<string | null>(null);
   const [quickAddTitle, setQuickAddTitle] = useState("");
   const [quickAddLoading, setQuickAddLoading] = useState(false);
+  const [isTriageOpen, setIsTriageOpen] = useState(false);
 
   // Derive selectedTask directly from store tasks list so it updates reactively
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
@@ -300,6 +303,13 @@ export default function SprintThreeBoardPage() {
 
           {/* Sort Toggle Button */}
           <div className="flex items-center gap-3 shrink-0 ml-4">
+            <Button
+              onClick={() => setIsTriageOpen(true)}
+              className="h-8 text-xs gap-1.5 px-3 rounded-md border transition-all font-medium select-none cursor-pointer bg-[#1C1B1F] text-indigo-400 border-indigo-500/20 hover:text-indigo-300 hover:bg-indigo-500/5 hover:border-indigo-500/40"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" />
+              Smart Triage
+            </Button>
             <Button 
               onClick={toggleSortByPriority}
               className={cn(
@@ -466,6 +476,14 @@ export default function SprintThreeBoardPage() {
         projectId={projectId} 
         onSuccess={refresh}
         defaultStatus={defaultStatus}
+      />
+
+      {/* --- TRIAGE DRAWER --- */}
+      <TriageDrawer
+        isOpen={isTriageOpen}
+        onClose={() => setIsTriageOpen(false)}
+        projectId={projectId}
+        onSuccess={refresh}
       />
     </div>
   );
