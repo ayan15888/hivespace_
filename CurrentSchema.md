@@ -357,3 +357,14 @@ CREATE TABLE public.document_chunks (
   CONSTRAINT document_chunks_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id),
   CONSTRAINT document_chunks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
 );
+CREATE TABLE public.task_embeddings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  task_id uuid NOT NULL UNIQUE,
+  project_id uuid NOT NULL,
+  embedding USER-DEFINED,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT task_embeddings_pkey PRIMARY KEY (id),
+  CONSTRAINT task_embeddings_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.tasks(id),
+  CONSTRAINT task_embeddings_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);

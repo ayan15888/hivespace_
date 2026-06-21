@@ -230,5 +230,26 @@ export async function nudgeStaleTask(taskId: string): Promise<void> {
 }
 
 
+export interface DuplicateCheckResult {
+  id: string;
+  title: string;
+  status: string;
+  assigneeName: string | null;
+  distance: number;
+}
+
+export async function detectDuplicates(
+  projectId: string,
+  title: string,
+  description: string
+): Promise<DuplicateCheckResult[]> {
+  return apiFetch(`/api/projects/${projectId}/tasks/detect-duplicates`, {
+    method: "POST",
+    body: JSON.stringify({ title, description }),
+  });
+}
+
+
+
 
 

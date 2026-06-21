@@ -38,6 +38,8 @@ public class TaskService {
     private final ProjectTeamRepository projectTeamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final RbacService rbacService;
+    private final AiDuplicateDetectorService aiDuplicateDetectorService;
+
 
     @Transactional
     public TaskResponse createTask(UUID projectId, TaskRequest request, User creator) {
@@ -126,8 +128,11 @@ public class TaskService {
                 .build();
         taskActivityRepository.save(activity);
 
+        aiDuplicateDetectorService.updateTaskEmbeddingAsync(savedTask);
+
         return mapToResponse(savedTask);
     }
+
 
     @Transactional(readOnly = true)
     public TaskResponse getTaskById(UUID taskId) {
@@ -430,8 +435,13 @@ public class TaskService {
 
         Task saved = taskRepository.save(task);
 
+        if (changed) {
+            aiDuplicateDetectorService.updateTaskEmbeddingAsync(saved);
+        }
+
         return mapToResponse(saved);
     }
+
 
     @Transactional
     public void deleteTask(UUID taskId, User actor) {
@@ -443,8 +453,10 @@ public class TaskService {
             throw new ForbiddenException("Access denied: Only project leads and workspace admins can delete tasks");
         }
 
+        aiDuplicateDetectorService.deleteTaskEmbedding(taskId);
         taskRepository.delete(task);
     }
+
 
     @Transactional(readOnly = true)
     public List<TaskActivityResponse> getTaskActivities(UUID taskId) {

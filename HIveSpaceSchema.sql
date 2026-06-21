@@ -626,6 +626,16 @@ CREATE TRIGGER trigger_document_chunks_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 
+  CREATE TABLE task_embeddings (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id       UUID NOT NULL UNIQUE REFERENCES tasks(id) ON DELETE CASCADE,
+  project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  embedding     vector(4096),
+  created_at    TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMP NOT NULL DEFAULT now()
+);
+
+
 ==========================================================================
 ---------------------------------------------------------------------------
 ---------------------- NOT ADDED IN THE DB YET ----------------------------
