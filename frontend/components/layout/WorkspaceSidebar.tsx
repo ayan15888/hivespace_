@@ -11,7 +11,9 @@ import {
   FileText,
   MessageSquare,
   Settings,
-  Layout
+  Layout,
+  Hexagon,
+  Sparkles
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -42,6 +44,7 @@ import { useChatStore } from "@/store/chatStore";
 import { getWorkspaceChannels, ensureProjectChannel } from "@/lib/api/channels";
 import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "next/navigation";
+import { useUiStore } from "@/store/uiStore";
 
 const sidebarContainerVariants = {
   hidden: { opacity: 0 },
@@ -78,6 +81,7 @@ export function WorkspaceSidebar() {
   const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
   const [isStartDmOpen, setIsStartDmOpen] = useState(false);
   const [ensuringChannelForProject, setEnsuringChannelForProject] = useState<string | null>(null);
+  const { isAiSidebarOpen, toggleAiSidebar } = useUiStore();
 
   const [isProjectsSectionExpanded, setIsProjectsSectionExpanded] = useState(true);
   const [isTeamsSectionExpanded, setIsTeamsSectionExpanded] = useState(true);
@@ -640,6 +644,48 @@ export function WorkspaceSidebar() {
           </div>
         </div>
       )}
+
+      {/* Hex AI Button - always visible at bottom */}
+      <div className="p-3 border-t border-zinc-800/50">
+        <button
+          onClick={toggleAiSidebar}
+          className={cn(
+            "group relative w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-all duration-300",
+            isAiSidebarOpen
+              ? "bg-gradient-to-r from-violet-600/25 to-fuchsia-600/15 border border-violet-500/40"
+              : "bg-gradient-to-r from-violet-600/10 to-fuchsia-600/5 border border-violet-500/20 hover:from-violet-600/20 hover:to-fuchsia-600/10 hover:border-violet-500/35"
+          )}
+        >
+          {/* Glow pulse */}
+          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600/10 to-fuchsia-600/10 opacity-0 group-hover:opacity-100 blur-md transition-opacity duration-300" />
+
+          {/* Hex icon */}
+          <div className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-md shadow-violet-900/40">
+            <Hexagon
+              className={cn(
+                "h-3.5 w-3.5 fill-white/20 text-white",
+                isAiSidebarOpen && "animate-pulse"
+              )}
+              strokeWidth={1.5}
+            />
+          </div>
+
+          <div className="flex-1 text-left min-w-0">
+            <p className="text-[12px] font-semibold text-violet-200 leading-tight">Hex AI</p>
+            <p className="text-[10px] text-violet-400/60 leading-tight truncate">
+              {isAiSidebarOpen ? "Chat open" : "Create tasks with AI"}
+            </p>
+          </div>
+
+          <Sparkles
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 transition-colors",
+              isAiSidebarOpen ? "text-violet-300" : "text-violet-500/60 group-hover:text-violet-400"
+            )}
+            strokeWidth={1.5}
+          />
+        </button>
+      </div>
 
       <CreateWorkspaceModal 
         isOpen={isCreateWorkspaceModalOpen} 

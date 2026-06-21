@@ -22,4 +22,6 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     int countByProjectAndCreatedAtLessThanEqual(Project project, Date createdAt);
     int countByParentTask(Task parentTask);
     int countByParentTaskAndStatus(Task parentTask, TaskStatus status);
+    
+    java.util.Optional<Task> findByProjectAndSequenceNumber(Project project, Integer sequenceNumber);
 }
