@@ -45,6 +45,15 @@ const SUGGESTED_PROMPTS = [
   "Ask: What are the open action items from today?",
 ];
 
+const AI_COMMAND_SUGGESTIONS = [
+  { command: "/todo ", description: "Create a new task / todo" },
+  { command: "/update ", description: "Update an existing task" },
+  { command: "/ai summarize", description: "Summarize the last 50 messages in this channel" },
+  { command: "/ai summarize from ", description: "Summarize messages in a specific date range" },
+  { command: "/ai ask ", description: "Answer questions using the channel history" },
+  { command: "/ai draft a reply to ", description: "Draft a response to a channel member" }
+];
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export function AiSidebarChat() {
@@ -56,6 +65,8 @@ export function AiSidebarChat() {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [aiSuggestIndex, setAiSuggestIndex] = useState(0);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -167,7 +178,50 @@ export function AiSidebarChat() {
     }
   };
 
+  useEffect(() => {
+    if (inputValue === "") {
+      setDismissedSuggestions(false);
+    }
+  }, [inputValue]);
+
+  const filteredSuggestions = AI_COMMAND_SUGGESTIONS.filter((s) =>
+    s.command.toLowerCase().startsWith(inputValue.toLowerCase()) ||
+    (inputValue.toLowerCase().startsWith(s.command.toLowerCase()) && inputValue.length <= s.command.length)
+  );
+
+  const showAiSuggestions =
+    !dismissedSuggestions &&
+    inputValue.startsWith("/") &&
+    filteredSuggestions.length > 0;
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showAiSuggestions) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setAiSuggestIndex((aiSuggestIndex + 1) % filteredSuggestions.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setAiSuggestIndex((aiSuggestIndex - 1 + filteredSuggestions.length) % filteredSuggestions.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const suggestion = filteredSuggestions[aiSuggestIndex];
+        if (suggestion) {
+          setInputValue(suggestion.command);
+          setTimeout(() => textareaRef.current?.focus(), 50);
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setDismissedSuggestions(true);
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (canSend) handleSend();
@@ -310,8 +364,40 @@ export function AiSidebarChat() {
             </div>
 
             {/* ── Compose Bar ── */}
-            <div className="shrink-0 border-t border-white/[0.06] p-3">
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3 transition-colors focus-within:border-violet-500/40 focus-within:bg-white/[0.05]">
+            <div className="shrink-0 border-t border-white/[0.06] p-3 relative">
+              <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3 transition-colors focus-within:border-violet-500/40 focus-within:bg-white/[0.05]">
+                {showAiSuggestions && (
+                  <div className="absolute bottom-full left-0 z-50 mb-2 w-full overflow-hidden rounded-xl border border-purple-500/30 bg-zinc-950/95 backdrop-blur-md shadow-2xl p-1 animate-in slide-in-from-bottom-1 duration-150">
+                    <div className="px-3 py-1.5 text-[10px] font-bold text-purple-400 tracking-wider uppercase border-b border-white/[0.06]">
+                      AI Commands
+                    </div>
+                    <div className="scrollbar-thin scrollbar-thumb-white/10 max-h-48 overflow-y-auto py-1">
+                      {filteredSuggestions.map((suggestion, index) => (
+                        <div
+                          key={suggestion.command}
+                          onClick={() => {
+                            setInputValue(suggestion.command);
+                            setTimeout(() => textareaRef.current?.focus(), 50);
+                          }}
+                          onMouseEnter={() => setAiSuggestIndex(index)}
+                          className={cn(
+                            "flex flex-col cursor-pointer px-3 py-1.5 transition-colors rounded-lg",
+                            index === aiSuggestIndex
+                              ? "bg-purple-500/20 border border-purple-500/30"
+                              : "hover:bg-white/5 border border-transparent"
+                          )}
+                        >
+                          <span className="text-xs font-semibold text-purple-200">
+                            {suggestion.command}
+                          </span>
+                          <span className="text-[10px] text-zinc-500">
+                            {suggestion.description}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start gap-2.5">
                   <Sparkles className="mt-1.5 h-4 w-4 shrink-0 text-violet-500/60" />
                   <textarea

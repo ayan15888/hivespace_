@@ -74,7 +74,9 @@ public class TaskService {
         }
 
         // 5. Increment project task sequence and create the task
-        int seq = projectRepository.incrementAndGetTaskSequence(projectId);
+        project.setTaskSequence(project.getTaskSequence() + 1);
+        project = projectRepository.saveAndFlush(project);
+        int seq = project.getTaskSequence();
 
         Task task = Task.builder()
                 .title(request.getTitle())
