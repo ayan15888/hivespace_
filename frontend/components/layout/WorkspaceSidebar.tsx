@@ -37,6 +37,7 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 import { useProjects } from "@/hooks/useProjects";
 import { useTeams } from "@/hooks/useTeams";
 import { usePermission } from "@/hooks/usePermission";
+import { Kbd } from "@/components/ui/kbd";
 
 
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
@@ -82,6 +83,20 @@ export function WorkspaceSidebar() {
   const [isStartDmOpen, setIsStartDmOpen] = useState(false);
   const [ensuringChannelForProject, setEnsuringChannelForProject] = useState<string | null>(null);
   const { isAiSidebarOpen, toggleAiSidebar } = useUiStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "h") {
+        e.preventDefault();
+        toggleAiSidebar();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [toggleAiSidebar]);
 
   const [isProjectsSectionExpanded, setIsProjectsSectionExpanded] = useState(true);
   const [isTeamsSectionExpanded, setIsTeamsSectionExpanded] = useState(true);
@@ -688,13 +703,20 @@ export function WorkspaceSidebar() {
             </p>
           </div>
 
-          <Sparkles
-            className={cn(
-              "h-3.5 w-3.5 shrink-0 transition-colors",
-              isAiSidebarOpen ? "text-violet-300" : "text-violet-500/60 group-hover:text-violet-400"
+          <div className="flex items-center gap-1.5 shrink-0 relative z-10">
+            {mounted && (
+              <Kbd className="bg-violet-950/50 text-violet-300 border border-violet-500/25 text-[9px] px-1 h-4 font-sans select-none pointer-events-none">
+                {/Macintosh|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "⌘⇧H" : "Ctrl+Shift+H"}
+              </Kbd>
             )}
-            strokeWidth={1.5}
-          />
+            <Sparkles
+              className={cn(
+                "h-3.5 w-3.5 transition-colors",
+                isAiSidebarOpen ? "text-violet-300" : "text-violet-500/60 group-hover:text-violet-400"
+              )}
+              strokeWidth={1.5}
+            />
+          </div>
         </button>
       </div>
 

@@ -40,7 +40,7 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
 import { cn, getAvatarColorClass } from "@/lib/utils"
 import { motion } from "framer-motion"
-import { useUiStore } from "@/store/uiStore"
+// import { useUiStore } from "@/store/uiStore"
 
 export function NavRail() {
   const pathname = usePathname()
@@ -50,7 +50,7 @@ export function NavRail() {
   const { activeOrg, setActiveOrg } = useOrgStore()
   const { switchTenant } = useAuthStore()
   const { theme, setTheme } = useTheme()
-  const { isAiSidebarOpen, toggleAiSidebar } = useUiStore()
+  // const { isAiSidebarOpen, toggleAiSidebar } = useUiStore()
 
   const handleSwitchTenant = async (org: any) => {
     try {
@@ -175,11 +175,9 @@ export function NavRail() {
         >
           {items.map((item) => {
             const isAiItem = item.name === "AI Assistant";
-            const isActive = isAiItem
-              ? isAiSidebarOpen
-              : item.href === "/dashboard"
-                ? pathname === "/dashboard" || pathname === "/dashboard/"
-                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const isActive = item.href === "/dashboard"
+              ? pathname === "/dashboard" || pathname === "/dashboard/"
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
 
             return (
@@ -195,20 +193,19 @@ export function NavRail() {
                       </div>
                     </motion.div>
                   ) : isAiItem ? (
-                    // AI Assistant: toggle sidebar instead of navigating
                     <motion.div
                       variants={{ hidden: { opacity: 0, x: -8 }, visible: { opacity: 1, x: 0, transition: { duration: 0.25 } } }}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.93 }}
                     >
-                      <button
-                        onClick={toggleAiSidebar}
+                      <Link
+                        href={item.href}
                         className={`group flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
                           isActive
                             ? "bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-md"
                             : "hover:bg-zinc-800"
                         }`}
-                        aria-label="Toggle Hex AI Sidebar"
+                        aria-label="Hex AI Assistant"
                       >
                         <div className="relative flex items-center justify-center">
                           <Icon
@@ -225,7 +222,7 @@ export function NavRail() {
                             </span>
                           )}
                         </div>
-                      </button>
+                      </Link>
                     </motion.div>
                   ) : (
                     <motion.div
