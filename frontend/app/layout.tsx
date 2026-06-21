@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 
 import { CommandPalette } from "@/components/common/CommandPalette"
 import { GlobalContextMenu } from "@/components/common/GlobalContextMenu"
+import { PwaRegister } from "@/components/common/PwaRegister"
 
 export default function RootLayout({
   children,
@@ -33,6 +34,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className={`${plusJakartaSans.variable} font-sans tracking-tight`} suppressHydrationWarning>
+        <PwaRegister />
         <GooeyToaster />
         <QueryProvider>
           <ThemeProvider>

@@ -228,7 +228,7 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
           </div>
         ) : (
           <>
-            <main className="scrollbar-none relative flex-1 overflow-y-auto scroll-smooth bg-hs-main px-10 py-16">
+            <main className="scrollbar-none relative flex-1 overflow-y-auto scroll-smooth bg-white px-10 py-16">
               {isRedesigning && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/75 text-center backdrop-blur-md animate-in fade-in duration-300">
                   <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/20 blur-[80px] pointer-events-none animate-pulse-soft" />
@@ -259,7 +259,7 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
                     defaultValue={activeDocument?.title || ""}
                     placeholder="Untitled"
                     onBlur={(event) => handleTitleChange(event.target.value)}
-                    className="w-full border-none bg-transparent text-4xl font-semibold text-foreground outline-none placeholder:text-muted-foreground/30"
+                    className="w-full border-none bg-transparent text-4xl font-semibold text-black outline-none placeholder:text-zinc-300"
                   />
                   <div className="flex items-center gap-2 text-xs text-zinc-500">
                     {activeDocument?.createdByName && (

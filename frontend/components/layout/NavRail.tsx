@@ -177,7 +177,9 @@ export function NavRail() {
             const isAiItem = item.name === "AI Assistant";
             const isActive = isAiItem
               ? isAiSidebarOpen
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              : item.href === "/dashboard"
+                ? pathname === "/dashboard" || pathname === "/dashboard/"
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
 
             return (
