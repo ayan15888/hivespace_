@@ -35,6 +35,7 @@ import { useTaskStore } from "@/store/taskStore";
 import { CreateTaskModal } from "@/components/features/tasks/CreateTaskModal";
 import { TriageDrawer } from "@/components/features/tasks/TriageDrawer";
 import { RetroModal } from "@/components/features/projects/RetroModal";
+import { BulkCreateModal } from "@/components/features/tasks/BulkCreateModal";
 
 import { useBoardStore } from "./store";
 import { TaskCard } from "./components/TaskCard";
@@ -74,6 +75,7 @@ export default function SprintThreeBoardPage() {
   const [quickAddLoading, setQuickAddLoading] = useState(false);
   const [isTriageOpen, setIsTriageOpen] = useState(false);
   const [isRetroOpen, setIsRetroOpen] = useState(false);
+  const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
 
   // Derive selectedTask directly from store tasks list so it updates reactively
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
@@ -319,6 +321,13 @@ export default function SprintThreeBoardPage() {
               <Sparkles className="h-3.5 w-3.5 text-violet-400 animate-pulse" />
               Sprint Retro
             </Button>
+            <Button
+              onClick={() => setIsBulkCreateOpen(true)}
+              className="h-8 text-xs gap-1.5 px-3 rounded-md border transition-all font-medium select-none cursor-pointer bg-[#1C1B1F] text-emerald-400 border-emerald-500/20 hover:text-emerald-300 hover:bg-emerald-500/5 hover:border-emerald-500/40"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
+              AI Brief Import
+            </Button>
             <Button 
               onClick={toggleSortByPriority}
               className={cn(
@@ -500,6 +509,14 @@ export default function SprintThreeBoardPage() {
         isOpen={isRetroOpen}
         onClose={() => setIsRetroOpen(false)}
         projectId={projectId}
+      />
+
+      {/* --- BULK CREATE MODAL --- */}
+      <BulkCreateModal
+        isOpen={isBulkCreateOpen}
+        onClose={() => setIsBulkCreateOpen(false)}
+        projectId={projectId}
+        onSuccess={refresh}
       />
     </div>
   );

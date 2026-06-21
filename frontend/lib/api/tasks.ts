@@ -187,4 +187,24 @@ export async function generateSprintRetro(
   });
 }
 
+// ── AI Task Generator ────────────────────────────────────────────────────────
+
+export interface GeneratedTaskSuggestion {
+  title: string;
+  description: string;
+  priority: string;
+  points: number;
+}
+
+export async function generateTasksFromBrief(
+  projectId: string,
+  brief: string
+): Promise<GeneratedTaskSuggestion[]> {
+  return apiFetch(`/api/projects/${projectId}/ai/generate-tasks`, {
+    method: "POST",
+    body: JSON.stringify({ brief }),
+  });
+}
+
+
 
