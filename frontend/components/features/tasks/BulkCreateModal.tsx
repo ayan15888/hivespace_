@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Sparkles, Plus, Trash2, ArrowLeft} from "lucide-react";
 import { generateTasksFromBrief, createTask, GeneratedTaskSuggestion } from "@/lib/api/tasks";
+import { getSprintsForProject, SprintResponse } from "@/lib/api/sprints";
 // import { columnNameToStatus, priorityToBackend } from "@/lib/taskUtils";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -43,6 +44,9 @@ export function BulkCreateModal({ isOpen, onClose, projectId, onSuccess }: BulkC
   const [generating, setGenerating] = useState(false);
   const [importing, setImporting] = useState(false);
 
+  const [sprints, setSprints] = useState<SprintResponse[]>([]);
+  const [targetSprintId, setTargetSprintId] = useState<string>("backlog");
+
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -52,8 +56,18 @@ export function BulkCreateModal({ isOpen, onClose, projectId, onSuccess }: BulkC
       setSelectedIndices(new Set());
       setGenerating(false);
       setImporting(false);
+      setTargetSprintId("backlog");
     }
   }, [isOpen]);
+
+  // Fetch project sprints on mount/isOpen
+  useEffect(() => {
+    if (isOpen && projectId) {
+      getSprintsForProject(projectId)
+        .then(setSprints)
+        .catch(err => console.error("Failed to load sprints:", err));
+    }
+  }, [isOpen, projectId]);
 
   const handleGenerate = async () => {
     if (!brief.trim()) {
@@ -129,10 +143,12 @@ export function BulkCreateModal({ isOpen, onClose, projectId, onSuccess }: BulkC
           status: "TODO",
           priority: draft.priority,
           points: draft.points,
+          sprintId: targetSprintId === "backlog" ? undefined : targetSprintId,
         });
         count++;
       }
-      toast.success(`Successfully imported ${count} tasks to backlog`);
+      const destLabel = targetSprintId === "backlog" ? "backlog" : "sprint";
+      toast.success(`Successfully imported ${count} tasks to ${destLabel}`);
       onSuccess();
       onClose();
     } catch (err) {
@@ -222,6 +238,27 @@ export function BulkCreateModal({ isOpen, onClose, projectId, onSuccess }: BulkC
                       Select all ({drafts.length})
                     </label>
                   </div>
+
+                  {sprints.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Destination:</Label>
+                      <Select 
+                        value={targetSprintId} 
+                        onValueChange={setTargetSprintId}
+                        disabled={importing}
+                      >
+                        <SelectTrigger className="bg-[#1C1B1F] border-border/50 text-[11px] h-7 px-3 text-foreground w-[160px] rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-hs-main border-border text-foreground text-xs">
+                          <SelectItem value="backlog">Backlog (No Sprint)</SelectItem>
+                          {sprints.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-4">

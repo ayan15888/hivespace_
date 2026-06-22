@@ -11,6 +11,7 @@ export interface TaskRequest {
   assigneeId?: string;
   teamId?: string;
   parentId?: string;
+  sprintId?: string;
 }
 
 export interface TaskAssigneeResponse {
@@ -179,12 +180,13 @@ export async function applyTriageSuggestions(
 
 export async function generateSprintRetro(
   projectId: string,
-  startDate: string,
-  endDate: string
+  startDate?: string,
+  endDate?: string,
+  sprintId?: string
 ): Promise<{ documentId: string }> {
   return apiFetch(`/api/projects/${projectId}/ai/retro`, {
     method: "POST",
-    body: JSON.stringify({ startDate, endDate }),
+    body: JSON.stringify({ startDate, endDate, sprintId }),
   });
 }
 

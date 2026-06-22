@@ -30,9 +30,129 @@ public class AiRetroService {
     private final DocumentContentRepository documentContentRepository;
     private final NvidiaAIService nvidiaAIService;
     private final ObjectMapper objectMapper;
+    private final SprintRepository sprintRepository;
 
     @Value("${nvidia.model.default}")
     private String defaultChatModel;
+
+    @Transactional
+    public UUID generateSprintRetrospective(UUID projectId, UUID sprintId, User creator) {
+        Sprint sprint = sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new NotFoundException("Sprint not found"));
+
+        if (!sprint.getProject().getId().equals(projectId)) {
+            throw new com.project.hiveSpace.exceptions.DomainValidationException("Sprint does not belong to this project");
+        }
+
+        Instant startDate = sprint.getStartDate() != null ? sprint.getStartDate().toInstant() : Instant.now().minusSeconds(14 * 24 * 3600);
+        Instant endDate = sprint.getEndDate() != null ? sprint.getEndDate().toInstant() : Instant.now();
+
+        List<Task> sprintTasks = taskRepository.findAllBySprintId(sprintId);
+
+        Map<TaskStatus, List<Task>> tasksByStatus = sprintTasks.stream()
+                .collect(Collectors.groupingBy(Task::getStatus));
+
+        List<String> blockerLog = new ArrayList<>();
+        for (Task task : sprintTasks) {
+            List<TaskActivity> activities = taskActivityRepository.findAllByTaskIdOrderByCreatedAtDesc(task.getId());
+            for (TaskActivity activity : activities) {
+                if (activity.getCreatedAt().after(Date.from(startDate)) && activity.getCreatedAt().before(Date.from(endDate))) {
+                    if ("STATUS_CHANGED".equals(activity.getType()) && 
+                        "IN_PROGRESS".equals(activity.getOldValue()) && 
+                        "TODO".equals(activity.getNewValue())) {
+                        blockerLog.add(String.format("Task HS-%03d ('%s') reverted from IN PROGRESS to TODO (Possible Blocker).", 
+                                task.getSequenceNumber(), task.getTitle()));
+                    }
+                }
+            }
+        }
+
+        List<Message> messages = Collections.emptyList();
+        Optional<Channel> projectChannelOpt = channelRepository.findByProjectIdAndType(projectId, ChannelType.PUBLIC);
+        if (projectChannelOpt.isPresent()) {
+            messages = messageRepository.findMessagesBetween(projectChannelOpt.get().getId(), startDate, endDate);
+        }
+
+        String chatContext = messages.stream()
+                .map(msg -> {
+                    String senderName = msg.getSender() != null ? msg.getSender().getFullName() : "AI Assistant";
+                    return senderName + ": " + msg.getContent();
+                })
+                .collect(Collectors.joining("\n"));
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        StringBuilder statsContext = new StringBuilder();
+        statsContext.append("Sprint: ").append(sprint.getName()).append("\n");
+        if (sprint.getGoal() != null && !sprint.getGoal().isBlank()) {
+            statsContext.append("Sprint Goal: ").append(sprint.getGoal()).append("\n");
+        }
+        statsContext.append("Sprint Window: ").append(sdf.format(Date.from(startDate))).append(" to ").append(sdf.format(Date.from(endDate))).append("\n");
+        statsContext.append("Total tasks in sprint: ").append(sprintTasks.size()).append("\n");
+        for (TaskStatus status : TaskStatus.values()) {
+            int count = tasksByStatus.getOrDefault(status, Collections.emptyList()).size();
+            statsContext.append("Tasks in status ").append(status).append(": ").append(count).append("\n");
+        }
+
+        statsContext.append("\nRegression Events (Blockers):\n");
+        if (blockerLog.isEmpty()) {
+            statsContext.append("None detected.\n");
+        } else {
+            for (String blocker : blockerLog) {
+                statsContext.append("- ").append(blocker).append("\n");
+            }
+        }
+
+        statsContext.append("\nTasks Details:\n");
+        for (Task task : sprintTasks) {
+            statsContext.append(String.format("- HS-%03d: %s (Status: %s, Priority: %s)\n", 
+                    task.getSequenceNumber(), task.getTitle(), task.getStatus(), task.getPriority()));
+        }
+
+        String systemPrompt = "You are an AI sprint retrospective agent. Read the provided quantitative task list, " +
+                "blocker logs, and qualitative team chat history. Generate a beautifully structured, comprehensive sprint retrospective document.\n" +
+                "The report MUST include:\n" +
+                "1. Executive Summary\n" +
+                "2. Metrics & Delivery Summary (total tasks completed, split by status)\n" +
+                "3. Key Wins & Achievements\n" +
+                "4. Blockers, Regressions & Action items (analyze tasks reverting from in progress to todo, and reference any problems identified in the chat logs)\n\n" +
+                "Format using clean markdown with headings (use ## and ###) and list items. Keep it professional, encouraging, and detailed.";
+
+        String userPrompt = "STATISTICS & TASKS:\n" + statsContext.toString() + "\n\nCHAT LOGS:\n" + chatContext;
+
+        String markdownReport;
+        try {
+            markdownReport = nvidiaAIService.chatCompletion(systemPrompt, userPrompt, defaultChatModel, 4000, 0.3);
+        } catch (Exception e) {
+            markdownReport = "## Sprint Retrospective (" + sprint.getName() + ")\nFailed to compile AI insights: " + e.getMessage();
+        }
+
+        String contentJson = convertMarkdownToProseMirror(markdownReport);
+
+        Document document = Document.builder()
+                .title("Sprint Retro (" + sprint.getName() + ")")
+                .icon("📝")
+                .workspace(sprint.getProject().getWorkspace())
+                .project(sprint.getProject())
+                .createdBy(creator)
+                .isPublished(false)
+                .createdAt(new Date())
+                .updatedAt(new Date())
+                .build();
+
+        Document savedDoc = documentRepository.save(document);
+
+        DocumentContent content = DocumentContent.builder()
+                .documentId(savedDoc.getId())
+                .document(savedDoc)
+                .content(contentJson)
+                .textContent(markdownReport)
+                .version(1)
+                .updatedAt(new Date())
+                .build();
+        documentContentRepository.save(content);
+
+        return savedDoc.getId();
+    }
 
     @Transactional
     public UUID generateSprintRetrospective(UUID projectId, Instant startDate, Instant endDate, User creator) {
