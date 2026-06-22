@@ -4,6 +4,7 @@ import com.project.hiveSpace.dto.FusedCandidate;
 import com.project.hiveSpace.dto.RAGResponse;
 import com.project.hiveSpace.models.*;
 import com.project.hiveSpace.repository.*;
+import com.project.hiveSpace.services.HexAIService;
 import com.project.hiveSpace.services.HybridSearchService;
 import com.project.hiveSpace.services.RAGAnswerService;
 import com.project.hiveSpace.services.RerankerService;
@@ -29,9 +30,7 @@ public class AiConversationController {
     private final HybridSearchService hybridSearchService;
     private final RerankerService rerankerService;
     private final RAGAnswerService ragAnswerService;
-
-    @org.springframework.beans.factory.annotation.Value("${nvidia.model.agentic}")
-    private String agenticModel;
+    private final HexAIService hexAIService;
 
     public record StartConversationRequest(UUID workspaceId, String content) {}
     public record SendMessageRequest(String content) {}
@@ -112,8 +111,8 @@ public class AiConversationController {
                 .build();
         aiMessageRepository.save(userMessage);
 
-        // Generate AI Answer
-        String answer = generateRAGAnswer(workspace, user, request.content(), List.of(userMessage));
+        // Generate AI Answer via HexAIService routing
+        String answer = hexAIService.route(request.content(), List.of(userMessage), workspace, user);
 
         // Save Assistant Message
         AiMessage assistantMessage = AiMessage.builder()
@@ -154,8 +153,8 @@ public class AiConversationController {
         // Get past chat history to pass to RAG context
         List<AiMessage> history = aiMessageRepository.findByConversationIdOrderByCreatedAtAsc(id);
 
-        // Generate AI Answer
-        String answer = generateRAGAnswer(conversation.getWorkspace(), user, request.content(), history);
+        // Generate AI Answer via HexAIService routing
+        String answer = hexAIService.route(request.content(), history, conversation.getWorkspace(), user);
 
         // Save Assistant Message
         AiMessage assistantMessage = AiMessage.builder()
@@ -199,69 +198,5 @@ public class AiConversationController {
             return content.trim();
         }
         return Arrays.stream(words).limit(6).collect(Collectors.joining(" ")) + "...";
-    }
-
-    private String generateRAGAnswer(Workspace workspace, User user, String question, List<AiMessage> chatHistory) {
-        try {
-            // Find all projects in workspace
-            List<Project> projects = projectRepository.findAllByWorkspace(workspace);
-
-            // Fetch Search Candidates from all projects
-            List<FusedCandidate> allCandidates = new ArrayList<>();
-            for (Project project : projects) {
-                List<FusedCandidate> projectCandidates = hybridSearchService.performHybridSearch(project.getId(), question, 20);
-                allCandidates.addAll(projectCandidates);
-            }
-
-            // Sort & limit search results from all projects
-            allCandidates.sort((a, b) -> Double.compare(b.getRrfScore(), a.getRrfScore()));
-            if (allCandidates.size() > 50) {
-                allCandidates = allCandidates.subList(0, 50);
-            }
-
-            // Rerank top candidates
-            List<FusedCandidate> topKCandidates = rerankerService.rerankCandidates(question, allCandidates, 10);
-
-            // Map AiMessage to standard Message instances
-            List<Message> dummyMessages = chatHistory.stream().map(aiMsg -> {
-                User sender = null;
-                if ("user".equals(aiMsg.getRole())) {
-                    sender = user;
-                }
-                return Message.builder()
-                        .sender(sender)
-                        .content(aiMsg.getContent())
-                        .build();
-            }).collect(Collectors.toList());
-
-            // Run RAG generation
-            RAGResponse ragResponse = ragAnswerService.generateAnswer(question, topKCandidates, dummyMessages, agenticModel);
-
-            // Append citations
-            String citationSection = formatCitations(ragResponse.citations());
-            return ragResponse.answer() + citationSection;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "Failed to process RAG answer: " + e.getMessage();
-        }
-    }
-
-    private String formatCitations(List<FusedCandidate> citations) {
-        if (citations == null || citations.isEmpty()) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append("\n\n**Sources:**\n");
-        Set<UUID> seenDocIds = new HashSet<>();
-        for (FusedCandidate citation : citations) {
-            if (citation.getDocumentId() != null && seenDocIds.add(citation.getDocumentId())) {
-                sb.append(String.format("- [%s](/dashboard/docs/%s)\n",
-                        citation.getDocumentTitle(),
-                        citation.getDocumentId()
-                ));
-            }
-        }
-        return sb.toString();
     }
 }

@@ -216,8 +216,8 @@ export default function AIAssistantPage() {
                     </div>
                     <h1 className="text-xl font-medium tracking-tight text-[#EDE8E3] mb-2">
                       {userFirstName
-                        ? `How can Hex AI help you today, ${userFirstName}?`
-                        : "How can Hex AI help you today?"}
+                        ? `How can Hex help you today, ${userFirstName}?`
+                        : "How can Hex help you today?"}
                     </h1>
                     <p className="text-xs leading-5 text-[#8C7B6E] mb-8">
                       Ask about tasks, query repository documents, summarize channel chat activities, or draft specifications.
@@ -294,7 +294,7 @@ export default function AIAssistantPage() {
                       </div>
                       <div className="bg-[#191511] text-[#EDE8E3] border border-[#2e2720] rounded-2xl px-4 py-3 text-xs flex items-center gap-1.5">
                         <Loader2 className="h-3.5 w-3.5 animate-spin text-[#D97757]" />
-                        <span>Hex AI is thinking...</span>
+                        <span>Hex is thinking...</span>
                       </div>
                     </div>
                   )}
