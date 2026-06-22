@@ -2,17 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { 
-  ChevronRight, 
-  SlidersHorizontal, 
-  LayoutList, 
-  PlusCircle,
   Calendar,
   Search,
-  Filter,
-  ArrowLeft,
-  Clock,
-  ChevronLeft,
-  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -25,7 +16,7 @@ import { cn, getAvatarColorClass } from "@/lib/utils";
 import { useTasks } from "@/hooks/useTasks";
 import { useProjects } from "@/hooks/useProjects";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
-import { motion, AnimatePresence } from "framer-motion";
+// import { motion, AnimatePresence } from "framer-motion";
 import { 
   deleteTask,
   TaskResponse
@@ -233,9 +224,9 @@ export default function ProjectTimelinePage() {
           <Link href={`/dashboard/projects/${projectId}/board`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Board
           </Link>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-not-allowed opacity-60">
+          <Link href={`/dashboard/projects/${projectId}/list`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             List
-          </button>
+          </Link>
           <button className="relative flex h-full items-center px-1 text-sm font-medium text-foreground">
             Timeline
             <div className="absolute bottom-0 left-0 h-[2px] w-full" style={{ backgroundColor: themeColor }} />

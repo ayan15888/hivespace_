@@ -28,15 +28,20 @@ public class AiRetroController {
     ) {
         String startDateStr = body.get("startDate");
         String endDateStr = body.get("endDate");
+        String sprintIdStr = body.get("sprintId");
 
-        if (startDateStr == null || endDateStr == null) {
-            return ResponseEntity.badRequest().body(Map.of("message", "startDate and endDate are required."));
+        UUID docId;
+        if (sprintIdStr != null && !sprintIdStr.isBlank()) {
+            UUID sprintId = UUID.fromString(sprintIdStr);
+            docId = aiRetroService.generateSprintRetrospective(projectId, sprintId, user);
+        } else {
+            if (startDateStr == null || endDateStr == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "startDate and endDate are required if sprintId is not provided."));
+            }
+            Instant startDate = Instant.parse(startDateStr);
+            Instant endDate = Instant.parse(endDateStr);
+            docId = aiRetroService.generateSprintRetrospective(projectId, startDate, endDate, user);
         }
-
-        Instant startDate = Instant.parse(startDateStr);
-        Instant endDate = Instant.parse(endDateStr);
-
-        UUID docId = aiRetroService.generateSprintRetrospective(projectId, startDate, endDate, user);
         
         return ResponseEntity.ok(Map.of("documentId", docId.toString()));
     }

@@ -51,3 +51,10 @@ Trigger: Active real-time check.
 Interaction: As the user is filling out the "Create Task" form and types in the Title, a debounced check runs in the background.
 Action: A clean warning alert appears immediately below the Title input field if a match is found:
 ⚠️ Similar task already exists: #104: Fix OAuth Redirect Loop (Assigned to Sanjay). The user can click the link to view the existing task, or dismiss the warning if it's separate.
+
+
+Does It Conflict With What We've Designed — No, It Actually Strengthens It??
+Good news: this doesn't compete with the AI features, it makes two of them better.
+Sprint Retrospective Agent gets meaningfully more accurate. Right now it infers a "sprint" from a manually-picked date range, which is a reasonable proxy but imprecise — task movements near the boundary dates are ambiguous (did that task really belong to this sprint, or did it spill over?). With a real sprints table, the Retro Agent can just query WHERE sprint_id = :id instead of guessing from timestamps. More reliable input, more reliable retro.
+Task Generation from Brief gets a real destination. Right now generated tasks land straight into the general backlog/board. With sprints, you could let the user pick "add to current sprint" vs "add to backlog" at creation time — which is a more realistic planning workflow than everything dumping into one undifferentiated list.
+So this isn't a redundant or competing feature — it's infrastructure that makes your existing AI features more precise, the same way the RAG table made your chat features more useful.
