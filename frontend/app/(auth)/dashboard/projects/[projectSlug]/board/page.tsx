@@ -43,6 +43,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { useBoardStore } from "./store";
 import { TaskCard } from "./components/TaskCard";
 import { TaskDetailSheet } from "./components/TaskDetailSheet";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
 const COLUMN_NAMES = ["Backlog", "Todo", "In Progress", "Review", "Done"];
 
@@ -54,6 +55,7 @@ export default function SprintThreeBoardPage() {
   const currentProject = projects.find(p => p.id === projectId);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
   const displayTitle = currentProject?.name || "Project";
+  const { activeWorkspace } = useWorkspaceStore();
 
   // Zustand Store for project board local UI state
   const { 
@@ -276,7 +278,7 @@ export default function SprintThreeBoardPage() {
         <div className="flex items-center gap-2 flex-1">
           <span className="text-xs text-muted-foreground">Hivespace</span>
           <span className="text-border">/</span>
-          <span className="text-xs text-muted-foreground">Engineering</span>
+          <span className="text-xs text-muted-foreground">{activeWorkspace?.name || "Workspace"}</span>
           <span className="text-border">/</span>
           <span className="text-xs font-medium text-foreground">{displayTitle}</span>
           

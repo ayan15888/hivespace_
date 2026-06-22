@@ -43,6 +43,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { BulkCreateModal } from "@/components/features/tasks/BulkCreateModal";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
 export default function ProjectBacklogPage() {
   const params = useParams();
@@ -53,6 +54,7 @@ export default function ProjectBacklogPage() {
   const currentProject = projects.find(p => p.id === projectId);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
   const displayTitle = currentProject?.name || "Project";
+  const { activeWorkspace } = useWorkspaceStore();
 
   const { tasks, refresh } = useTasks(projectId);
   const updateTaskInStore = useTaskStore((state) => state.updateTask);
@@ -249,7 +251,7 @@ export default function ProjectBacklogPage() {
         <div className="flex items-center gap-2 flex-1">
           <span className="text-xs text-muted-foreground">Hivespace</span>
           <span className="text-border">/</span>
-          <span className="text-xs text-muted-foreground">Engineering</span>
+          <span className="text-xs text-muted-foreground">{activeWorkspace?.name || "Workspace"}</span>
           <span className="text-border">/</span>
           <span className="text-xs font-medium text-foreground">{displayTitle}</span>
           

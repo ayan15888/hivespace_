@@ -24,6 +24,7 @@ import {
   HivespaceTask,
 } from "./hivespace-editor-config";
 import { HivespaceEditorChrome } from "./hivespace-editor-chrome";
+import { HivespaceDrawing } from "./hivespace-drawing-node";
 
 interface HivespaceEditorProps {
   documentId?: string;
@@ -86,6 +87,7 @@ export function HivespaceEditor({
         CustomTableHeader,
         CustomTableCell,
         HivespaceTask,
+        HivespaceDrawing,
       ],
       content: parseStoredContent(initialContent),
       editorProps: {
@@ -182,6 +184,18 @@ export function HivespaceEditor({
         break;
       case "ai":
         editor.chain().focus().insertContent("<p><i>✦ Analyzing document for suggestions...</i></p>").run();
+        break;
+      case "drawing":
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "hivespaceDrawing",
+            attrs: {
+              diagramData: "[]",
+            },
+          })
+          .run();
         break;
     }
     setIsSlashMenuOpen(false);

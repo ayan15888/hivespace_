@@ -112,12 +112,12 @@ export default function AppearanceSettings() {
             active={theme === "claude"}
             onClick={() => setTheme("claude")}
           >
-            <div className="absolute inset-0 bg-[#262624] flex flex-col p-2 gap-1.5">
-              <div className="h-1.5 w-8 bg-[#3e3e38] rounded-full" />
-              <div className="h-1.5 w-12 bg-[#d97757]/40 rounded-full" />
-              <div className="mt-auto h-3 w-full bg-[#1f1e1d] rounded-sm flex items-center px-1 gap-1">
-                <div className="size-1.5 rounded-full bg-[#d97757]" />
-                <div className="h-1 w-6 bg-[#d97757]/30 rounded-full" />
+            <div className="absolute inset-0 bg-[#faf9f5] flex flex-col p-2 gap-1.5">
+              <div className="h-1.5 w-8 bg-[#141413] rounded-full" />
+              <div className="h-1.5 w-12 bg-[#cc785c]/40 rounded-full" />
+              <div className="mt-auto h-3 w-full bg-[#181715] rounded-sm flex items-center px-1 gap-1">
+                <div className="size-1.5 rounded-full bg-[#cc785c]" />
+                <div className="h-1 w-6 bg-[#cc785c]/35 rounded-full" />
               </div>
             </div>
           </ThemeCard>

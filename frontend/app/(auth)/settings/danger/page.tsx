@@ -4,10 +4,12 @@ import { useState } from "react"
 import { AlertCircle, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { useWorkspaceStore } from "@/store/workspaceStore"
 
 export default function DangerSettings() {
   const [confirmText, setConfirmText] = useState("")
-  const workspaceName = "ENGINEERING"
+  const { activeWorkspace } = useWorkspaceStore();
+  const workspaceName = (activeWorkspace?.name || "WORKSPACE").toUpperCase();
   const isConfirmed = confirmText === workspaceName
 
   return (
@@ -23,7 +25,7 @@ export default function DangerSettings() {
             <AlertCircle className="h-6 w-6 text-red-400" strokeWidth={1.5} />
           </div>
           <h2 className="text-base font-semibold text-[#E5E1E4]">
-            Delete Engineering Workspace
+            Delete {activeWorkspace?.name || "Workspace"} Workspace
           </h2>
         </div>
 
