@@ -30,6 +30,9 @@ public class AiConversationController {
     private final RerankerService rerankerService;
     private final RAGAnswerService ragAnswerService;
 
+    @org.springframework.beans.factory.annotation.Value("${nvidia.model.agentic}")
+    private String agenticModel;
+
     public record StartConversationRequest(UUID workspaceId, String content) {}
     public record SendMessageRequest(String content) {}
 
@@ -232,7 +235,7 @@ public class AiConversationController {
             }).collect(Collectors.toList());
 
             // Run RAG generation
-            RAGResponse ragResponse = ragAnswerService.generateAnswer(question, topKCandidates, dummyMessages);
+            RAGResponse ragResponse = ragAnswerService.generateAnswer(question, topKCandidates, dummyMessages, agenticModel);
 
             // Append citations
             String citationSection = formatCitations(ragResponse.citations());
