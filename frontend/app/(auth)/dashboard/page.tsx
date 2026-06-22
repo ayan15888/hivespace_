@@ -484,6 +484,11 @@ function DashboardPageContent() {
                   {projects.length > 0 ? (
                     projects.slice(0, 4).map((project) => {
                       const projectColor = project.color ? PROJECT_COLOR_MAP[project.color] : "var(--primary)";
+                      const projectTasks = tasks.filter(t => t.projectId === project.id);
+                      const totalProjTasks = projectTasks.length;
+                      const completedProjTasks = projectTasks.filter(t => ["done", "completed", "DONE", "COMPLETED"].includes(t.status)).length;
+                      const percentage = totalProjTasks > 0 ? Math.round((completedProjTasks / totalProjTasks) * 100) : 0;
+
                       return (
                         <div key={project.id} className="flex items-center justify-between py-3 px-5 hover:bg-muted/30 transition-colors cursor-pointer group">
                           <div className="flex items-center gap-4 min-w-0">
@@ -507,12 +512,12 @@ function DashboardPageContent() {
                               <div
                                 className="h-full rounded-full"
                                 style={{
-                                  width: '20%',
+                                  width: `${percentage}%`,
                                   backgroundColor: projectColor
                                 }}
                               />
                             </div>
-                            <span className="text-[10px] font-medium text-muted-foreground w-8 text-right">20%</span>
+                            <span className="text-[10px] font-medium text-muted-foreground w-8 text-right">{percentage}%</span>
                           </div>
                         </div>
                       );
