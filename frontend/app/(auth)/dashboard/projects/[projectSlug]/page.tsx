@@ -312,9 +312,9 @@ export default function ProjectOverviewPage() {
             <Link href={`/dashboard/projects/${projectId}/board`} className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors">
               Board
             </Link>
-            <button className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors cursor-not-allowed opacity-60">
+            <Link href={`/dashboard/projects/${projectId}/list`} className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors">
               List
-            </button>
+            </Link>
             <Link href={`/dashboard/projects/${projectId}/timeline`} className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors">
               Timeline
             </Link>

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { 
-  ChevronRight, 
   SlidersHorizontal, 
   LayoutList, 
   PlusCircle,
@@ -295,9 +294,9 @@ export default function SprintThreeBoardPage() {
             Board
             <div className="absolute bottom-0 left-0 h-[2px] w-full" style={{ backgroundColor: themeColor }} />
           </button>
-          <button className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-not-allowed opacity-60">
+          <Link href={`/dashboard/projects/${projectId}/list`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             List
-          </button>
+          </Link>
           <Link href={`/dashboard/projects/${projectId}/timeline`} className="flex h-full items-center px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Timeline
           </Link>

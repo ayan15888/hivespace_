@@ -1,23 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  ChevronRight, 
+import {  
   SlidersHorizontal, 
-  LayoutList, 
   PlusCircle,
-  Calendar,
-  Search,
-  Filter,
-  ArrowLeft,
   Clock,
-  ChevronLeft,
   Plus,
   Play,
   CheckCircle,
   AlertCircle,
   Sparkles,
-  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -38,7 +30,7 @@ import { cn, getAvatarColorClass } from "@/lib/utils";
 import { useTasks } from "@/hooks/useTasks";
 import { useProjects } from "@/hooks/useProjects";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
-import { motion, AnimatePresence } from "framer-motion";
+// import { motion, AnimatePresence } from "framer-motion";
 import { 
   deleteTask,
   TaskResponse
@@ -54,7 +46,7 @@ import { BulkCreateModal } from "@/components/features/tasks/BulkCreateModal";
 
 export default function ProjectBacklogPage() {
   const params = useParams();
-  const router = useRouter();
+  // const router = useRouter();
   const { projects } = useProjects();
   const projectId = params?.projectSlug as string || "";
 
@@ -233,7 +225,7 @@ export default function ProjectBacklogPage() {
 
   // Calculations for display totals
   const backlogTasks = tasks.filter(t => !t.sprintId && t.status !== "DONE" && t.status !== "CANCELLED");
-  const completedBacklogTasks = tasks.filter(t => !t.sprintId && (t.status === "DONE" || t.status === "CANCELLED"));
+  // const completedBacklogTasks = tasks.filter(t => !t.sprintId && (t.status === "DONE" || t.status === "CANCELLED"));
 
   const getSprintTasks = (sprintId: string) => tasks.filter(t => t.sprintId === sprintId);
 
