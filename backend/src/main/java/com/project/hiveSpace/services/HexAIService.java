@@ -2,11 +2,14 @@ package com.project.hiveSpace.services;
 
 import com.project.hiveSpace.dto.FusedCandidate;
 import com.project.hiveSpace.models.*;
+import com.project.hiveSpace.repository.DocumentContentRepository;
 import com.project.hiveSpace.repository.ProjectRepository;
+import com.project.hiveSpace.repository.SprintRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -25,6 +28,10 @@ public class HexAIService {
     private final HybridSearchService hybridSearchService;
     private final RerankerService rerankerService;
     private final ProjectRepository projectRepository;
+    private final AiTriageService aiTriageService;
+    private final AiRetroService aiRetroService;
+    private final SprintRepository sprintRepository;
+    private final DocumentContentRepository documentContentRepository;
 
     @Value("${nvidia.model.default}")
     private String defaultChatModel; // meta/llama-3.3-70b-instruct
@@ -162,15 +169,81 @@ public class HexAIService {
     }
 
     public String handleGenerateTasks(String message, Workspace workspace, User user) {
-        return "⚙️ **Bulk Task Generation Action Triggered:** I can create tasks in bulk from specification briefs. Use the **AI Import** button next to 'Add Task' on the Kanban Board to paste your brief and bulk-create backlog items.";
+        return "I can generate tasks for you, but I need to know which project to add them to. Could you please tell me which project this is for?";
     }
 
     public String handleTriage(String message, Workspace workspace, User user) {
-        return "📋 **Triage Backlog Action Triggered:** I have scanned your backlog. You can run Auto-Triage directly via the **Smart Triage** button in the header of your Kanban Board project page to see and apply detailed priority suggestions.";
+        try {
+            List<Project> projects = projectRepository.findAllByWorkspace(workspace);
+            if (projects.isEmpty()) {
+                return "I couldn't find any projects in this workspace to triage.";
+            }
+
+            StringBuilder summary = new StringBuilder();
+            summary.append("🔍 **Smart Triage Analysis Across All Projects**\n\n");
+
+            boolean foundAny = false;
+            for (Project project : projects) {
+                List<AiTriageService.TriageSuggestion> suggestions = aiTriageService.getTriageSuggestions(project.getId());
+                if (suggestions != null && !suggestions.isEmpty()) {
+                    foundAny = true;
+                    summary.append(String.format("### 📁 Project: %s\n", project.getName()));
+                    for (AiTriageService.TriageSuggestion suggestion : suggestions) {
+                        summary.append(String.format("- **Task:** %s (%s)\n", suggestion.getTitle(), suggestion.getTaskIdentifier()));
+                        
+                        if (!suggestion.getCurrentPriority().equalsIgnoreCase(suggestion.getSuggestedPriority())) {
+                            summary.append(String.format("  - *Priority:* %s ➔ **%s**\n", suggestion.getCurrentPriority(), suggestion.getSuggestedPriority()));
+                        }
+                        if (!suggestion.getCurrentStatus().equalsIgnoreCase(suggestion.getSuggestedStatus())) {
+                            summary.append(String.format("  - *Status:* %s ➔ **%s**\n", suggestion.getCurrentStatus(), suggestion.getSuggestedStatus()));
+                        }
+                        summary.append(String.format("  - *Reason:* %s\n\n", suggestion.getReason()));
+                    }
+                }
+            }
+
+            if (!foundAny) {
+                return "I ran the Smart Triage analysis across all projects in your workspace but found no tasks that currently require adjustments.";
+            }
+
+            return summary.toString();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Failed to complete smart triage: " + e.getMessage();
+        }
     }
 
     public String handleRetro(String message, Workspace workspace, User user) {
-        return "📊 **Sprint Retrospective Action Triggered:** I can generate retrospective documents. Click the retro generate button under your project Documents view to select sprint boundaries and automatically compile retrospective documentation.";
+        try {
+            List<Project> projects = projectRepository.findAllByWorkspace(workspace);
+            if (projects.isEmpty()) {
+                return "I couldn't find any projects in this workspace to generate a sprint retrospective for.";
+            }
+
+            Project project = projects.get(0);
+            List<Sprint> sprints = sprintRepository.findAllByProjectIdOrderByCreatedAtDesc(project.getId());
+
+            UUID docId;
+            if (!sprints.isEmpty()) {
+                Sprint latestSprint = sprints.get(0);
+                docId = aiRetroService.generateSprintRetrospective(project.getId(), latestSprint.getId(), user);
+            } else {
+                // Fallback: 14-day retrospective
+                Instant startDate = Instant.now().minus(java.time.Duration.ofDays(14));
+                Instant endDate = Instant.now();
+                docId = aiRetroService.generateSprintRetrospective(project.getId(), startDate, endDate, user);
+            }
+
+            DocumentContent content = documentContentRepository.findById(docId).orElse(null);
+            String textContent = content != null ? content.getTextContent() : "Sprint retrospective document generated successfully.";
+
+            return textContent + "\n\n📄 **Saved Document Link:** [View Retrospective Document](/dashboard/docs/" + docId + ")";
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Failed to compile sprint retrospective: " + e.getMessage();
+        }
     }
 
     private String formatCitations(List<FusedCandidate> citations) {
