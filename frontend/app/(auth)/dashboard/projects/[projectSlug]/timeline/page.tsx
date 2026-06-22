@@ -33,6 +33,7 @@ import {
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { useTaskStore } from "@/store/taskStore";
 import { TaskDetailSheet } from "../board/components/TaskDetailSheet";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
 const STATUS_FILTER_OPTIONS = ["All", "Todo", "In Progress", "Review", "Done"];
 const PRIORITY_FILTER_OPTIONS = ["All", "Urgent", "High", "Medium", "Low"];
@@ -68,6 +69,7 @@ export default function ProjectTimelinePage() {
   const currentProject = projects.find(p => p.id === projectId);
   const themeColor = PROJECT_COLOR_MAP[currentProject?.color || ""] || "#7C5CFC";
   const displayTitle = currentProject?.name || "Project";
+  const { activeWorkspace } = useWorkspaceStore();
 
   const { tasks, refresh } = useTasks(projectId);
   const updateTaskInStore = useTaskStore((state) => state.updateTask);
@@ -214,7 +216,7 @@ export default function ProjectTimelinePage() {
         <div className="flex items-center gap-2 flex-1">
           <span className="text-xs text-muted-foreground">Hivespace</span>
           <span className="text-border">/</span>
-          <span className="text-xs text-muted-foreground">Engineering</span>
+          <span className="text-xs text-muted-foreground">{activeWorkspace?.name || "Workspace"}</span>
           <span className="text-border">/</span>
           <span className="text-xs font-medium text-foreground">{displayTitle}</span>
           

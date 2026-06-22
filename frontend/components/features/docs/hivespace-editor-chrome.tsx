@@ -1,7 +1,7 @@
 "use client";
 
 import { BubbleMenu } from "@tiptap/react/menus";
-import { Bold, CheckSquare, Code as CodeIcon, Heading1, Heading2, Italic, Link2, List, Quote, Search, Sparkles } from "lucide-react";
+import { Bold, CheckSquare, Code as CodeIcon, Heading1, Heading2, Italic, Link2, List, Quote, Search, Sparkles, Palette } from "lucide-react";
 import type { Editor } from "@tiptap/react";
 import type { ElementType } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -95,6 +95,7 @@ export function HivespaceEditorChrome({
               <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">Hivespace Native</span>
             </div>
             <SlashItem onClick={() => onInsertBlock("task")} icon={CheckSquare} label="Task Mention" info="Embed HS-task cards" className="hover:bg-violet-500/10 hover:text-violet-200" />
+            <SlashItem onClick={() => onInsertBlock("drawing")} icon={Palette} label="Drawing Canvas" info="Draw shapes, ovals, and arrows" className="hover:bg-violet-500/10 hover:text-violet-200" />
             <SlashItem onClick={() => onInsertBlock("ai")} icon={Sparkles} label="Ask AI Assistant" info="Draft or fix content" className="font-medium text-violet-400 hover:bg-violet-500/10" />
           </div>
         </div>

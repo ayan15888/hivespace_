@@ -5,10 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-serif: "Instrument Serif", Georgia, serif;
-  --font-heading: "Google Sans", "Product Sans", var(--font-sans), sans-serif;
-  --font-sans: "Google Sans", "Product Sans", var(--font-sans), sans-serif;
-  --font-mono: "Geist Mono", SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  --font-serif: var(--font-serif), "Instrument Serif", Georgia, serif;
+  --font-heading: var(--font-sans), "Google Sans", "Product Sans", sans-serif;
+  --font-sans: var(--font-sans), "Google Sans", "Product Sans", sans-serif;
+  --font-mono: var(--font-mono), "Geist Mono", SFMono-Regular, Consolas, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -254,66 +254,95 @@
 }
 
 /* ─────────────────────────────────────────────────── */
-/* Claude (Dark Terracotta) Theme                     */
-/* Charcoal backgrounds · Coral-orange #d97757 accent */
+/* Claude (Warm Cream Editorial) Theme               */
+/* Tinted cream canvas · Coral-orange #cc785c accent   */
 /* ─────────────────────────────────────────────────── */
 .claude {
-  --background: #171614;
-  --foreground: #f4efe6;
+  --background: #faf9f5;
+  --foreground: #141413;
 
-  --card: #22201d;
-  --card-foreground: #fcfaf7;
+  --card: #efe9de;
+  --card-foreground: #141413;
 
-  --popover: #292724;
-  --popover-foreground: #fcfaf7;
+  --popover: #efe9de;
+  --popover-foreground: #141413;
 
-  /* Premium soft terracotta coral brand highlight */
-  --primary: #e07a5f;
-  --primary-foreground: #121110;
+  /* Premium soft warm coral brand highlight */
+  --primary: #cc785c;
+  --primary-foreground: #ffffff;
 
-  /* Warm dark-coffee secondary elements */
-  --secondary: #2c2a26;
-  --secondary-foreground: #f4efe6;
+  /* Warm tinted cream secondary/soft elements */
+  --secondary: #f5f0e8;
+  --secondary-foreground: #141413;
 
-  --muted: #1e1d1a;
-  --muted-foreground: #a69f94;
+  --muted: #f5f0e8;
+  --muted-foreground: #6c6a64;
 
-  --accent: #33312c;
-  --accent-foreground: #fcfaf7;
+  --accent: #e8a55a;
+  --accent-foreground: #141413;
 
-  --destructive: #e05a47;
+  --destructive: #c64545;
   --destructive-foreground: #ffffff;
 
-  --border: #32302b;
-  --input: #383530;
-  --ring: #e07a5f;
+  --border: #e6dfd8;
+  --input: #e6dfd8;
+  --ring: #cc785c;
 
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
-  --chart-1: #e07a5f;
-  --chart-2: #cca285;
-  --chart-3: #3b3834;
-  --chart-4: #c95d3c;
-  --chart-5: #a8a296;
+  --chart-1: #cc785c;
+  --chart-2: #e8a55a;
+  --chart-3: #5db8a6;
+  --chart-4: #a9583e;
+  --chart-5: #6c6a64;
 
-  /* Sidebar - warm deep obsidian */
-  --sidebar: #121110;
-  --sidebar-foreground: #eadecc;
-  --sidebar-primary: #e07a5f;
-  --sidebar-primary-foreground: #121110;
-  --sidebar-accent: #242220;
-  --sidebar-accent-foreground: #fcfaf7;
-  --sidebar-border: #242220;
-  --sidebar-ring: #e07a5f;
+  /* Sidebar - warm deep obsidian dark product surface for editorial contrast */
+  --sidebar: #181715;
+  --sidebar-foreground: #faf9f5;
+  --sidebar-primary: #cc785c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #252320;
+  --sidebar-accent-foreground: #faf9f5;
+  --sidebar-border: #252320;
+  --sidebar-ring: #cc785c;
 
   /* Hivespace Claude Design System */
-  --hs-base: #171614;
-  --hs-nav: #121110;
-  --hs-main: #1c1b18;
-  --hs-card: #22201d;
-  --hs-text: #f4efe6;
-  --hs-accent: #e07a5f;
-  --cta-gradient: linear-gradient(135deg, #f29a7c 0%, #e07a5f 100%);
+  --hs-base: #faf9f5;
+  --hs-nav: #efe9de;
+  --hs-main: #faf9f5;
+  --hs-card: #efe9de;
+  --hs-text: #141413;
+  --hs-accent: #cc785c;
+  --cta-gradient: linear-gradient(135deg, #cc785c 0%, #a9583e 100%);
+}
+
+/* Typography styles for Claude editorial theme */
+.claude h1,
+.claude h2,
+.claude h3,
+.claude .font-serif,
+.claude [class*="font-serif"] {
+  font-family: var(--font-serif), Georgia, serif !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.03em !important;
+}
+
+.claude h1 {
+  letter-spacing: -0.04em !important;
+}
+
+.claude .font-mono,
+.claude code,
+.claude pre {
+  font-family: var(--font-mono), monospace !important;
+}
+
+.claude .font-sans,
+.claude button,
+.claude input,
+.claude select,
+.claude textarea {
+  font-family: var(--font-sans), sans-serif !important;
 }
 
 
