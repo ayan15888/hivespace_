@@ -9,11 +9,13 @@ import {
   Hexagon,
   CheckCircle2,
   AlertCircle,
-  Loader2,
   RotateCcw,
   ChevronDown,
+  Copy,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MarkdownRenderer } from "@/components/common/MarkdownRenderer";
 import { useUiStore } from "@/store/uiStore";
 import { useChatStore } from "@/store/chatStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
@@ -116,9 +118,22 @@ export function AiSidebarChat() {
 
   const canSend = !!activeChannel && inputValue.trim().length > 0 && !isLoading;
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+    }
+  };
+
   const handleSend = async () => {
     const prompt = inputValue.trim();
     if (!prompt || !activeChannel) return;
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
@@ -132,7 +147,7 @@ export function AiSidebarChat() {
     setIsLoading(true);
 
     try {
-      const response: AiCommandResponse = await sendAiCommand(activeChannel.id, prompt);
+      const response: AiCommandResponse = await sendAiCommand(activeChannel.id, prompt, { signal: controller.signal });
 
       let content: string;
       let taskCreated: ChatMessage["taskCreated"] | undefined;
@@ -162,19 +177,33 @@ export function AiSidebarChat() {
         taskCreated,
       };
       setMessages((prev) => [...prev, assistantMsg]);
-    } catch (err) {
-      const errorMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "error",
-        content:
-          err instanceof Error
-            ? err.message
-            : "Something went wrong. Please try again.",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+    } catch (err: any) {
+      if (err.name === "AbortError" || (err instanceof Error && err.message === "The user aborted a request.")) {
+        console.log("Request aborted");
+        const cancelMsg: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: "AI generation stopped.",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, cancelMsg]);
+      } else {
+        const errorMsg: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: "error",
+          content:
+            err instanceof Error
+              ? err.message
+              : "Something went wrong. Please try again.",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+      }
     } finally {
-      setIsLoading(false);
+      if (abortControllerRef.current === controller) {
+        setIsLoading(false);
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -339,6 +368,13 @@ export function AiSidebarChat() {
                         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:0ms]" />
                         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
                         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:300ms]" />
+                        <button
+                          onClick={handleStop}
+                          className="ml-3 flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 hover:border-rose-500/50 hover:bg-rose-500/10 text-[9px] text-rose-400 font-semibold cursor-pointer transition-colors"
+                        >
+                          <span className="h-1 w-1 rounded-sm bg-rose-500 animate-pulse" />
+                          Stop
+                        </button>
                       </div>
                     </motion.div>
                   )}
@@ -424,16 +460,16 @@ export function AiSidebarChat() {
                     onClick={handleSend}
                     disabled={!canSend}
                     className={cn(
-                      "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl transition-all",
+                      "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl transition-colors duration-200",
                       canSend
-                        ? "bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-md hover:opacity-90 active:scale-95"
+                        ? "bg-[#b05730] text-white cursor-pointer"
                         : "bg-white/5 text-zinc-600 cursor-not-allowed"
                     )}
                   >
                     {isLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Sparkles className="h-3.5 w-3.5 animate-pulse text-white" />
                     ) : (
-                      <ArrowUp className="h-3.5 w-3.5" />
+                      <ArrowUp className="h-3.5 w-3.5 stroke-[2.5]" />
                     )}
                   </button>
                 </div>
@@ -481,14 +517,21 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           className={cn(
             "rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed",
             isUser
-              ? "rounded-br-sm bg-gradient-to-br from-violet-600/80 to-fuchsia-600/80 text-white"
+              ? "rounded-br-sm bg-[#b05730] text-white border border-[#b05730]/90"
               : message.role === "error"
               ? "rounded-bl-sm border border-rose-500/20 bg-rose-500/10 text-rose-200"
               : "rounded-bl-sm border border-white/[0.06] bg-white/[0.03] text-zinc-200"
           )}
         >
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          <MarkdownRenderer content={message.content} themeColor="#8b5cf6" />
         </div>
+
+        {/* Assistant Actions: Copy button */}
+        {!isUser && message.role !== "error" && (
+          <div className="flex items-center gap-2 pl-1">
+            <CopyButton textToCopy={message.content} />
+          </div>
+        )}
 
         {/* Task Created Card */}
         {message.taskCreated && (
@@ -587,5 +630,39 @@ function EmptyState({
         </div>
       )}
     </div>
+  );
+}
+
+function CopyButton({ textToCopy }: { textToCopy: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 hover:bg-white/5 border border-transparent hover:border-white/10 transition-all cursor-pointer"
+      title="Copy to clipboard"
+    >
+      {copied ? (
+        <>
+          <Check className="h-3 w-3 text-emerald-400" />
+          <span className="text-emerald-400">Copied!</span>
+        </>
+      ) : (
+        <>
+          <Copy className="h-3 w-3" />
+          <span>Copy</span>
+        </>
+      )}
+    </button>
   );
 }

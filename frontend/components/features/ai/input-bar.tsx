@@ -46,13 +46,13 @@ export function InputBar({
   return (
     <div
       className={cn(
-        "w-full transition-all duration-300 cubic-bezier(0.4, 0, 0.2, 1) px-4",
+        "w-full transition-all duration-300 px-4",
         isActive
           ? "border-t border-[#2e2720] bg-[#191511]/80 backdrop-blur-md py-4"
-          : "max-w-[680px] mx-auto mt-4"
+          : "max-w-[800px] mx-auto mt-4"
       )}
     >
-      <div className="relative flex items-end rounded-2xl border border-[#2e2720] bg-[#221e1a] p-3 shadow-lg focus-within:border-[#D97757]/50 transition-colors">
+      <div className="relative flex items-end rounded-2xl border border-[#2e2720] bg-[#221e1a] p-3 shadow-lg focus-within:border-[#D97757]/50 transition-colors max-w-[800px] mx-auto w-full">
         <Sparkles className="mb-2 h-4 w-4 shrink-0 text-[#D97757]/40 mr-2.5" />
         <textarea
           ref={textareaRef}
@@ -67,9 +67,14 @@ export function InputBar({
         <button
           onClick={onSend}
           disabled={disabled || !value.trim()}
-          className="ml-2.5 h-8 w-8 shrink-0 rounded-xl bg-[#D97757] hover:bg-[#D97757]/90 text-white flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className={cn(
+            "ml-2.5 h-8 w-8 shrink-0 rounded-xl flex items-center justify-center transition-colors duration-200",
+            value.trim()
+              ? "bg-[#b05730] hover:bg-[#964724] text-white cursor-pointer"
+              : "bg-[#2e2720]/40 text-[#6b5a4e]/50 cursor-not-allowed"
+          )}
         >
-          <ArrowUp className="h-4 w-4" />
+          <ArrowUp className="h-4 w-4 stroke-[2.5]" />
         </button>
       </div>
       {!isActive && (

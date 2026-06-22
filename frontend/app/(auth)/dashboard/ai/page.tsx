@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { PanelRight, Sparkles, Loader2 } from "lucide-react"
+import { PanelRight, Sparkles, Copy, Check } from "lucide-react"
 import { useWorkspaceStore } from "@/store/workspaceStore"
 import { useAuth } from "@/hooks/useAuth"
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/lib/api/ai-conversations"
 import { HistorySidebar } from "@/components/features/ai/history-sidebar"
 import { InputBar } from "@/components/features/ai/input-bar"
+import { MarkdownRenderer } from "@/components/common/MarkdownRenderer"
 import { toast } from "sonner"
 
 export default function AIAssistantPage() {
@@ -28,11 +29,19 @@ export default function AIAssistantPage() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<AiMessageResponse[]>([])
   const [inputValue, setInputValue] = useState("")
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Collapse sidebar on small screens initially
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setSidebarCollapsed(true)
+    }
+  }, [])
 
   // Get user's first name for greeting
   const userFirstName = user?.fullName ? user.fullName.split(" ")[0] : ""
@@ -118,6 +127,10 @@ export default function AIAssistantPage() {
     // Clear input
     setInputValue("")
 
+    // Create AbortController
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     // Optimistically add user message
     const tempUserMsg: AiMessageResponse = {
       id: crypto.randomUUID(),
@@ -131,12 +144,12 @@ export default function AIAssistantPage() {
     try {
       if (!activeConversationId) {
         // Start a new conversation
-        const res = await startConversation(workspaceId, text)
+        const res = await startConversation(workspaceId, text, { signal: controller.signal })
         // Refresh history list and select the new conversation
         await fetchHistory(res.conversationId)
       } else {
         // Continue existing conversation
-        const res = await sendConversationMessage(activeConversationId, text)
+        const res = await sendConversationMessage(activeConversationId, text, { signal: controller.signal })
         const tempAssistantMsg: AiMessageResponse = {
           id: crypto.randomUUID(),
           role: "assistant",
@@ -147,10 +160,26 @@ export default function AIAssistantPage() {
         // Refresh list timestamp
         fetchHistory()
       }
-    } catch (error) {
-      toast.error("Failed to send message")
-      setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id))
+    } catch (error: any) {
+      if (error.name === "AbortError" || (error instanceof Error && error.message === "The user aborted a request.")) {
+        console.log("Request aborted")
+        toast.info("AI response generation stopped.")
+      } else {
+        toast.error("Failed to send message")
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id))
+      }
     } finally {
+      if (abortControllerRef.current === controller) {
+        setIsLoading(false)
+        abortControllerRef.current = null
+      }
+    }
+  }
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
       setIsLoading(false)
     }
   }
@@ -198,7 +227,7 @@ export default function AIAssistantPage() {
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
-          <div className="mx-auto flex min-h-full w-full max-w-[680px] flex-col justify-between">
+          <div className="mx-auto flex min-h-full w-full max-w-[800px] flex-col justify-between">
             <AnimatePresence mode="wait">
               {!hasStarted ? (
                 /* STATE 1: Empty / New Conversation Centered UI */
@@ -234,7 +263,7 @@ export default function AIAssistantPage() {
                   />
 
                   {/* Quick Action Pills Row */}
-                  <div className="mt-6 flex flex-wrap justify-center gap-2 max-w-[600px]">
+                  <div className="mt-6 flex flex-wrap justify-center gap-2 max-w-[600px] mx-auto">
                     {[
                       { label: "Generate tasks", prompt: "Break this feature brief into implementation tasks:\n" },
                       { label: "Triage backlog", prompt: "Analyze my project backlog and suggest priority upgrades." },
@@ -273,14 +302,21 @@ export default function AIAssistantPage() {
                             <Sparkles className="h-4.5 w-4.5" />
                           </div>
                         )}
-                        <div
-                          className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs leading-6 ${
-                            isUser
-                              ? "bg-[#221e1a] text-[#EDE8E3] border-l-2 border-[#D97757] border-y border-r border-[#3a2e26]"
-                              : "bg-[#191511] text-[#EDE8E3] border border-[#2e2720]"
-                          }`}
-                        >
-                          <div className="whitespace-pre-wrap select-text">{message.content}</div>
+                        <div className={`flex flex-col gap-1 ${isUser ? "max-w-[85%]" : "max-w-[95%]"}`}>
+                          <div
+                            className={`rounded-2xl px-4 py-3 text-xs leading-6 ${
+                              isUser
+                                ? "bg-[#b05730] text-white border border-[#b05730]/90"
+                                : "bg-[#191511] text-[#EDE8E3] border border-[#2e2720]"
+                            }`}
+                          >
+                            <MarkdownRenderer content={message.content} themeColor="#D97757" />
+                          </div>
+                          {!isUser && (
+                            <div className="flex items-center gap-2 pl-1 mt-0.5">
+                              <CopyButton textToCopy={message.content} />
+                            </div>
+                          )}
                         </div>
                       </div>
                     )
@@ -292,9 +328,20 @@ export default function AIAssistantPage() {
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#D97757]/10 text-[#D97757]">
                         <Sparkles className="h-4.5 w-4.5" />
                       </div>
-                      <div className="bg-[#191511] text-[#EDE8E3] border border-[#2e2720] rounded-2xl px-4 py-3 text-xs flex items-center gap-1.5">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#D97757]" />
-                        <span>Hex is thinking...</span>
+                      <div className="bg-[#191511] text-[#EDE8E3] border border-[#2e2720] rounded-2xl px-4 py-3 text-xs flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#D97757] [animation-delay:0ms]" />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#D97757] [animation-delay:150ms]" />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#D97757] [animation-delay:300ms]" />
+                        </div>
+                        <span className="text-[#8C7B6E] font-medium ml-1">Hex is thinking...</span>
+                        <button
+                          onClick={handleStop}
+                          className="ml-3 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#221e1a] border border-[#2e2720] hover:border-rose-500/50 hover:bg-rose-500/10 text-[10px] text-rose-400 font-semibold cursor-pointer transition-colors"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-sm bg-rose-500 animate-pulse" />
+                          Stop
+                        </button>
                       </div>
                     </div>
                   )}
@@ -330,5 +377,39 @@ export default function AIAssistantPage() {
         onNewChat={handleNewChat}
       />
     </div>
+  )
+}
+
+function CopyButton({ textToCopy }: { textToCopy: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(textToCopy)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error("Failed to copy text: ", err)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-[#8C7B6E] hover:text-[#EDE8E3] hover:bg-[#221e1a] border border-transparent hover:border-[#2e2720] transition-all cursor-pointer"
+      title="Copy to clipboard"
+    >
+      {copied ? (
+        <>
+          <Check className="h-3 w-3 text-emerald-400" />
+          <span className="text-emerald-400">Copied!</span>
+        </>
+      ) : (
+        <>
+          <Copy className="h-3 w-3" />
+          <span>Copy</span>
+        </>
+      )}
+    </button>
   )
 }

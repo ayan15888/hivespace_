@@ -28,17 +28,27 @@ export async function getConversationMessages(conversationId: string): Promise<A
   return apiFetch(`/api/ai/conversations/${conversationId}/messages`);
 }
 
-export async function startConversation(workspaceId: string, content: string): Promise<StartConversationResponse> {
+export async function startConversation(
+  workspaceId: string,
+  content: string,
+  options?: RequestInit
+): Promise<StartConversationResponse> {
   return apiFetch(`/api/ai/conversations`, {
     method: "POST",
     body: JSON.stringify({ workspaceId, content }),
+    ...options,
   });
 }
 
-export async function sendConversationMessage(conversationId: string, content: string): Promise<{ assistantResponse: string }> {
+export async function sendConversationMessage(
+  conversationId: string,
+  content: string,
+  options?: RequestInit
+): Promise<{ assistantResponse: string }> {
   return apiFetch(`/api/ai/conversations/${conversationId}/messages`, {
     method: "POST",
     body: JSON.stringify({ content }),
+    ...options,
   });
 }
 
