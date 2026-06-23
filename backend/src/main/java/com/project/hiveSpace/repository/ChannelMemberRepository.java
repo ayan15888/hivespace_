@@ -20,6 +20,14 @@ public interface ChannelMemberRepository extends JpaRepository<ChannelMember, Ch
 
     Optional<ChannelMember> findByIdChannelIdAndIdUserId(UUID channelId, UUID userId);
 
+    @Query("""
+        SELECT COUNT(cm) FROM ChannelMember cm
+        WHERE cm.user.id = :userId
+          AND cm.channel.workspace.id = :workspaceId
+          AND cm.pinned = true
+    """)
+    long countPinnedChannelsInWorkspace(@Param("workspaceId") UUID workspaceId, @Param("userId") UUID userId);
+
     // Unread count for a user in a channel
     @Query("""
         SELECT COUNT(m) FROM Message m

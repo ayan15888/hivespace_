@@ -32,10 +32,17 @@ public class ChannelMember {
     @Column(name = "joined_at", nullable = false, updatable = false)
     private Instant joinedAt;
 
+    @Builder.Default
+    @Column(name = "pinned", nullable = false)
+    private Boolean pinned = false;
+
     @PrePersist
     protected void onCreate() {
         if (this.joinedAt == null) {
             this.joinedAt = Instant.now();
+        }
+        if (this.pinned == null) {
+            this.pinned = false;
         }
     }
 }

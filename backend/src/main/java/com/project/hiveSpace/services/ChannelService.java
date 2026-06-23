@@ -99,7 +99,8 @@ public class ChannelService {
                 savedChannel.getWorkspace().getId(),
                 savedChannel.getProject() != null ? savedChannel.getProject().getId() : null,
                 savedChannel.getTeam() != null ? savedChannel.getTeam().getId() : null,
-                0L
+                0L,
+                false
         );
     }
 
@@ -118,6 +119,7 @@ public class ChannelService {
             Instant lastReadAt = member != null ? member.getLastReadAt() : null;
             Instant resolvedLastReadAt = lastReadAt != null ? lastReadAt : Instant.EPOCH;
             long unreadCount = channelMemberRepository.countUnread(channel.getId(), currentUserId, resolvedLastReadAt);
+            boolean pinned = member != null && Boolean.TRUE.equals(member.getPinned());
 
             String channelName = channel.getName();
             if (channel.getType() == ChannelType.DM) {
@@ -140,7 +142,8 @@ public class ChannelService {
                     channel.getWorkspace().getId(),
                     channel.getProject() != null ? channel.getProject().getId() : null,
                     channel.getTeam() != null ? channel.getTeam().getId() : null,
-                    unreadCount
+                    unreadCount,
+                    pinned
             );
         }).collect(Collectors.toList());
     }
@@ -180,6 +183,8 @@ public class ChannelService {
                 }
             }
 
+            boolean pinned = member != null && Boolean.TRUE.equals(member.getPinned());
+
             return new ChannelResponse(
                     channel.getId(),
                     channelName,
@@ -187,7 +192,8 @@ public class ChannelService {
                     channel.getWorkspace().getId(),
                     channel.getProject() != null ? channel.getProject().getId() : null,
                     channel.getTeam() != null ? channel.getTeam().getId() : null,
-                    unreadCount
+                    unreadCount,
+                    pinned
             );
         } else {
             // 3. If not found:
@@ -239,7 +245,8 @@ public class ChannelService {
                     savedChannel.getWorkspace().getId(),
                     null,
                     null,
-                    0L
+                    0L,
+                    false
             );
         }
     }
@@ -360,10 +367,13 @@ public class ChannelService {
             long unread = channelMemberRepository.findByIdChannelIdAndIdUserId(existing.getId(), currentUserId)
                     .map(cm -> channelMemberRepository.countUnread(existing.getId(), currentUserId, cm.getLastReadAt()))
                     .orElse(0L);
+            boolean pinned = channelMemberRepository.findByIdChannelIdAndIdUserId(existing.getId(), currentUserId)
+                    .map(cm -> Boolean.TRUE.equals(cm.getPinned()))
+                    .orElse(false);
             return new ChannelResponse(
                     existing.getId(), existing.getName(), existing.getType(),
                     existing.getWorkspace().getId(), existing.getProject().getId(),
-                    null, unread);
+                    null, unread, pinned);
         }
 
         User creator = userRepository.findById(currentUserId)
@@ -388,6 +398,53 @@ public class ChannelService {
         return new ChannelResponse(
                 saved.getId(), saved.getName(), saved.getType(),
                 saved.getWorkspace().getId(), saved.getProject().getId(),
-                null, 0L);
+                null, 0L, false);
+    }
+
+    public ChannelResponse setChannelPinned(UUID channelId, UUID currentUserId, boolean pinned) {
+        ChannelMember member = channelMemberRepository.findByIdChannelIdAndIdUserId(channelId, currentUserId)
+                .orElseThrow(() -> new NotFoundException("Channel membership not found"));
+
+        if (pinned) {
+            Channel channel = channelRepository.findById(channelId)
+                    .orElseThrow(() -> new NotFoundException("Channel not found"));
+
+            long count = channelMemberRepository.countPinnedChannelsInWorkspace(channel.getWorkspace().getId(), currentUserId);
+            if (!Boolean.TRUE.equals(member.getPinned()) && count >= 3) {
+                throw new ForbiddenException("You can only pin up to 3 channels.");
+            }
+        }
+
+        member.setPinned(pinned);
+        channelMemberRepository.save(member);
+
+        Instant lastReadAt = member.getLastReadAt() != null ? member.getLastReadAt() : Instant.EPOCH;
+        long unreadCount = channelMemberRepository.countUnread(channelId, currentUserId, lastReadAt);
+
+        Channel channel = member.getChannel();
+        String channelName = channel.getName();
+        if (channel.getType() == ChannelType.DM) {
+            List<ChannelMember> members = channelMemberRepository.findByIdChannelId(channel.getId());
+            User otherUser = members.stream()
+                    .map(ChannelMember::getUser)
+                    .filter(u -> !u.getId().equals(currentUserId))
+                    .findFirst()
+                    .orElse(null);
+            if (otherUser != null) {
+                channelName = otherUser.getFullName() != null && !otherUser.getFullName().isEmpty()
+                        ? otherUser.getFullName() : otherUser.getUsername();
+            }
+        }
+
+        return new ChannelResponse(
+                channel.getId(),
+                channelName,
+                channel.getType(),
+                channel.getWorkspace().getId(),
+                channel.getProject() != null ? channel.getProject().getId() : null,
+                channel.getTeam() != null ? channel.getTeam().getId() : null,
+                unreadCount,
+                pinned
+        );
     }
 }

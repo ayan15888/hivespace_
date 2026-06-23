@@ -48,3 +48,9 @@ export async function ensureProjectChannel(projectId: string): Promise<ChannelRe
     method: 'POST',
   })
 }
+
+export async function pinChannel(channelId: string, pinned: boolean): Promise<ChannelResponse> {
+  return apiFetch(`/api/channels/${channelId}/pin?pinned=${pinned}`, {
+    method: 'POST',
+  })
+}

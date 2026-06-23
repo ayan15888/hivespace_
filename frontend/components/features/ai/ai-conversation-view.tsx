@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { sendAiCommand } from "@/lib/api/ai";
 import type { ChannelResponse } from "@/types/messaging";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import type { TaskResponse } from "@/lib/api/tasks";
 import type { DocumentResponse } from "@/lib/api/documents";
 import type { ReactNode } from "react";
@@ -104,17 +105,20 @@ export function AiConversationView({
         createdAt: new Date().toISOString(),
       };
       setMessages((current) => [...current, assistantMessage]);
+      const taskMatch = content?.match(/\[?(HS-\d+)\]?/);
+      if (taskMatch) {
+        toast.success(`Task ${taskMatch[1]} created successfully!`);
+      }
     } catch (error) {
+      const errMsg = error instanceof Error ? error.message : "The AI command could not be completed.";
       const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: "error",
-        content:
-          error instanceof Error
-            ? error.message
-            : "The AI command could not be completed.",
+        content: errMsg,
         createdAt: new Date().toISOString(),
       };
       setMessages((current) => [...current, assistantMessage]);
+      toast.error(errMsg);
     }
   };
 

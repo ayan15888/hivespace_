@@ -10,5 +10,6 @@ public record ChannelResponse(
     UUID workspaceId,
     UUID projectId,
     UUID teamId,
-    long unreadCount
+    long unreadCount,
+    Boolean pinned
 ) {}

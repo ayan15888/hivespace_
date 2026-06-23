@@ -21,6 +21,7 @@ import { useChatStore } from "@/store/chatStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { sendAiCommand } from "@/lib/api/ai";
 import type { AiCommandResponse } from "@/lib/api/ai";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -211,6 +212,9 @@ export function AiSidebarChat() {
         taskCreated,
       };
       setMessages((prev) => [...prev, assistantMsg]);
+      if (taskCreated) {
+        toast.success(`Task ${taskCreated.identifier} created successfully!`);
+      }
     } catch (err: any) {
       if (err.name === "AbortError" || (err instanceof Error && err.message === "The user aborted a request.")) {
         console.log("Request aborted");
@@ -224,6 +228,7 @@ export function AiSidebarChat() {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, cancelMsg]);
+        toast.warning("Generation interrupted");
       } else {
         const errorMsg: ChatMessage = {
           id: crypto.randomUUID(),
@@ -235,6 +240,7 @@ export function AiSidebarChat() {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, errorMsg]);
+        toast.error(err.message || "Failed to process AI command.");
       }
     } finally {
       if (abortControllerRef.current === controller) {

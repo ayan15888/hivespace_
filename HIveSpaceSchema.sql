@@ -515,6 +515,7 @@ CREATE TABLE channel_members (
   -- NULL means the user has never opened the channel.
   last_read_at TIMESTAMP,
   joined_at    TIMESTAMP NOT NULL DEFAULT now(),
+  pinned       BOOLEAN   NOT NULL DEFAULT false,
   PRIMARY KEY (channel_id, user_id)
 );
 

@@ -13,11 +13,13 @@ import {
   Settings,
   Layout,
   Hexagon,
-  Sparkles
+  Sparkles,
+  Pin
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { CreateOrgModal } from "@/components/features/organizations/CreateOrgModal";
 import { CreateWorkspaceModal } from "@/components/features/workspaces/CreateWorkspaceModal";
 import { CreateProjectModal } from "@/components/features/projects/CreateProjectModal";
@@ -42,7 +44,7 @@ import { Kbd } from "@/components/ui/kbd";
 
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
 import { useChatStore } from "@/store/chatStore";
-import { getWorkspaceChannels, ensureProjectChannel } from "@/lib/api/channels";
+import { getWorkspaceChannels, ensureProjectChannel, pinChannel } from "@/lib/api/channels";
 import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "next/navigation";
 import { useUiStore } from "@/store/uiStore";
@@ -132,6 +134,23 @@ export function WorkspaceSidebar() {
   const { channels, setChannels } = useChatStore();
   const workspaceChannels = activeWorkspace ? (channels[activeWorkspace.id] ?? []) : [];
   const isChatPage = pathname?.startsWith("/dashboard/chat");
+
+  const togglePinChannel = async (channelId: string, isPinned: boolean, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (!activeWorkspace?.id) return;
+    
+    try {
+      const updatedChannel = await pinChannel(channelId, !isPinned);
+      useChatStore.getState().upsertChannel(updatedChannel);
+      toast.success(!isPinned ? "Channel pinned" : "Channel unpinned");
+    } catch (err: any) {
+      console.error("Failed to pin channel", err);
+      const errorMsg = err.message || "Failed to update pin status.";
+      toast.error(errorMsg);
+    }
+  };
 
   useEffect(() => {
     if (!activeWorkspace?.id) return;
@@ -534,23 +553,32 @@ export function WorkspaceSidebar() {
               {workspaceChannels
                 .filter(c => c.type === 'PUBLIC' || c.type === 'PRIVATE')
                 .filter(c => !expandedProjectId || c.projectId === expandedProjectId || c.projectId === null)
+                .sort((a, b) => {
+                  const aPinned = a.pinned || false;
+                  const bPinned = b.pinned || false;
+                  if (aPinned && !bPinned) return -1;
+                  if (!aPinned && bPinned) return 1;
+                  return (a.name || "").localeCompare(b.name || "");
+                })
                 .map(channel => {
                   const path = `/dashboard/chat/${channel.id}`;
                   const isActive = pathname === path;
                   const channelProject = projects.find(p => p.id === channel.projectId);
                   const channelColor = PROJECT_COLOR_MAP[channelProject?.color || ""] || "var(--hs-accent)";
+                  const isPinned = channel.pinned || false;
 
                   return (
                     <motion.div
                       key={channel.id}
                       variants={sidebarItemVariants}
+                      className="group/channel-item relative"
                     >
                       <Link 
                         href={path}
                         className={cn(
-                          "group relative flex h-8 items-center justify-between cursor-pointer rounded-r-md px-2 border-l-2 transition-all sidebar-ripple-item",
+                          "group relative flex h-8 items-center justify-between cursor-pointer rounded-r-md pl-2 pr-8 border-l-2 transition-all sidebar-ripple-item",
                           isActive 
-                            ? "text-foreground" 
+                            ? "text-foreground font-medium" 
                             : "border-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                         )}
                         style={isActive ? { borderColor: channelColor } : undefined}
@@ -574,6 +602,18 @@ export function WorkspaceSidebar() {
                           <div className="h-1.5 w-1.5 rounded-full relative z-10" style={{ backgroundColor: channelColor }} />
                         )}
                       </Link>
+                      <button
+                        onClick={(e) => togglePinChannel(channel.id, isPinned, e)}
+                        className={cn(
+                          "absolute right-2 top-1.5 h-5 w-5 rounded flex items-center justify-center transition-all z-20 cursor-pointer",
+                          isPinned
+                            ? "text-amber-500 hover:text-zinc-400 bg-zinc-800/30"
+                            : "opacity-0 group-hover/channel-item:opacity-100 text-zinc-500 hover:text-amber-500 hover:bg-zinc-800/50"
+                        )}
+                        title={isPinned ? "Unpin channel" : "Pin channel (max 3)"}
+                      >
+                        <Pin className={cn("h-3 w-3", isPinned ? "fill-amber-500" : "")} />
+                      </button>
                     </motion.div>
                   );
               })}
@@ -609,22 +649,31 @@ export function WorkspaceSidebar() {
             >
               {workspaceChannels
                 .filter(c => c.type === 'DM')
+                .sort((a, b) => {
+                  const aPinned = a.pinned || false;
+                  const bPinned = b.pinned || false;
+                  if (aPinned && !bPinned) return -1;
+                  if (!aPinned && bPinned) return 1;
+                  return (a.name || "").localeCompare(b.name || "");
+                })
                 .map(channel => {
                   const path = `/dashboard/chat/${channel.id}`;
                   const isActive = pathname === path;
                   const channelColor = "var(--hs-accent)";
+                  const isPinned = channel.pinned || false;
 
                   return (
                     <motion.div
                       key={channel.id}
                       variants={sidebarItemVariants}
+                      className="group/dm-item relative"
                     >
                       <Link 
                         href={path}
                         className={cn(
-                          "group relative flex h-8 items-center justify-between cursor-pointer rounded-r-md px-2 border-l-2 transition-all sidebar-ripple-item",
+                          "group relative flex h-8 items-center justify-between cursor-pointer rounded-r-md pl-2 pr-8 border-l-2 transition-all sidebar-ripple-item",
                           isActive 
-                            ? "text-foreground" 
+                            ? "text-foreground font-medium" 
                             : "border-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                         )}
                         style={isActive ? { borderColor: channelColor } : undefined}
@@ -648,6 +697,18 @@ export function WorkspaceSidebar() {
                           <div className="h-1.5 w-1.5 rounded-full relative z-10" style={{ backgroundColor: "#F95B4E" }} />
                         )}
                       </Link>
+                      <button
+                        onClick={(e) => togglePinChannel(channel.id, isPinned, e)}
+                        className={cn(
+                          "absolute right-2 top-1.5 h-5 w-5 rounded flex items-center justify-center transition-all z-20 cursor-pointer",
+                          isPinned
+                            ? "text-amber-500 hover:text-zinc-400 bg-zinc-800/30"
+                            : "opacity-0 group-hover/dm-item:opacity-100 text-zinc-500 hover:text-amber-500 hover:bg-zinc-800/50"
+                        )}
+                        title={isPinned ? "Unpin DM" : "Pin DM (max 3)"}
+                      >
+                        <Pin className={cn("h-3 w-3", isPinned ? "fill-amber-500" : "")} />
+                      </button>
                     </motion.div>
                   );
               })}

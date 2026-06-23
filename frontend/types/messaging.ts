@@ -41,6 +41,7 @@ export interface ChannelResponse {
   projectId: string | null
   teamId: string | null
   unreadCount: number
+  pinned?: boolean
 }
 
 // ─── Request shapes ───────────────────────────────────────────────────────────
