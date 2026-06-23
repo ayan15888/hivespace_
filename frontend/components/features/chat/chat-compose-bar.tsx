@@ -20,6 +20,8 @@ import { useState, useEffect } from "react"
 import type { MentionMember } from "@/app/(auth)/dashboard/chat/[channel]/chat-utils"
 
 const SUGGESTIONS = [
+  { command: "/todo ", description: "Create a new task / todo" },
+  { command: "/update ", description: "Update an existing task" },
   { command: "/ai summarize", description: "Summarize the last 50 messages in this channel" },
   { command: "/ai summarize from ", description: "Summarize messages in a specific date range" },
   { command: "/ai ask ", description: "Answer questions using the channel history" },

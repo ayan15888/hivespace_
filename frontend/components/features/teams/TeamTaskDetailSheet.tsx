@@ -53,6 +53,7 @@ export function TeamTaskDetailSheet({
   return (
     <Sheet open={!!selectedTask} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="right" className="w-[380px] p-0 bg-hs-nav border-l border-border/50 shadow-2xl flex flex-col gap-0 outline-none z-[150]">
+        <SheetTitle className="sr-only">Task Details</SheetTitle>
         <SheetHeader className="p-6 pb-0 border-b border-border/10">
           <div className="flex items-center justify-between">
             <span className="font-mono text-xs text-zinc-500 uppercase tracking-widest font-semibold">

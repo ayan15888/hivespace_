@@ -30,7 +30,9 @@ public class RbacService {
     private final TaskAssigneeRepository taskAssigneeRepository;
     private final ProjectTeamRepository projectTeamRepository;
     private final DocumentRepository documentRepository;
+    private final SprintRepository sprintRepository;
     // private final TenantRepository tenantRepository;
+
 
     public User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -219,7 +221,19 @@ public class RbacService {
                 .orElse(false);
     }
 
+    public boolean canEditProject(UUID projectId) {
+        return isProjectLead(projectId);
+    }
+
+    public boolean canEditSprint(UUID sprintId) {
+        if (sprintId == null) return false;
+        return sprintRepository.findById(sprintId)
+                .map(sprint -> isProjectLead(sprint.getProject().getId()))
+                .orElse(false);
+    }
+
     public boolean canCreateTask(UUID projectId) {
+
         if (hasProjectRole(projectId, ProjectMemberRole.MEMBER)) return true;
         User user = getCurrentUser();
         return user != null && isUserInTeamAssignedToProject(user.getId(), projectId);
@@ -458,7 +472,13 @@ public class RbacService {
                         .map(doc -> doc.getWorkspace() != null && doc.getWorkspace().getTenant() != null && doc.getWorkspace().getTenant().getId().equals(tenantId))
                         .orElse(false);
             }
+            case SPRINT -> {
+                belongs = sprintRepository.findById(resourceId)
+                        .map(s -> s.getProject() != null && s.getProject().getWorkspace() != null && s.getProject().getWorkspace().getTenant() != null && s.getProject().getWorkspace().getTenant().getId().equals(tenantId))
+                        .orElse(false);
+            }
         }
+
 
         if (!belongs) {
             throw new ForbiddenException("Resource does not belong to the caller's organization");

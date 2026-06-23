@@ -3,10 +3,10 @@ package com.project.hiveSpace.services;
 import com.project.hiveSpace.dto.ChannelMemberResponse;
 import com.project.hiveSpace.dto.FusedCandidate;
 import com.project.hiveSpace.dto.RAGResponse;
-import com.project.hiveSpace.models.Message;
 import com.project.hiveSpace.models.Channel;
-import com.project.hiveSpace.repository.MessageRepository;
+import com.project.hiveSpace.models.Message;
 import com.project.hiveSpace.repository.ChannelRepository;
+import com.project.hiveSpace.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +33,15 @@ public class SlashCommandService {
     private final RerankerService rerankerService;
     private final RAGAnswerService ragAnswerService;
 
+    /**
+     * Task creation is delegated to TaskCreationAgentService which runs in its OWN
+     * read-write @Transactional context. This avoids the Spring AOP self-invocation
+     * problem that caused UnexpectedRollbackException when calling handleCreateTask
+     * inside this readOnly=true class.
+     */
+    private final TaskCreationAgentService taskCreationAgentService;
+    private final TaskUpdateAgentService taskUpdateAgentService;
+
     @Value("${nvidia.model.default}")
     private String defaultChatModel;
 
@@ -42,20 +51,71 @@ public class SlashCommandService {
         }
 
         String input = userInput.trim();
+
+        // Strip /ai prefix if present
         if (input.toLowerCase().startsWith("/ai ")) {
             input = input.substring(4).trim();
         }
 
+        // ── Task commands ─────────────────────────────────────────────
+        String lower = input.toLowerCase();
+
+        // 1. Explicit slash commands
+        if (lower.startsWith("/todo ") || lower.startsWith("/task ")) {
+            String taskPrompt = input.substring(input.indexOf(' ') + 1).trim();
+            try {
+                return taskCreationAgentService.createTaskFromPrompt(channelId, requestingUserId, taskPrompt);
+            } catch (Exception e) {
+                return "⚠️ Failed to create task: " + e.getMessage();
+            }
+        }
+        if (lower.startsWith("/update ") || lower.startsWith("/edit ")) {
+            String updatePrompt = input.substring(input.indexOf(' ') + 1).trim();
+            try {
+                return taskUpdateAgentService.updateTaskFromPrompt(channelId, requestingUserId, updatePrompt);
+            } catch (Exception e) {
+                return "⚠️ Failed to update task: " + e.getMessage();
+            }
+        }
+
+        // 2. Natural language update intent
+        boolean isUpdateIntent = lower.startsWith("update task") ||
+                lower.startsWith("edit task") ||
+                lower.startsWith("change task") ||
+                lower.startsWith("assign task") ||
+                lower.startsWith("mark task");
+        if (isUpdateIntent) {
+            try {
+                return taskUpdateAgentService.updateTaskFromPrompt(channelId, requestingUserId, input);
+            } catch (Exception e) {
+                return "⚠️ Failed to update task: " + e.getMessage();
+            }
+        }
+
+        // 3. Natural language creation intent
+        boolean isCreateIntent = lower.startsWith("create a task") ||
+                lower.startsWith("create task") ||
+                lower.startsWith("add a task") ||
+                lower.startsWith("add task") ||
+                lower.startsWith("make a task") ||
+                lower.startsWith("new task");
+        if (isCreateIntent) {
+            try {
+                return taskCreationAgentService.createTaskFromPrompt(channelId, requestingUserId, input);
+            } catch (Exception e) {
+                return "⚠️ Failed to create task: " + e.getMessage();
+            }
+        }
+
+        // ── Standard AI commands ───────────────────────────────────────────────
         if (input.equalsIgnoreCase("summarize") || input.equalsIgnoreCase("summarize this channel")) {
             return handleSummarize(channelId);
         } else if (input.toLowerCase().startsWith("summarize from ")) {
             return handleSummarizeBetween(channelId, input);
         } else if (input.toLowerCase().startsWith("ask ")) {
-            String question = input.substring(4).trim();
-            return handleAsk(channelId, question);
+            return handleAsk(channelId, input.substring(4).trim());
         } else if (input.toLowerCase().startsWith("draft a reply to ")) {
-            String person = input.substring(17).trim();
-            return handleDraftReply(channelId, requestingUserId, person);
+            return handleDraftReply(channelId, requestingUserId, input.substring(17).trim());
         }
 
         return getHelpMessage();
@@ -199,11 +259,13 @@ public class SlashCommandService {
     }
 
     private String getHelpMessage() {
-        return "I can help you with these commands:\n" +
-                "1. `/ai summarize` - Summarizes the last 50 messages in this channel.\n" +
-                "2. `/ai summarize from <date1> to <date2>` - Summarizes messages in the given date range (format: YYYY-MM-DD).\n" +
-                "3. `/ai ask <question>` - Answers your question using the last 20 messages as context.\n" +
-                "4. `/ai draft a reply to <person>` - Drafts a reply to a user based on the last 15 messages.";
+        return "✨ **Hex AI Commands:**\n" +
+                "1. `Create a task to [description] and assign to @[name] by [date]` — **AI task creation**\n" +
+                "2. `/todo [description]` — Quick task creation shorthand\n" +
+                "3. `/ai summarize` — Summarizes the last 50 messages in this channel.\n" +
+                "4. `/ai summarize from <date1> to <date2>` — Summarizes messages in the given date range (YYYY-MM-DD).\n" +
+                "5. `/ai ask <question>` — Answers your question using chat history & project docs.\n" +
+                "6. `/ai draft a reply to <person>` — Drafts a reply to a user based on the last 15 messages.";
     }
 
     private String handleSummarizeBetween(UUID channelId, String input) {

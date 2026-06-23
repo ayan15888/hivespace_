@@ -11,9 +11,11 @@ export type AiCommandResponse = MessageResponse | AiDraftResponse;
 export async function sendAiCommand(
   channelId: string,
   input: string,
+  options?: RequestInit,
 ): Promise<AiCommandResponse> {
   return apiFetch(`/api/channels/${channelId}/ai-command`, {
     method: "POST",
     body: JSON.stringify({ input }),
+    ...options,
   });
 }

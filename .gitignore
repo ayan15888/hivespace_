@@ -49,3 +49,6 @@ bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
 !gradle/wrapper/gradle-wrapper.jar
+
+# Google OAuth Credentials
+*client_secret.json

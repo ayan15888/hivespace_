@@ -26,6 +26,13 @@ public class RAGAnswerService {
      * Builds prompt context and requests an answer from the Nvidia LLM model.
      */
     public RAGResponse generateAnswer(String question, List<FusedCandidate> chunks, List<Message> channelMessages) {
+        return generateAnswer(question, chunks, channelMessages, defaultChatModel);
+    }
+
+    /**
+     * Builds prompt context and requests an answer from the specified Nvidia LLM model.
+     */
+    public RAGResponse generateAnswer(String question, List<FusedCandidate> chunks, List<Message> channelMessages, String modelName) {
         // 1. Format document context (Stage 4)
         StringBuilder docContextBuilder = new StringBuilder();
         docContextBuilder.append("=== DOCUMENT CONTEXT ===\n");
@@ -74,11 +81,18 @@ public class RAGAnswerService {
                 "5. Cite the source document title when referencing information from the Document Context (e.g. \"[Source: <title>]\").\n" +
                 "6. Do NOT append or list a 'Sources' or reference section at the end of your answer. Citations must only be placed inline using \"[Source: <title>]\" style. The system will handle appending the document list automatically.";
 
-        // 5. Call LLM
-        String answer = nvidiaAIService.chatCompletion(systemPrompt, userPrompt, defaultChatModel);
-
-        // TODO: Add answer-level caching in Upstash Redis to bypass generation + validation latency for identical queries.
-        // Cache key format: rag-answer:{projectId}:{normalized-question-hash}
+        // 5. Call LLM with primary model, falling back to defaultChatModel if it fails
+        String answer;
+        try {
+            answer = nvidiaAIService.chatCompletion(systemPrompt, userPrompt, modelName);
+        } catch (Exception e) {
+            System.err.println("Primary model " + modelName + " failed. Falling back to default: " + defaultChatModel + ". Error: " + e.getMessage());
+            try {
+                answer = nvidiaAIService.chatCompletion(systemPrompt, userPrompt, defaultChatModel);
+            } catch (Exception ex) {
+                answer = "Failed to process RAG answer on fallback: " + ex.getMessage();
+            }
+        }
 
         // 6. Content Guardrails & Validation (Stage 6)
         boolean isSafe = validationService.isSafe(answer);

@@ -20,4 +20,6 @@ public class UpdateTaskRequest {
     private Integer points;
     private UUID assigneeId;
     private UUID teamId;
+    private UUID sprintId;
 }
+

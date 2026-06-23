@@ -141,11 +141,13 @@ CREATE TABLE public.tasks (
   parent_id uuid,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  sprint_id uuid,
   CONSTRAINT tasks_pkey PRIMARY KEY (id),
   CONSTRAINT tasks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
   CONSTRAINT tasks_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
   CONSTRAINT tasks_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
-  CONSTRAINT tasks_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.tasks(id)
+  CONSTRAINT tasks_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.tasks(id),
+  CONSTRAINT tasks_sprint_id_fkey FOREIGN KEY (sprint_id) REFERENCES public.sprints(id)
 );
 CREATE TABLE public.task_assignees (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -298,6 +300,7 @@ CREATE TABLE public.channel_members (
   user_id uuid NOT NULL,
   last_read_at timestamp without time zone,
   joined_at timestamp without time zone NOT NULL DEFAULT now(),
+  pinned boolean NOT NULL DEFAULT false,
   CONSTRAINT channel_members_pkey PRIMARY KEY (channel_id, user_id),
   CONSTRAINT channel_members_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.channels(id),
   CONSTRAINT channel_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
@@ -355,4 +358,93 @@ CREATE TABLE public.document_chunks (
   CONSTRAINT document_chunks_pkey PRIMARY KEY (id),
   CONSTRAINT document_chunks_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id),
   CONSTRAINT document_chunks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);
+CREATE TABLE public.task_embeddings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  task_id uuid NOT NULL UNIQUE,
+  project_id uuid NOT NULL,
+  embedding USER-DEFINED,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT task_embeddings_pkey PRIMARY KEY (id),
+  CONSTRAINT task_embeddings_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.tasks(id),
+  CONSTRAINT task_embeddings_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);
+CREATE TABLE public.sprints (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name character varying NOT NULL,
+  goal text,
+  status character varying NOT NULL DEFAULT 'PLANNING'::character varying CHECK (status::text = ANY (ARRAY['PLANNING'::character varying, 'ACTIVE'::character varying, 'COMPLETED'::character varying]::text[])),
+  project_id uuid NOT NULL,
+  start_date timestamp without time zone,
+  end_date timestamp without time zone,
+  created_by uuid,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT sprints_pkey PRIMARY KEY (id),
+  CONSTRAINT sprints_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT sprints_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.ai_conversations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  workspace_id uuid,
+  user_id uuid,
+  title text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_conversations_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_conversations_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
+  CONSTRAINT ai_conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.ai_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  conversation_id uuid,
+  role text CHECK (role = ANY (ARRAY['user'::text, 'assistant'::text])),
+  content text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_messages_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.ai_conversations(id)
+);
+CREATE TABLE public.user_oauth_credentials (
+  id uuid NOT NULL,
+  access_token text NOT NULL,
+  created_at timestamp without time zone NOT NULL,
+  email character varying NOT NULL,
+  expires_at timestamp without time zone,
+  provider character varying NOT NULL,
+  refresh_token text,
+  updated_at timestamp without time zone NOT NULL,
+  user_id uuid NOT NULL,
+  CONSTRAINT user_oauth_credentials_pkey PRIMARY KEY (id),
+  CONSTRAINT fkn1wox6ok6vx39ow1slst6jjy4 FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.github_connections (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL,
+  github_org_name character varying NOT NULL,
+  access_token text NOT NULL,
+  webhook_secret character varying NOT NULL,
+  connected_by uuid,
+  connected_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT github_connections_pkey PRIMARY KEY (id),
+  CONSTRAINT github_connections_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
+  CONSTRAINT github_connections_connected_by_fkey FOREIGN KEY (connected_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.github_repo_links (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL,
+  github_repo_full_name character varying NOT NULL,
+  linked_by uuid,
+  linked_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT github_repo_links_pkey PRIMARY KEY (id),
+  CONSTRAINT github_repo_links_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT github_repo_links_linked_by_fkey FOREIGN KEY (linked_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.github_sync_log (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  action character varying NOT NULL,
+  github_event_id character varying,
+  processed boolean NOT NULL DEFAULT false,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT github_sync_log_pkey PRIMARY KEY (id)
 );

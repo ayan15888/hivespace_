@@ -59,7 +59,12 @@ public class Task {
     @JoinColumn(name = "parent_id")
     private Task parentTask;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sprint_id")
+    private Sprint sprint;
+
     @Column(name = "sequence_number")
+
     private Integer sequenceNumber;
 
     @Temporal(TemporalType.TIMESTAMP)

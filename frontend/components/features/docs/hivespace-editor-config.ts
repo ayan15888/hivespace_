@@ -44,7 +44,7 @@ const HivespaceTask = Node.create({
     return ({ node }) => {
       const { taskId, title, status, priority, assignee } = node.attrs;
       const dom = document.createElement("div");
-      dom.className = "my-4 bg-zinc-800/80 border border-zinc-700 rounded-lg p-3 flex items-center gap-3 max-w-[500px] hover:border-zinc-500 transition-colors cursor-default group shadow-lg shadow-black/20 select-none";
+      dom.className = "my-4 bg-zinc-50 border border-zinc-200 rounded-lg p-3 flex items-center gap-3 max-w-[500px] hover:border-zinc-350 transition-colors cursor-default group shadow-sm select-none";
 
       const dot = document.createElement("div");
       dot.className =
@@ -52,23 +52,23 @@ const HivespaceTask = Node.create({
           ? "h-1.5 w-1.5 shrink-0 rounded-full bg-red-500"
           : priority === "high"
             ? "h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"
-            : "h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-500";
+            : "h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400";
 
       const idSpan = document.createElement("span");
-      idSpan.className = "font-mono text-xs text-zinc-500 shrink-0";
+      idSpan.className = "font-mono text-xs text-zinc-400 shrink-0";
       idSpan.innerText = taskId;
 
       const titleSpan = document.createElement("span");
-      titleSpan.className = "text-sm font-medium text-white flex-1 truncate";
+      titleSpan.className = "text-sm font-medium text-zinc-900 flex-1 truncate";
       titleSpan.innerText = title;
 
       const badge = document.createElement("div");
-      badge.className = "bg-violet-500/10 text-violet-400 border border-violet-500/20 px-2 py-0.5 rounded text-[10px] h-5 flex items-center shrink-0";
+      badge.className = "bg-violet-500/10 text-violet-600 border border-violet-500/20 px-2 py-0.5 rounded text-[10px] h-5 flex items-center shrink-0";
       badge.innerText = status;
 
       const avatar = document.createElement("div");
-      avatar.className = "h-6 w-6 rounded-full bg-zinc-700 flex items-center justify-center shrink-0";
-      avatar.innerHTML = `<span class="text-[10px] text-zinc-300 font-bold">${assignee
+      avatar.className = "h-6 w-6 rounded-full bg-zinc-200 flex items-center justify-center shrink-0";
+      avatar.innerHTML = `<span class="text-[10px] text-zinc-600 font-bold">${assignee
         .split(" ")
         .map((name: string) => name[0])
         .join("")}</span>`;
@@ -128,7 +128,7 @@ export const COLORS = [
 ];
 
 export const CustomHeading = extendNodeWithStyle(Heading).configure({
-  HTMLAttributes: { class: "text-white font-bold tracking-tight" },
+  HTMLAttributes: { class: "text-zinc-900 font-bold tracking-tight" },
 });
 export const CustomParagraph = extendNodeWithStyle(Paragraph);
 export const CustomBlockquote = extendNodeWithStyle(Blockquote);
@@ -137,7 +137,7 @@ export const CustomOrderedList = extendNodeWithStyle(OrderedList);
 export const CustomListItem = extendNodeWithStyle(ListItem);
 export const CustomTable = extendNodeWithStyle(Table).configure({
   resizable: true,
-  HTMLAttributes: { class: "border-collapse border border-zinc-700 w-full my-4 rounded-lg overflow-hidden" },
+  HTMLAttributes: { class: "border-collapse border border-zinc-200 w-full my-4 rounded-lg overflow-hidden" },
 });
 export const CustomTableRow = extendNodeWithStyle(TableRow);
 export const CustomTableHeader = extendNodeWithStyle(TableHeader);

@@ -23,7 +23,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
 import { PROJECT_COLOR_MAP } from "@/lib/constants/colors";
-import { useEffect } from "react";
 import { 
   getProjectMembers, 
   ProjectMemberResponse,
@@ -45,6 +44,7 @@ import { useOrgStore } from "@/store/orgStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useProjectOverviewStore } from "./store";
 import { queryKeys } from "@/lib/queryKeys";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
 // Dynamic API fetches
 import { 
@@ -102,39 +102,37 @@ export default function ProjectOverviewPage() {
     setIsCreateModalOpen,
   } = useProjectOverviewStore();
 
+  const { activeWorkspace } = useWorkspaceStore();
+
   // Share store integration
   const { shareLinks, fetchOrCreateShareLink, revokeProjectShareLink } = useShareStore();
   const { activeOrg } = useOrgStore();
 
   const activeLink = currentProject ? shareLinks[currentProject.id] : null;
 
-  useEffect(() => {
-    if (currentProject?.id) {
-      fetchOrCreateShareLink(currentProject.id);
-    }
-  }, [currentProject?.id, fetchOrCreateShareLink]);
-
   const queryClient = useQueryClient();
 
   // TanStack Queries
+  const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
   const { data: projectMembers = [] } = useQuery<ProjectMemberResponse[], Error>({
     queryKey: ["projectMembers", projectId],
     queryFn: () => getProjectMembers(projectId),
-    enabled: !!projectId,
+    enabled: !!projectId && isUuid(projectId),
     staleTime: 30_000,
   });
 
   const { data: tasks = [], isLoading: loadingTasks } = useQuery<TaskResponse[], Error>({
     queryKey: ["projectTasks", projectId],
     queryFn: () => getTasksByProject(projectId),
-    enabled: !!projectId,
+    enabled: !!projectId && isUuid(projectId),
     staleTime: 10_000,
   });
 
   const { data: documents = [], isLoading: loadingDocs } = useQuery<DocumentResponse[], Error>({
     queryKey: queryKeys.documents(projectId),
     queryFn: () => getDocumentsByProject(projectId),
-    enabled: !!projectId,
+    enabled: !!projectId && isUuid(projectId),
     staleTime: 15_000,
   });
 
@@ -304,7 +302,7 @@ export default function ProjectOverviewPage() {
           <div className="flex items-center gap-2 flex-1">
             <span className="text-xs text-zinc-500 font-semibold tracking-wide">Hivespace</span>
             <span className="text-zinc-800 text-[10px] select-none">/</span>
-            <span className="text-xs text-zinc-500 font-semibold tracking-wide">Engineering</span>
+            <span className="text-xs text-zinc-500 font-semibold tracking-wide">{activeWorkspace?.name || "Workspace"}</span>
             <span className="text-zinc-800 text-[10px] select-none">/</span>
             <span className="text-xs font-semibold text-zinc-300">{displayTitle}</span>
           </div>
@@ -317,15 +315,16 @@ export default function ProjectOverviewPage() {
             <Link href={`/dashboard/projects/${projectId}/board`} className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors">
               Board
             </Link>
-            <button className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors cursor-not-allowed opacity-60">
+            <Link href={`/dashboard/projects/${projectId}/list`} className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors">
               List
-            </button>
-            <button className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors cursor-not-allowed opacity-60">
+            </Link>
+            <Link href={`/dashboard/projects/${projectId}/timeline`} className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors">
               Timeline
-            </button>
-            <button className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors cursor-not-allowed opacity-60">
+            </Link>
+            <Link href={`/dashboard/projects/${projectId}/backlog`} className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors">
               Backlog
-            </button>
+            </Link>
+
             <Link href="/dashboard/docs" className="flex h-full items-center px-1 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-200 transition-colors">
               Docs
             </Link>
@@ -376,7 +375,7 @@ export default function ProjectOverviewPage() {
                 {displayTitle.substring(0, 1).toUpperCase()}
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Engineering workspace</span>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{activeWorkspace?.name || "Workspace"}</span>
                 <h1 className="text-3xl font-extrabold tracking-tight text-white mt-1">{displayTitle}</h1>
                 <p className="text-sm text-zinc-400 mt-2 max-w-2xl leading-relaxed font-medium">
                   {currentProject?.description || "No description provided."}

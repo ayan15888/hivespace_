@@ -10,10 +10,10 @@ function ThemeProvider({
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="system"
-      enableSystem
+      defaultTheme="dark"
+      enableSystem={false}
       disableTransitionOnChange
-      themes={["light", "dark", "dark-blue", "claude"]}
+      themes={["dark", "dark-blue", "claude"]}
       {...props}
     >
       <ThemeHotkey />
@@ -68,7 +68,7 @@ function ThemeHotkey() {
         return
       }
 
-      setTheme(resolvedTheme === "dark" ? "light" : "dark")
+      setTheme(resolvedTheme === "dark" ? "claude" : "dark")
     }
 
     window.addEventListener("keydown", onKeyDown)

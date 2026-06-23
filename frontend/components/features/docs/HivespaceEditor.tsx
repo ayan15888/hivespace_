@@ -24,6 +24,7 @@ import {
   HivespaceTask,
 } from "./hivespace-editor-config";
 import { HivespaceEditorChrome } from "./hivespace-editor-chrome";
+import { HivespaceDrawing } from "./hivespace-drawing-node";
 
 interface HivespaceEditorProps {
   documentId?: string;
@@ -86,12 +87,13 @@ export function HivespaceEditor({
         CustomTableHeader,
         CustomTableCell,
         HivespaceTask,
+        HivespaceDrawing,
       ],
       content: parseStoredContent(initialContent),
       editorProps: {
         attributes: {
           class:
-            "prose prose-invert max-w-none focus:outline-none text-zinc-300 leading-[1.8] text-[15px]",
+            "prose max-w-none focus:outline-none text-zinc-800 leading-[1.8] text-[15px]",
         },
         handleKeyDown: (view, event) => {
           if (event.key === "/") {
@@ -183,6 +185,18 @@ export function HivespaceEditor({
       case "ai":
         editor.chain().focus().insertContent("<p><i>✦ Analyzing document for suggestions...</i></p>").run();
         break;
+      case "drawing":
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "hivespaceDrawing",
+            attrs: {
+              diagramData: "[]",
+            },
+          })
+          .run();
+        break;
     }
     setIsSlashMenuOpen(false);
   };
@@ -201,15 +215,18 @@ export function HivespaceEditor({
         .ProseMirror p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
           float: left;
-          color: #52525b;
+          color: #a1a1aa;
           pointer-events: none;
           height: 0;
+        }
+        .ProseMirror p {
+          color: #27272a;
         }
         .ProseMirror h1 {
           font-size: 1.875rem;
           line-height: 2.25rem;
           font-weight: 700;
-          color: white;
+          color: #18181b;
           margin-top: 2rem;
           margin-bottom: 1rem;
         }
@@ -217,17 +234,17 @@ export function HivespaceEditor({
           font-size: 1.25rem;
           line-height: 1.75rem;
           font-weight: 700;
-          color: white;
+          color: #18181b;
           margin-top: 1.5rem;
           margin-bottom: 0.75rem;
-          border-bottom: 1px solid #27272a;
+          border-bottom: 1px solid #e4e4e7;
           padding-bottom: 0.5rem;
         }
         .ProseMirror h3 {
           font-size: 1.125rem;
           line-height: 1.75rem;
           font-weight: 700;
-          color: white;
+          color: #18181b;
           margin-top: 1.25rem;
           margin-bottom: 0.5rem;
         }
@@ -243,27 +260,58 @@ export function HivespaceEditor({
         }
         .ProseMirror li {
           margin-bottom: 0.5rem;
+          color: #27272a;
         }
         .ProseMirror blockquote {
           border-left: 3px solid #7c5cfc;
           padding-left: 1rem;
-          color: #a1a1aa;
+          color: #52525b;
           font-style: italic;
           margin: 1.5rem 0;
         }
         .ProseMirror code {
           font-family: "Geist Mono", monospace;
-          background: #27272a;
+          background: #f4f4f5;
           padding: 0.2rem 0.4rem;
-          rounded: 0.25rem;
+          border-radius: 0.25rem;
           font-size: 0.85em;
-          color: #e4e4e7;
+          color: #18181b;
         }
         .ProseMirror pre code {
           background: none;
           padding: 0;
           color: inherit;
           font-size: inherit;
+        }
+        .ProseMirror table {
+          border-collapse: collapse;
+          margin: 1.5rem 0;
+          overflow: hidden;
+          width: 100%;
+          border-radius: 8px;
+          border: 1px solid #e4e4e7 !important;
+        }
+        .ProseMirror th,
+        .ProseMirror td {
+          border: 1px solid #e4e4e7 !important;
+          box-sizing: border-box;
+          min-width: 1em;
+          padding: 10px 14px;
+          position: relative;
+          vertical-align: top;
+          text-align: left;
+        }
+        .ProseMirror th {
+          background-color: #f4f4f5 !important;
+          font-weight: 600;
+          color: #18181b !important;
+        }
+        .ProseMirror td {
+          background-color: transparent !important;
+          color: #27272a !important;
+        }
+        .ProseMirror tr:hover td {
+          background-color: #fafafa !important;
         }
       `}</style>
     </div>

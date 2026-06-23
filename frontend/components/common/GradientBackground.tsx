@@ -35,8 +35,8 @@ export function GradientBackground({ theme }: { theme?: string }) {
     colorBack = "hsla(0, 0%, 0%, 1.00)" // Deep dark blue #090D16
     colors = ["hsl(244, 55%, 18%)", "hsl(199, 89%, 15%)", "hsl(271, 70%, 18%)"] // Indigo/cyan/purple
   } else if (activeTheme === "claude") {
-    colorBack = "hsla(60, 10%, 10%, 1.00)" // Warm terracotta-charcoal #262624
-    colors = ["hsla(13, 88%, 10%, 1.00)", "hsl(35, 30%, 15%)", "hsl(4, 30%, 18%)"] // Terracotta/sand/clay
+    colorBack = "hsl(40, 20%, 97%)" // Warm cream canvas (#faf9f5 equivalent)
+    colors = ["hsl(36, 40%, 93%)", "hsl(20, 30%, 91%)", "hsl(45, 20%, 94%)"] // Cozy clay, warm coral, and light cream/amber tints
   }
 
   return (

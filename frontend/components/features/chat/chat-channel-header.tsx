@@ -23,7 +23,7 @@ export function ChatChannelHeader({
   onSummarize?: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-20 flex h-[48px] shrink-0 items-center justify-between bg-background/80 backdrop-blur-md px-4 border-b border-border/50">
+    <header className="sticky top-0 z-20 flex h-[48px] shrink-0 items-center justify-between bg-background px-4 border-b border-border/50">
       <div className="flex items-center">
         <Hash className="mr-1 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
         <span className="text-sm font-medium text-foreground">{currentChannel?.name || "Chat"}</span>

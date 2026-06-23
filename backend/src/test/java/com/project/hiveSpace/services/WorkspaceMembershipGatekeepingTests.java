@@ -48,6 +48,15 @@ class WorkspaceMembershipGatekeepingTests {
     @Mock
     private RbacService rbacService;
 
+    @Mock
+    private RedisService redisService;
+
+    @Mock
+    private ChannelRepository channelRepository;
+
+    @Mock
+    private ChannelMemberRepository channelMemberRepository;
+
     @InjectMocks
     private WorkspaceService workspaceService;
 

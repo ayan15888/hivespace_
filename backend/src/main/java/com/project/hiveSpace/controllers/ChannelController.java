@@ -57,6 +57,16 @@ public class ChannelController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/channels/{channelId}/pin")
+    public ResponseEntity<ChannelResponse> pinChannel(
+            @PathVariable UUID channelId,
+            @RequestParam boolean pinned,
+            @AuthenticationPrincipal User user
+    ) {
+        ChannelResponse response = channelService.setChannelPinned(channelId, user.getId(), pinned);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/channels/{channelId}/members")
     public ResponseEntity<List<com.project.hiveSpace.dto.ChannelMemberResponse>> getChannelMembers(
             @PathVariable UUID channelId,

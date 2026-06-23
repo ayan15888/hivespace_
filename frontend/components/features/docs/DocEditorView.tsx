@@ -152,8 +152,6 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
         });
         await saveContent(documentId, minimalJson, plainText);
       }
-
-      setEditorKey((prev) => prev + 1);
       toast.success("Document redesigned successfully!");
     } catch (err) {
       console.error(err);
@@ -228,24 +226,16 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
           </div>
         ) : (
           <>
-            <main className="scrollbar-none relative flex-1 overflow-y-auto scroll-smooth bg-hs-main px-10 py-16">
+            <main className="scrollbar-none relative flex-1 overflow-y-auto scroll-smooth bg-white px-10 py-16">
               {isRedesigning && (
-                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/75 text-center backdrop-blur-md animate-in fade-in duration-300">
-                  <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/20 blur-[80px] pointer-events-none animate-pulse-soft" />
-                  <div className="absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500/10 blur-[60px] pointer-events-none" />
-
+                <div className="absolute top-4 left-1/2 z-40 -translate-x-1/2 flex items-center gap-2.5 rounded-full border border-[#cc785c]/35 bg-background px-4 py-2 shadow-xl animate-pulse">
                   <div className="relative flex items-center justify-center">
-                    <div className="h-16 w-16 animate-spin rounded-full border-4 border-violet-500/20 border-t-violet-500 shadow-lg shadow-violet-500/30" />
-                    <Sparkles className="absolute h-6 w-6 animate-pulse text-violet-400" />
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#cc785c]/20 border-t-[#cc785c]" />
+                    <Sparkles className="absolute h-2.5 w-2.5 text-[#cc785c] animate-pulse" />
                   </div>
-                  <div className="relative z-10 flex flex-col gap-1.5">
-                    <h3 className="text-md font-semibold tracking-tight text-white">
-                      AI Redesign in Progress
-                    </h3>
-                    <p className="max-w-[280px] text-xs text-zinc-400">
-                      Structuring layouts, compiling tables, and designing vector diagrams for your document...
-                    </p>
-                  </div>
+                  <span className="text-xs font-semibold text-foreground tracking-wide font-sans">
+                    AI Redesigning layout live...
+                  </span>
                 </div>
               )}
 
@@ -259,7 +249,7 @@ export function DocEditorView({ documentId }: DocEditorViewProps) {
                     defaultValue={activeDocument?.title || ""}
                     placeholder="Untitled"
                     onBlur={(event) => handleTitleChange(event.target.value)}
-                    className="w-full border-none bg-transparent text-4xl font-semibold text-foreground outline-none placeholder:text-muted-foreground/30"
+                    className="w-full border-none bg-transparent text-4xl font-semibold text-black outline-none placeholder:text-zinc-300"
                   />
                   <div className="flex items-center gap-2 text-xs text-zinc-500">
                     {activeDocument?.createdByName && (

@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
 // Mock Data
 const REPOS = [
@@ -70,6 +71,7 @@ const RULES = [
 
 export default function GitHubPage() {
   const [isConnected, setIsConnected] = useState(true);
+  const { activeWorkspace } = useWorkspaceStore();
 
   if (!isConnected) {
     return <EmptyState onConnect={() => setIsConnected(true)} />;
@@ -83,7 +85,7 @@ export default function GitHubPage() {
           <GitGraph className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
           <span className="text-sm font-medium text-foreground">GitHub</span>
           <div className="h-4 w-px bg-border/50 mx-1" />
-          <span className="text-xs text-muted-foreground">Engineering workspace</span>
+          <span className="text-xs text-muted-foreground">{activeWorkspace?.name || "Workspace"}</span>
         </div>
         <button className="h-7 px-3 flex items-center gap-2 rounded-md bg-[linear-gradient(145deg,#CABEFF,#947DFF)] text-black text-[10px] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity">
           <GitBranch className="h-3 w-3" strokeWidth={2} />

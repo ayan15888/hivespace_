@@ -515,6 +515,7 @@ CREATE TABLE channel_members (
   -- NULL means the user has never opened the channel.
   last_read_at TIMESTAMP,
   joined_at    TIMESTAMP NOT NULL DEFAULT now(),
+  pinned       BOOLEAN   NOT NULL DEFAULT false,
   PRIMARY KEY (channel_id, user_id)
 );
 
@@ -626,10 +627,60 @@ CREATE TRIGGER trigger_document_chunks_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 
-==========================================================================
----------------------------------------------------------------------------
----------------------- NOT ADDED IN THE DB YET ----------------------------
----------------------------------------------------------------------------
+  CREATE TABLE task_embeddings (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id       UUID NOT NULL UNIQUE REFERENCES tasks(id) ON DELETE CASCADE,
+  project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  embedding     vector(4096),
+  created_at    TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMP NOT NULL DEFAULT now()
+);
+
+-- -------------------------------------------------------------
+-- SPRINTS TABLE
+-- -------------------------------------------------------------
+CREATE TABLE sprints (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          VARCHAR NOT NULL,
+  goal          TEXT,
+  status        VARCHAR NOT NULL DEFAULT 'PLANNING' 
+                  CHECK (status IN ('PLANNING', 'ACTIVE', 'COMPLETED')),
+  project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  start_date    TIMESTAMP,
+  end_date      TIMESTAMP,
+  created_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at    TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMP NOT NULL DEFAULT now()
+);
+
+-- Link Tasks to Sprints (Nullable: tasks can live in the backlog without a sprint)
+ALTER TABLE tasks ADD COLUMN sprint_id UUID REFERENCES sprints(id) ON DELETE SET NULL;
+
+-- Indexes
+CREATE INDEX idx_sprints_project ON sprints(project_id);
+CREATE INDEX idx_tasks_sprint ON tasks(sprint_id);
+
+-- Enforce Business Rule: Only one ACTIVE sprint per project at a database level
+CREATE UNIQUE INDEX idx_one_active_sprint_per_project
+  ON sprints (project_id)
+  WHERE status = 'ACTIVE';
+
+CREATE TABLE ai_conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT,  -- auto-generated from first message
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE ai_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID REFERENCES ai_conversations(id) ON DELETE CASCADE,
+  role TEXT CHECK (role IN ('user', 'assistant')),
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 
 -- GITHUB CONNECTIONS
@@ -660,30 +711,10 @@ CREATE TABLE github_sync_log (
   processed BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP NOT NULL DEFAULT now()
 );
-
--- SHAREABLE LINKS (stakeholder progress sharing)
-CREATE TABLE shareable_links (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  token VARCHAR NOT NULL UNIQUE,
-  scope_type VARCHAR NOT NULL
-    CHECK (scope_type IN ('PROJECT', 'WORKSPACE', 'TEAM')),
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-  workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
-  team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
-  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  scope JSONB,
-  password_hash VARCHAR,
-  expires_at TIMESTAMP,
-  last_accessed_at TIMESTAMP,
-  access_count INTEGER NOT NULL DEFAULT 0,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMP NOT NULL DEFAULT now(),
-  CONSTRAINT check_exactly_one_scope CHECK (
-    (CASE WHEN project_id IS NOT NULL THEN 1 ELSE 0 END +
-     CASE WHEN workspace_id IS NOT NULL THEN 1 ELSE 0 END +
-     CASE WHEN team_id IS NOT NULL THEN 1 ELSE 0 END) = 1
-  )
-);
+==========================================================================
+---------------------------------------------------------------------------
+---------------------- NOT ADDED IN THE DB YET ----------------------------
+---------------------------------------------------------------------------
 
 -- FILE UPLOADS
 CREATE TABLE file_uploads (
