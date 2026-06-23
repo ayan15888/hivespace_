@@ -56,6 +56,19 @@ const AI_COMMAND_SUGGESTIONS = [
   { command: "/ai draft a reply to ", description: "Draft a response to a channel member" }
 ];
 
+const FANCY_LOADING_PHRASES = [
+  "Deepening thoughts...",
+  "Synthesizing workspace history...",
+  "Formulating logical constructs...",
+  "Consulting logic matrices...",
+  "Assembling response blocks...",
+  "Weaving semantic relations...",
+  "Refining task parameters...",
+  "Navigating algorithmic pathways...",
+  "Analyzing context vectors...",
+  "Executing instruction schema..."
+];
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export function AiSidebarChat() {
@@ -69,10 +82,29 @@ export function AiSidebarChat() {
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [aiSuggestIndex, setAiSuggestIndex] = useState(0);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
+  const [fancyLoadingText, setFancyLoadingText] = useState(FANCY_LOADING_PHRASES[0]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastPromptRef = useRef("");
+
+  useEffect(() => {
+    if (!isLoading) return;
+    
+    // Pick a random starting phrase
+    const randomStart = FANCY_LOADING_PHRASES[Math.floor(Math.random() * FANCY_LOADING_PHRASES.length)];
+    setFancyLoadingText(randomStart);
+
+    const interval = setInterval(() => {
+      setFancyLoadingText((prev) => {
+        const available = FANCY_LOADING_PHRASES.filter((p) => p !== prev);
+        return available[Math.floor(Math.random() * available.length)];
+      });
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
   // Pick first available channel to use for AI commands
   const workspaceChannels = activeWorkspace ? (channels[activeWorkspace.id] ?? []) : [];
@@ -88,7 +120,7 @@ export function AiSidebarChat() {
   // Auto-resize textarea
   useEffect(() => {
     const ta = textareaRef.current;
-    if (!ta) return;
+    if (!ta) return;  
     ta.style.height = "auto";
     ta.style.height = `${Math.min(ta.scrollHeight, 160)}px`;
   }, [inputValue]);
@@ -131,6 +163,8 @@ export function AiSidebarChat() {
   const handleSend = async () => {
     const prompt = inputValue.trim();
     if (!prompt || !activeChannel) return;
+
+    lastPromptRef.current = prompt;
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -180,10 +214,13 @@ export function AiSidebarChat() {
     } catch (err: any) {
       if (err.name === "AbortError" || (err instanceof Error && err.message === "The user aborted a request.")) {
         console.log("Request aborted");
+        if (lastPromptRef.current) {
+          setInputValue(lastPromptRef.current);
+        }
         const cancelMsg: ChatMessage = {
           id: crypto.randomUUID(),
-          role: "assistant",
-          content: "AI generation stopped.",
+          role: "error",
+          content: "⚠️ **Generation Interrupted.** Your input has been restored so you can edit and retry.",
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, cancelMsg]);
@@ -364,17 +401,24 @@ export function AiSidebarChat() {
                       className="flex items-end gap-2"
                     >
                       <HexAvatar pulsing />
-                      <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-white/[0.06] bg-white/[0.03] px-4 py-3">
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:0ms]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:300ms]" />
-                        <button
-                          onClick={handleStop}
-                          className="ml-3 flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 hover:border-rose-500/50 hover:bg-rose-500/10 text-[9px] text-rose-400 font-semibold cursor-pointer transition-colors"
-                        >
-                          <span className="h-1 w-1 rounded-sm bg-rose-500 animate-pulse" />
-                          Stop
-                        </button>
+                      <div className="flex flex-col gap-2 rounded-2xl rounded-bl-sm border border-white/[0.06] bg-white/[0.03] px-4 py-3 min-w-[220px]">
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-[10px] text-zinc-400 font-mono italic animate-pulse tracking-wide select-none">
+                            {fancyLoadingText}
+                          </span>
+                          <button
+                            onClick={handleStop}
+                            className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 hover:border-rose-500/50 hover:bg-rose-500/10 text-[9px] text-rose-400 font-semibold cursor-pointer transition-colors"
+                          >
+                            <span className="h-1 w-1 rounded-sm bg-rose-500 animate-pulse" />
+                            Stop
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="h-1 w-1 animate-bounce rounded-full bg-violet-400 [animation-delay:0ms]" />
+                          <span className="h-1 w-1 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
+                          <span className="h-1 w-1 animate-bounce rounded-full bg-violet-400 [animation-delay:300ms]" />
+                        </div>
                       </div>
                     </motion.div>
                   )}

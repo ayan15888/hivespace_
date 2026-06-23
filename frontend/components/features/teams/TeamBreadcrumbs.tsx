@@ -20,7 +20,7 @@ export function TeamBreadcrumbs({
 }) {
   const { activeWorkspace } = useWorkspaceStore();
   return (
-    <div className="sticky top-0 z-30 flex h-[44px] w-full items-center justify-between border-b border-border/50 bg-hs-nav/80 px-6 backdrop-blur-sm">
+    <div className="sticky top-0 z-30 flex h-[44px] w-full items-center justify-between border-b border-border/50 bg-hs-nav px-6">
       <div className="flex items-center gap-2">
         <span className="text-xs text-zinc-400">Hivespace</span>
         <ChevronRight className="h-3 w-3 text-zinc-600" />

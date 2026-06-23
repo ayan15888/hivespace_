@@ -19,6 +19,23 @@ import { InputBar } from "@/components/features/ai/input-bar"
 import { MarkdownRenderer } from "@/components/common/MarkdownRenderer"
 import { toast } from "sonner"
 
+const FANCY_LOADING_PHRASES = [
+  "Deepening thoughts...",
+  "Synthesizing workspace history...",
+  "Formulating logical constructs...",
+  "Consulting logic matrices...",
+  "Assembling response blocks...",
+  "Weaving semantic relations...",
+  "Refining task parameters...",
+  "Navigating algorithmic pathways...",
+  "Analyzing context vectors...",
+  "Executing instruction schema..."
+];
+
+type LocalAiMessage = Omit<AiMessageResponse, "role"> & {
+  role: "user" | "assistant" | "error";
+}
+
 export default function AIAssistantPage() {
   const activeWorkspace = useWorkspaceStore((state) => state.activeWorkspace)
   const workspaceId = activeWorkspace?.id ?? ""
@@ -27,14 +44,33 @@ export default function AIAssistantPage() {
   // Page States
   const [conversations, setConversations] = useState<AiConversationResponse[]>([])
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<AiMessageResponse[]>([])
+  const [messages, setMessages] = useState<LocalAiMessage[]>([])
   const [inputValue, setInputValue] = useState("")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [fancyLoadingText, setFancyLoadingText] = useState(FANCY_LOADING_PHRASES[0])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const lastPromptRef = useRef("")
+
+  useEffect(() => {
+    if (!isLoading) return
+    
+    // Pick a random starting phrase
+    const randomStart = FANCY_LOADING_PHRASES[Math.floor(Math.random() * FANCY_LOADING_PHRASES.length)]
+    setFancyLoadingText(randomStart)
+
+    const interval = setInterval(() => {
+      setFancyLoadingText((prev) => {
+        const available = FANCY_LOADING_PHRASES.filter((p) => p !== prev)
+        return available[Math.floor(Math.random() * available.length)]
+      })
+    }, 2500)
+
+    return () => clearInterval(interval)
+  }, [isLoading])
 
   // Collapse sidebar on small screens initially
   useEffect(() => {
@@ -124,6 +160,8 @@ export default function AIAssistantPage() {
     const text = inputValue.trim()
     if (!text || !workspaceId) return
 
+    lastPromptRef.current = text
+
     // Clear input
     setInputValue("")
 
@@ -132,7 +170,7 @@ export default function AIAssistantPage() {
     abortControllerRef.current = controller
 
     // Optimistically add user message
-    const tempUserMsg: AiMessageResponse = {
+    const tempUserMsg: LocalAiMessage = {
       id: crypto.randomUUID(),
       role: "user",
       content: text,
@@ -150,7 +188,7 @@ export default function AIAssistantPage() {
       } else {
         // Continue existing conversation
         const res = await sendConversationMessage(activeConversationId, text, { signal: controller.signal })
-        const tempAssistantMsg: AiMessageResponse = {
+        const tempAssistantMsg: LocalAiMessage = {
           id: crypto.randomUUID(),
           role: "assistant",
           content: res.assistantResponse,
@@ -163,7 +201,16 @@ export default function AIAssistantPage() {
     } catch (error: any) {
       if (error.name === "AbortError" || (error instanceof Error && error.message === "The user aborted a request.")) {
         console.log("Request aborted")
-        toast.info("AI response generation stopped.")
+        if (lastPromptRef.current) {
+          setInputValue(lastPromptRef.current)
+        }
+        const cancelMsg: LocalAiMessage = {
+          id: crypto.randomUUID(),
+          role: "error",
+          content: "⚠️ **Generation Interrupted.** Your input has been restored so you can edit and retry.",
+          createdAt: new Date().toISOString(),
+        }
+        setMessages((prev) => [...prev, cancelMsg])
       } else {
         toast.error("Failed to send message")
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id))
@@ -307,12 +354,14 @@ export default function AIAssistantPage() {
                             className={`rounded-2xl px-4 py-3 text-xs leading-6 ${
                               isUser
                                 ? "bg-[#b05730] text-white border border-[#b05730]/90"
+                                : message.role === "error"
+                                ? "border border-rose-500/20 bg-rose-500/10 text-rose-200"
                                 : "bg-[#191511] text-[#EDE8E3] border border-[#2e2720]"
                             }`}
                           >
                             <MarkdownRenderer content={message.content} themeColor="#D97757" />
                           </div>
-                          {!isUser && (
+                          {!isUser && message.role !== "error" && (
                             <div className="flex items-center gap-2 pl-1 mt-0.5">
                               <CopyButton textToCopy={message.content} />
                             </div>
@@ -328,20 +377,24 @@ export default function AIAssistantPage() {
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#D97757]/10 text-[#D97757]">
                         <Sparkles className="h-4.5 w-4.5" />
                       </div>
-                      <div className="bg-[#191511] text-[#EDE8E3] border border-[#2e2720] rounded-2xl px-4 py-3 text-xs flex items-center gap-3">
+                      <div className="bg-[#191511] text-[#EDE8E3] border border-[#2e2720] rounded-2xl px-4 py-3 text-xs flex flex-col gap-2 min-w-[220px]">
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-[10px] text-[#8C7B6E] font-mono italic animate-pulse tracking-wide select-none">
+                            {fancyLoadingText}
+                          </span>
+                          <button
+                            onClick={handleStop}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#221e1a] border border-[#2e2720] hover:border-rose-500/50 hover:bg-rose-500/10 text-[10px] text-rose-400 font-semibold cursor-pointer transition-colors"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-sm bg-rose-500 animate-pulse" />
+                            Stop
+                          </button>
+                        </div>
                         <div className="flex items-center gap-1">
                           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#D97757] [animation-delay:0ms]" />
                           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#D97757] [animation-delay:150ms]" />
                           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#D97757] [animation-delay:300ms]" />
                         </div>
-                        <span className="text-[#8C7B6E] font-medium ml-1">Hex is thinking...</span>
-                        <button
-                          onClick={handleStop}
-                          className="ml-3 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#221e1a] border border-[#2e2720] hover:border-rose-500/50 hover:bg-rose-500/10 text-[10px] text-rose-400 font-semibold cursor-pointer transition-colors"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-sm bg-rose-500 animate-pulse" />
-                          Stop
-                        </button>
                       </div>
                     </div>
                   )}

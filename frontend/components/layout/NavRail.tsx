@@ -63,10 +63,9 @@ export function NavRail() {
   };
 
   const cycleTheme = () => {
-    if (theme === "light") setTheme("dark")
-    else if (theme === "dark") setTheme("dark-blue")
+    if (theme === "dark") setTheme("dark-blue")
     else if (theme === "dark-blue") setTheme("claude")
-    else setTheme("light")
+    else setTheme("dark")
   }
 
   useEffect(() => {
@@ -291,7 +290,7 @@ export function NavRail() {
               side="right"
               className="ml-2 border border-[#484555]/15 bg-background/70 text-foreground backdrop-blur-[20px] rounded-md"
             >
-              <span className="capitalize">Theme: {theme === "system" ? "light" : theme}</span>
+              <span className="capitalize">Theme: {theme}</span>
             </TooltipContent>
           </Tooltip>
 

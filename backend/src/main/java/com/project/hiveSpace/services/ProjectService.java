@@ -58,6 +58,7 @@ public class ProjectService {
     private final TeamMemberRepository teamMemberRepository;
     private final ChannelRepository channelRepository;
     private final ChannelMemberRepository channelMemberRepository;
+    private final RedisService redisService;
 
     @Transactional
     public ProjectResponse createProject(UUID workspaceId, ProjectRequest request, User creator) {
@@ -134,6 +135,8 @@ public class ProjectService {
         // Auto-create private project channel and sync members
         createProjectChannel(savedProject, workspace, creator);
 
+        redisService.deleteKey("workspace:" + workspaceId + ":projects");
+
         return mapToResponse(savedProject);
     }
 
@@ -144,21 +147,26 @@ public class ProjectService {
             throw new ForbiddenException("Access denied: You do not have permission to view projects in this workspace");
         }
 
-        Workspace workspace = workspaceRepository.findById(workspaceId)
-                .orElseThrow(() -> new NotFoundException("Workspace not found"));
-
         User currentUser = rbacService.getCurrentUser();
         if (currentUser == null) {
             throw new ForbiddenException("User not authenticated");
         }
 
-        List<Project> allProjects = projectRepository.findAllByWorkspace(workspace);
+        String cacheKey = "workspace:" + workspaceId + ":projects";
+        List<ProjectResponse> allProjectsResponses = redisService.getList(cacheKey, ProjectResponse.class);
+        if (allProjectsResponses == null) {
+            Workspace workspace = workspaceRepository.findById(workspaceId)
+                    .orElseThrow(() -> new NotFoundException("Workspace not found"));
+            List<Project> allProjects = projectRepository.findAllByWorkspace(workspace);
+            allProjectsResponses = allProjects.stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+            redisService.setObject(cacheKey, allProjectsResponses);
+        }
 
         // Workspace ADMIN sees all projects
         if (rbacService.canAdminWorkspace(workspaceId)) {
-            return allProjects.stream()
-                    .map(this::mapToResponse)
-                    .collect(Collectors.toList());
+            return allProjectsResponses;
         }
 
         // Regular members see projects they are members of, OR projects assigned to teams they are members of
@@ -177,9 +185,8 @@ public class ProjectService {
             projectTeamRepository.findByTeamId(teamId).forEach(pt -> assignedProjectIds.add(pt.getProject().getId()));
         }
 
-        return allProjects.stream()
-                .filter(project -> memberProjectIds.contains(project.getId()) || assignedProjectIds.contains(project.getId()))
-                .map(this::mapToResponse)
+        return allProjectsResponses.stream()
+                .filter(p -> memberProjectIds.contains(p.getId()) || assignedProjectIds.contains(p.getId()))
                 .collect(Collectors.toList());
     }
 
@@ -226,6 +233,8 @@ public class ProjectService {
                 }
             }
         }
+
+        redisService.deleteKey("workspace:" + workspaceId + ":projects");
 
         return mapToResponse(project);
     }
@@ -371,6 +380,8 @@ public class ProjectService {
             projectTeamRepository.deleteByProjectIdAndTeamId(projectId, teamId);
         }
 
+        redisService.deleteKey("workspace:" + workspaceId + ":projects");
+
         return mapToResponse(project);
     }
 
@@ -445,6 +456,7 @@ public class ProjectService {
         }
 
         Project saved = projectRepository.save(project);
+        redisService.deleteKey("workspace:" + workspaceId + ":projects");
         return mapToResponse(saved);
     }
 }

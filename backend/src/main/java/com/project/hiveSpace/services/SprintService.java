@@ -22,6 +22,7 @@ public class SprintService {
     private final TaskRepository taskRepository;
     private final TaskActivityRepository taskActivityRepository;
     private final RbacService rbacService;
+    private final RedisService redisService;
 
     public record BurndownPoint(Date date, int totalPoints, int remainingPoints) {}
 
@@ -150,6 +151,9 @@ public class SprintService {
             }
         }
 
+        redisService.deleteKey("project:" + sprint.getProject().getId() + ":tasks");
+        redisService.deleteKey("project:" + sprint.getProject().getId() + ":all_tasks");
+
         return mapToResponse(sprint);
     }
 
@@ -185,6 +189,9 @@ public class SprintService {
                     .newValue(newSprintName)
                     .createdAt(new Date())
                     .build());
+
+            redisService.deleteKey("project:" + task.getProject().getId() + ":tasks");
+            redisService.deleteKey("project:" + task.getProject().getId() + ":all_tasks");
         }
     }
 

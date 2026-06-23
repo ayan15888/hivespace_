@@ -40,6 +40,7 @@ public class TaskService {
     private final RbacService rbacService;
     private final AiDuplicateDetectorService aiDuplicateDetectorService;
     private final SprintRepository sprintRepository;
+    private final RedisService redisService;
 
 
 
@@ -145,6 +146,9 @@ public class TaskService {
 
         aiDuplicateDetectorService.updateTaskEmbeddingAsync(savedTask);
 
+        redisService.deleteKey("project:" + projectId + ":tasks");
+        redisService.deleteKey("project:" + projectId + ":all_tasks");
+
         return mapToResponse(savedTask);
     }
 
@@ -178,13 +182,22 @@ public class TaskService {
             throw new ForbiddenException("Access denied: You do not have permission to view tasks in this project");
         }
 
+        String cacheKey = "project:" + projectId + ":tasks";
+        List<TaskResponse> cachedTasks = redisService.getList(cacheKey, TaskResponse.class);
+        if (cachedTasks != null) {
+            return cachedTasks;
+        }
+
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new NotFoundException("Project not found"));
 
-        return taskRepository.findAllByProjectAndParentTaskIsNullOrderByCreatedAtDesc(project)
+        List<TaskResponse> tasks = taskRepository.findAllByProjectAndParentTaskIsNullOrderByCreatedAtDesc(project)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+
+        redisService.setObject(cacheKey, tasks);
+        return tasks;
     }
 
     @Transactional(readOnly = true)
@@ -223,10 +236,31 @@ public class TaskService {
             return java.util.Collections.emptyList();
         }
 
-        return taskRepository.findAllByProjectInOrderByUpdatedAtDesc(projects)
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        List<TaskResponse> allTasks = new java.util.ArrayList<>();
+        for (Project project : projects) {
+            String projectCacheKey = "project:" + project.getId() + ":all_tasks";
+            List<TaskResponse> projectTasks = redisService.getList(projectCacheKey, TaskResponse.class);
+            if (projectTasks == null) {
+                projectTasks = taskRepository.findAllByProject(project)
+                        .stream()
+                        .map(this::mapToResponse)
+                        .collect(Collectors.toList());
+                redisService.setObject(projectCacheKey, projectTasks);
+            }
+            allTasks.addAll(projectTasks);
+        }
+
+        // Sort by updatedAt desc
+        allTasks.sort((t1, t2) -> {
+            Date d1 = t1.getUpdatedAt() != null ? t1.getUpdatedAt() : t1.getCreatedAt();
+            Date d2 = t2.getUpdatedAt() != null ? t2.getUpdatedAt() : t2.getCreatedAt();
+            if (d1 == null && d2 == null) return 0;
+            if (d1 == null) return 1;
+            if (d2 == null) return -1;
+            return d2.compareTo(d1);
+        });
+
+        return allTasks;
     }
 
     @Transactional
@@ -270,6 +304,9 @@ public class TaskService {
                 .createdAt(new Date())
                 .build();
         taskActivityRepository.save(activity);
+
+        redisService.deleteKey("project:" + saved.getProject().getId() + ":tasks");
+        redisService.deleteKey("project:" + saved.getProject().getId() + ":all_tasks");
 
         return mapToResponse(saved);
     }
@@ -476,6 +513,9 @@ public class TaskService {
             aiDuplicateDetectorService.updateTaskEmbeddingAsync(saved);
         }
 
+        redisService.deleteKey("project:" + saved.getProject().getId() + ":tasks");
+        redisService.deleteKey("project:" + saved.getProject().getId() + ":all_tasks");
+
         return mapToResponse(saved);
     }
 
@@ -490,8 +530,12 @@ public class TaskService {
             throw new ForbiddenException("Access denied: Only project leads and workspace admins can delete tasks");
         }
 
+        UUID projectId = task.getProject().getId();
         aiDuplicateDetectorService.deleteTaskEmbedding(taskId);
         taskRepository.delete(task);
+
+        redisService.deleteKey("project:" + projectId + ":tasks");
+        redisService.deleteKey("project:" + projectId + ":all_tasks");
     }
 
 

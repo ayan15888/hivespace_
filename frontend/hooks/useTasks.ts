@@ -16,12 +16,14 @@ export function useTasks(projectId?: string) {
     const isUuid = UUID_REGEX.test(resolvedProjectId || "");
     if (isUuid) {
       return fetchTasks(resolvedProjectId);
+    } else if (!resolvedProjectId) {
+      return fetchTasks();
     }
   }, [fetchTasks, resolvedProjectId]);
 
   useEffect(() => {
     const isUuid = UUID_REGEX.test(resolvedProjectId || "");
-    if (isUuid) {
+    if (isUuid || !resolvedProjectId) {
       refresh();
     }
   }, [refresh, resolvedProjectId]);

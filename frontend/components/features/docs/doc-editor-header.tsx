@@ -38,7 +38,7 @@ export function DocEditorHeader({
   onDelete,
 }: EditorHeaderProps) {
   return (
-    <header className="sticky top-0 z-30 flex h-[44px] shrink-0 items-center justify-between border-b border-border/50 bg-background/80 px-4 backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex h-[44px] shrink-0 items-center justify-between border-b border-border/50 bg-background px-4">
       <div className="flex items-center gap-0.5">
         <Button variant="ghost" size="sm" onClick={onGoHome} className="mr-2 h-7 px-2 text-xs text-zinc-500 hover:text-white">
           Home

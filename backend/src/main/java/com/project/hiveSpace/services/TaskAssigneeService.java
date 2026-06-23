@@ -40,6 +40,7 @@ public class TaskAssigneeService {
     private final UserRepository userRepository;
     private final TaskActivityRepository taskActivityRepository;
     private final RbacService rbacService;
+    private final RedisService redisService;
 
     @Transactional(readOnly = true)
     public List<TaskAssigneeResponse> getAssigneesForTask(UUID taskId) {
@@ -109,6 +110,9 @@ public class TaskAssigneeService {
                 .build();
         taskActivityRepository.save(activity);
 
+        redisService.deleteKey("project:" + task.getProject().getId() + ":tasks");
+        redisService.deleteKey("project:" + task.getProject().getId() + ":all_tasks");
+
         return mapToResponse(saved);
     }
 
@@ -173,6 +177,9 @@ public class TaskAssigneeService {
                 .build();
         taskActivityRepository.save(activity);
 
+        redisService.deleteKey("project:" + task.getProject().getId() + ":tasks");
+        redisService.deleteKey("project:" + task.getProject().getId() + ":all_tasks");
+
         return mapToResponse(saved);
     }
 
@@ -216,6 +223,9 @@ public class TaskAssigneeService {
                 .createdAt(new Date())
                 .build();
         taskActivityRepository.save(activity);
+
+        redisService.deleteKey("project:" + task.getProject().getId() + ":tasks");
+        redisService.deleteKey("project:" + task.getProject().getId() + ":all_tasks");
     }
 
     private TaskAssigneeResponse mapToResponse(TaskAssignee assignee) {
