@@ -435,7 +435,7 @@ export default function SprintThreeBoardPage() {
 
         {/* --- KANBAN BOARD --- */}
         <ScrollArea className="flex-1 w-full whitespace-nowrap px-8 pb-8">
-          <div className="flex gap-4 h-[calc(100vh-220px)]" style={{ width: 'max-content' }}>
+          <div className="flex gap-4 h-[calc(100vh-175px)]" style={{ width: 'max-content' }}>
             <AnimatePresence>
               {columns.map((col) => (
                 <motion.div 
@@ -463,7 +463,7 @@ export default function SprintThreeBoardPage() {
                     }
                   }}
                   className={cn(
-                    "flex flex-col w-[280px] shrink-0 bg-hs-nav rounded-lg h-full overflow-hidden shadow-sm transition-all duration-200 border border-transparent",
+                    "flex flex-col w-[280px] shrink-0 bg-hs-nav/60 backdrop-blur-md rounded-xl h-full overflow-hidden shadow-md transition-all duration-200 border border-border/20",
                     activeDragColumn === col.name && "border-hs-accent/40 bg-hs-nav/80 ring-2 ring-hs-accent/10"
                   )}
                 >

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { LayoutList, Calendar, Search, CheckSquare } from "lucide-react"
+import { LayoutList, Calendar, Search, CheckSquare, Layers, CircleDot, Clock, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useParams } from "next/navigation"
@@ -17,28 +17,30 @@ import { deleteTask } from "@/lib/api/tasks"
 import { gooeyToast as toast } from "@/components/ui/goey-toaster"
 import { useTaskStore } from "@/store/taskStore"
 import { TaskDetailSheet } from "../board/components/TaskDetailSheet"
+import { useWorkspaceStore } from "@/store/workspaceStore"
 
 const STATUS_FILTER_OPTIONS = ["All", "Todo", "In Progress", "Review", "Done"]
 const PRIORITY_FILTER_OPTIONS = ["All", "Urgent", "High", "Medium", "Low"]
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
-  TODO: "text-zinc-400 bg-zinc-400/10 border-zinc-500/20",
-  IN_PROGRESS: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-  IN_REVIEW: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  DONE: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  CANCELLED: "text-red-400 bg-red-500/10 border-red-500/20",
+  TODO: "text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700",
+  IN_PROGRESS: "text-blue-800 dark:text-blue-350 bg-blue-50 dark:bg-blue-950/45 border-blue-200 dark:border-blue-800/40",
+  IN_REVIEW: "text-amber-800 dark:text-amber-350 bg-amber-50 dark:bg-amber-950/45 border-amber-200 dark:border-amber-800/40",
+  DONE: "text-emerald-800 dark:text-emerald-350 bg-emerald-50 dark:bg-emerald-950/45 border-emerald-200 dark:border-emerald-800/40",
+  CANCELLED: "text-red-800 dark:text-red-350 bg-red-50 dark:bg-red-950/45 border-red-200 dark:border-red-800/40",
 }
 
 const PRIORITY_BADGE_CLASSES: Record<string, string> = {
-  URGENT: "text-red-400 bg-red-500/10 border-red-500/20",
-  HIGH: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  MEDIUM: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-  LOW: "text-zinc-400 bg-zinc-500/10 border-zinc-500/20",
+  URGENT: "text-red-800 dark:text-red-350 bg-white dark:bg-red-950/40 border-red-200 dark:border-red-900/40",
+  HIGH: "text-amber-800 dark:text-amber-350 bg-white dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/40",
+  MEDIUM: "text-blue-800 dark:text-blue-350 bg-white dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/40",
+  LOW: "text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700",
 }
 
 export default function ProjectListPage() {
   const params = useParams()
   const { projects } = useProjects()
+  const { activeWorkspace } = useWorkspaceStore()
   const projectId = (params?.projectSlug as string) || ""
 
   const currentProject = projects.find((p) => p.id === projectId)
@@ -156,6 +158,13 @@ export default function ProjectListPage() {
   const startIndex = (currentPage - 1) * pageSize
   const paginatedTasks = filteredTasks.slice(startIndex, startIndex + pageSize)
 
+  // KPI calculations for task statistics dashboard
+  const todoCount = tasks.filter((t) => t.status === "TODO").length
+  const inProgressCount = tasks.filter((t) => t.status === "IN_PROGRESS").length
+  const inReviewCount = tasks.filter((t) => t.status === "IN_REVIEW").length
+  const doneCount = tasks.filter((t) => t.status === "DONE").length
+  const totalCount = tasks.length
+
   const getInitials = (name?: string) => {
     if (!name) return "--"
     return name
@@ -170,11 +179,13 @@ export default function ProjectListPage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background font-sans text-foreground">
       {/* --- TOP BREADCRUMB BAR --- */}
-      <header className="sticky top-0 z-30 flex h-[44px] shrink-0 items-center justify-between border-b border-border/50 bg-[#161210]/90 px-6 backdrop-blur-md">
+      <header className="sticky top-0 z-30 flex h-[44px] shrink-0 items-center justify-between border-b border-border/50 bg-background/80 px-6 backdrop-blur-sm">
         <div className="flex flex-1 items-center gap-2">
           <span className="text-xs text-muted-foreground">Hivespace</span>
           <span className="text-border">/</span>
-          <span className="text-xs text-muted-foreground">Engineering</span>
+          <span className="text-xs text-muted-foreground">
+            {activeWorkspace?.name || "Workspace"}
+          </span>
           <span className="text-border">/</span>
           <span className="text-xs font-medium text-foreground">
             {displayTitle}
@@ -248,7 +259,7 @@ export default function ProjectListPage() {
               )
             })}
             {projectMembers.length > 5 && (
-              <div className="z-30 -ml-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-border/50 bg-zinc-900 text-[9px] font-extrabold text-zinc-400 ring-2 ring-background">
+              <div className="z-30 -ml-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-border/50 bg-hs-nav text-[9px] font-extrabold text-muted-foreground ring-2 ring-background">
                 +{projectMembers.length - 5}
               </div>
             )}
@@ -257,23 +268,28 @@ export default function ProjectListPage() {
       </header>
 
       {/* --- STICKY PAGE HEADER & CONTROLS --- */}
-      <div className="sticky top-[44px] z-20 flex shrink-0 flex-col items-stretch justify-between gap-4 border-b border-border/40 bg-[#161210] px-6 py-3.5 md:flex-row md:items-center">
-        <div className="flex items-center gap-3">
-          <LayoutList className="h-5 w-5" style={{ color: themeColor }} />
+      <div className="sticky top-[44px] z-20 flex shrink-0 flex-col items-stretch justify-between gap-4 border-b border-border/40 bg-background px-6 py-3.5 md:flex-row md:items-center">
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary shadow-inner transition-colors">
+            <LayoutList className="h-5.5 w-5.5" />
+          </div>
           <div>
-            <h1 className="text-sm leading-none font-bold text-[#E5E1E4]">
-              Task List View
+            <h1 className="text-base leading-none font-extrabold tracking-tight text-foreground flex items-center gap-2">
+              {displayTitle} Task List
+              <span className="inline-flex items-center rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
+                Active
+              </span>
             </h1>
-            <p className="mt-1 text-[10px] text-zinc-500">
-              Manage and filter project tasks in a structured list.
+            <p className="mt-1 text-xs text-muted-foreground">
+              Manage, filter, and track tasks for the project.
             </p>
           </div>
         </div>
 
-        {/* Filters & Search - Search is dominant */}
-        <div className="ml-auto flex max-w-xl flex-1 items-center gap-3 md:justify-end">
-          <div className="relative max-w-xs flex-1 md:max-w-sm">
-            <Search className="absolute top-2.5 left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+        {/* Filters & Search - Styled in Claude White Background and Claude Orange Text */}
+        <div className="ml-auto flex max-w-xl flex-1 items-center gap-3.5 md:justify-end">
+          <div className="relative max-w-xs flex-1 md:max-w-sm group">
+            <Search className="absolute top-3 left-3 h-4 w-4 text-primary/70 transition-colors" />
             <input
               ref={searchInputRef}
               type="text"
@@ -283,12 +299,12 @@ export default function ProjectListPage() {
                 setSearchQuery(e.target.value)
                 setCurrentPage(1)
               }}
-              className="h-8 w-full rounded-md border border-border/40 bg-muted/50 pr-3 pl-8 text-xs text-foreground transition-colors outline-none placeholder:text-muted-foreground/60 focus:border-border"
+              className="h-10 w-full rounded-xl border border-primary/30 bg-card pr-3 pl-10 text-sm text-primary font-bold transition-all outline-none placeholder:text-primary/60 focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-sm"
             />
           </div>
 
-          <div className="flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border/40 bg-[#1C1B1F] px-2.5">
-            <span className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+          <div className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-primary/30 bg-card px-3.5 shadow-sm transition-all hover:border-primary/50 hover:bg-primary/[0.02]">
+            <span className="text-xs font-bold tracking-wider text-primary/80 uppercase">
               Status
             </span>
             <select
@@ -297,18 +313,18 @@ export default function ProjectListPage() {
                 setStatusFilter(e.target.value)
                 setCurrentPage(1)
               }}
-              className="cursor-pointer border-none bg-transparent text-xs font-semibold text-foreground outline-none"
+              className="cursor-pointer border-none bg-transparent text-sm font-extrabold text-primary outline-none pr-1"
             >
               {STATUS_FILTER_OPTIONS.map((opt) => (
-                <option key={opt} value={opt} className="bg-zinc-900">
+                <option key={opt} value={opt} className="bg-background text-foreground font-semibold">
                   {opt}
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border/40 bg-[#1C1B1F] px-2.5">
-            <span className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+          <div className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-primary/30 bg-card px-3.5 shadow-sm transition-all hover:border-primary/50 hover:bg-primary/[0.02]">
+            <span className="text-xs font-bold tracking-wider text-primary/80 uppercase">
               Priority
             </span>
             <select
@@ -317,10 +333,10 @@ export default function ProjectListPage() {
                 setPriorityFilter(e.target.value)
                 setCurrentPage(1)
               }}
-              className="cursor-pointer border-none bg-transparent text-xs font-semibold text-foreground outline-none"
+              className="cursor-pointer border-none bg-transparent text-sm font-extrabold text-primary outline-none pr-1"
             >
               {PRIORITY_FILTER_OPTIONS.map((opt) => (
-                <option key={opt} value={opt} className="bg-zinc-900">
+                <option key={opt} value={opt} className="bg-background text-foreground font-semibold">
                   {opt}
                 </option>
               ))}
@@ -329,123 +345,139 @@ export default function ProjectListPage() {
         </div>
       </div>
 
-      {/* --- CONTENT AREA (CONTAINING TABLE & PAGINATION) --- */}
-      <div className="relative flex min-h-0 flex-1 flex-col bg-[#191511]">
-        {/* Table rows scrollable area */}
-        <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full table-fixed border-collapse text-left">
-            <thead className="sticky top-0 z-10 bg-[#191511] shadow-[0_1px_0_rgba(255,255,255,0.06)]">
-              <tr className="border-b border-white/[0.06] bg-[#1C1B1F]/30 text-[10px] font-bold tracking-wider text-zinc-500 uppercase">
-                <th className="w-24 px-6 py-3 font-semibold">ID</th>
-                <th className="px-6 py-3 font-semibold">Task Title</th>
-                <th className="w-40 px-6 py-3 font-semibold">Status</th>
-                <th className="w-32 px-6 py-3 font-semibold">Priority</th>
-                <th className="w-48 px-6 py-3 font-semibold">Assignee</th>
-                <th className="w-24 px-6 py-3 text-center font-semibold">
-                  Points
-                </th>
-                <th className="w-40 px-6 py-3 font-semibold">Due Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.03]">
-              {paginatedTasks.length > 0 ? (
-                paginatedTasks.map((task) => {
-                  const statusClass =
-                    STATUS_BADGE_CLASSES[task.status] ||
-                    "text-zinc-400 bg-zinc-400/10 border-zinc-500/20"
-                  const priorityClass =
-                    PRIORITY_BADGE_CLASSES[task.priority] ||
-                    "text-zinc-400 bg-zinc-400/10 border-zinc-500/20"
+      {/* --- CONTENT AREA (CONTAINING TABLE CARD) --- */}
+      <div className="relative flex min-h-0 flex-1 flex-col bg-hs-main">
+        {/* Table floating panel container */}
+        <div className="relative flex min-h-0 flex-1 flex-col m-6 rounded-2xl border border-primary/20 bg-background/80 shadow-xl backdrop-blur-md hover:border-primary/30 transition-colors duration-300">
+          {/* Table rows scrollable area */}
+          <div className="min-h-0 flex-1 overflow-auto rounded-t-2xl">
+            <table className="w-full table-fixed border-collapse text-left">
+              <thead className="sticky top-0 z-10 bg-background shadow-[0_1px_0_var(--border)]">
+                <tr className="border-b border-border bg-muted/20 text-xs font-bold tracking-wider text-muted-foreground uppercase">
+                  <th className="w-24 px-6 py-3.5 font-semibold">ID</th>
+                  <th className="px-6 py-3.5 font-semibold">Task Title</th>
+                  <th className="w-40 px-6 py-3.5 font-semibold">Status</th>
+                  <th className="w-32 px-6 py-3.5 font-semibold">Priority</th>
+                  <th className="w-48 px-6 py-3.5 font-semibold">Assignee</th>
+                  <th className="w-24 px-6 py-3.5 text-center font-semibold">Points</th>
+                  <th className="w-40 px-6 py-3.5 font-semibold">Due Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/20">
+                {paginatedTasks.length > 0 ? (
+                  paginatedTasks.map((task) => {
+                    const statusClass =
+                      STATUS_BADGE_CLASSES[task.status] ||
+                      "text-muted-foreground bg-muted border-border"
+                    const priorityClass =
+                      PRIORITY_BADGE_CLASSES[task.priority] ||
+                      "text-muted-foreground bg-muted border-border"
 
-                  return (
-                    <tr
-                      key={task.id}
-                      onClick={() => setSelectedTaskId(task.id)}
-                      className="group cursor-pointer transition-colors hover:bg-white/[0.02] active:bg-white/[0.04]"
-                    >
-                      {/* ID Column */}
-                      <td className="truncate px-6 py-3 font-mono text-xs font-semibold text-zinc-500 group-hover:text-zinc-400">
-                        {task.taskIdentifier || `HS-${task.id.substring(0, 4)}`}
-                      </td>
-                      {/* Title Column */}
-                      <td className="truncate px-6 py-3">
-                        <span className="block truncate text-xs font-semibold text-zinc-200 transition-colors group-hover:text-white">
-                          {task.title}
-                        </span>
-                      </td>
-                      {/* Status Column */}
-                      <td className="px-6 py-3">
-                        <span
-                          className={cn(
-                            "inline-block whitespace-nowrap rounded border px-2 py-0.5 text-[9px] leading-none font-extrabold tracking-wider uppercase",
-                            statusClass
-                          )}
-                        >
-                          {task.status.replace("_", " ")}
-                        </span>
-                      </td>
-                      {/* Priority Column */}
-                      <td className="px-6 py-3">
-                        <span
-                          className={cn(
-                            "inline-block whitespace-nowrap rounded border px-2 py-0.5 text-[9px] leading-none font-extrabold tracking-wider uppercase",
-                            priorityClass
-                          )}
-                        >
-                          {task.priority}
-                        </span>
-                      </td>
-                      {/* Assignee Column */}
-                      <td className="truncate px-6 py-3">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <Avatar
-                            className="h-6 w-6 shrink-0 border border-zinc-800"
-                            username={task.assigneeName || "Unassigned"}
-                            email={
-                              task.assigneeName
-                                ? `${task.assigneeName.toLowerCase().replace(/\s+/g, "")}@hivespace.io`
-                                : ""
-                            }
+                    return (
+                      <tr
+                        key={task.id}
+                        onClick={() => setSelectedTaskId(task.id)}
+                        className="group cursor-pointer border-b border-border/20 transition-all duration-300 hover:bg-primary/5 dark:hover:bg-primary/10"
+                      >
+                        {/* ID Column */}
+                        <td className="truncate px-6 py-3.5 font-mono text-sm font-semibold text-muted-foreground group-hover:text-foreground/80">
+                          {task.taskIdentifier || `HS-${task.id.substring(0, 4)}`}
+                        </td>
+                        {/* Title Column */}
+                        <td className="truncate px-6 py-3.5">
+                          <span className="block truncate text-sm font-semibold text-foreground/90 transition-colors group-hover:text-foreground">
+                            {task.title}
+                          </span>
+                        </td>
+                        {/* Status Column */}
+                        <td className="px-6 py-3.5">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[10px] leading-none font-extrabold tracking-wider uppercase transition-all duration-200",
+                              statusClass
+                            )}
                           >
-                            <AvatarFallback className="bg-zinc-800 text-[9px] font-extrabold text-zinc-400">
-                              {task.assigneeInitials || "--"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="truncate text-xs font-medium text-zinc-400 transition-colors group-hover:text-zinc-200">
-                            {task.assigneeName || "Unassigned"}
+                            <span className={cn("h-1.5 w-1.5 rounded-full",
+                              task.status === "DONE" ? "bg-emerald-500" :
+                              task.status === "IN_PROGRESS" ? "bg-blue-500 animate-pulse" :
+                              task.status === "IN_REVIEW" ? "bg-amber-500" :
+                              "bg-muted-foreground"
+                            )} />
+                            {task.status.replace("_", " ")}
                           </span>
-                        </div>
-                      </td>
-                      {/* Points Column */}
-                      <td className="px-6 py-3 text-center">
-                        {task.points !== undefined ? (
-                          <span className="rounded border border-border/30 bg-[#1C1B1F] px-2 py-0.5 font-mono text-xs font-bold text-zinc-400">
-                            {task.points}
+                        </td>
+                        {/* Priority Column */}
+                        <td className="px-6 py-3.5">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[10px] leading-none font-extrabold tracking-wider uppercase transition-all duration-200",
+                              priorityClass
+                            )}
+                          >
+                            <span className={cn("h-1.5 w-1.5 rounded-full",
+                              task.priority === "URGENT" ? "bg-red-500 animate-pulse" :
+                              task.priority === "HIGH" ? "bg-amber-500" :
+                              task.priority === "MEDIUM" ? "bg-blue-500" :
+                              "bg-muted-foreground"
+                            )} />
+                            {task.priority}
                           </span>
-                        ) : (
-                          <span className="font-mono text-xs text-zinc-600">
-                            -
-                          </span>
-                        )}
-                      </td>
-                      {/* Due Date Column */}
-                      <td className="px-6 py-3">
-                        {task.dueDate ? (
-                          <div className="flex items-center gap-1.5 font-mono text-xs text-zinc-400">
-                            <Calendar className="h-3.5 w-3.5 text-zinc-500" />
-                            <span>
-                              {new Date(task.dueDate).toLocaleDateString()}
+                        </td>
+                        {/* Assignee Column */}
+                        <td className="truncate px-6 py-3.5">
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <Avatar
+                              className="h-7 w-7 shrink-0 border border-border/40 transition-all duration-300 group-hover:ring-2 group-hover:ring-primary/45"
+                              username={task.assigneeName || "Unassigned"}
+                              email={
+                                task.assigneeName
+                                  ? `${task.assigneeName.toLowerCase().replace(/\s+/g, "")}@hivespace.io`
+                                  : ""
+                              }
+                            >
+                              <AvatarFallback className="bg-muted text-[10px] font-extrabold text-muted-foreground">
+                                {task.assigneeInitials || "--"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground/80">
+                              {task.assigneeName || "Unassigned"}
                             </span>
                           </div>
-                        ) : (
-                          <span className="text-xs text-zinc-600 italic">
-                            No date
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })
+                        </td>
+                        {/* Points Column */}
+                        <td className="px-6 py-3.5 text-center">
+                          {task.points !== undefined ? (
+                            <span className="inline-block rounded-full border border-border bg-muted/60 px-2.5 py-0.5 font-mono text-xs font-bold text-foreground/80">
+                              {task.points} pts
+                            </span>
+                          ) : (
+                            <span className="font-mono text-sm text-muted-foreground/30">
+                              -
+                            </span>
+                          )}
+                        </td>
+                        {/* Due Date Column */}
+                        <td className="px-6 py-3.5">
+                          {task.dueDate ? (
+                            <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground transition-colors group-hover:text-foreground/95">
+                              <Calendar className="h-3.5 w-3.5 text-muted-foreground/50 transition-colors group-hover:text-primary" />
+                              <span>
+                                {new Date(task.dueDate).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric"
+                                })}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/45 italic">
+                              No due date
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })
               ) : (
                 <tr>
                   <td colSpan={7} className="py-16 text-center">
@@ -454,10 +486,10 @@ export default function ProjectListPage() {
                         className="mb-2.5 h-10 w-10 text-zinc-600"
                         strokeWidth={1}
                       />
-                      <p className="text-xs font-semibold text-zinc-400">
+                      <p className="text-sm font-semibold text-zinc-400">
                         No matching tasks found
                       </p>
-                      <p className="mt-1 text-[11px] text-zinc-500">
+                      <p className="mt-1 text-xs text-zinc-500">
                         Try modifying your search query or filters.
                       </p>
                     </div>
@@ -469,22 +501,22 @@ export default function ProjectListPage() {
         </div>
 
         {/* Pagination controls fixed at the bottom */}
-        <div className="flex shrink-0 items-center justify-between border-t border-border/40 bg-[#161210] px-6 py-2.5 text-xs text-zinc-400 select-none">
+        <div className="flex shrink-0 items-center justify-between border-t border-border/40 bg-background px-6 py-2.5 text-sm text-muted-foreground select-none">
           <div className="flex items-center gap-1.5 font-medium">
             <span>Showing</span>
-            <span className="font-mono text-zinc-200">
+            <span className="font-mono text-foreground">
               {totalRecords === 0 ? 0 : startIndex + 1}-
               {Math.min(totalRecords, startIndex + pageSize)}
             </span>
             <span>of</span>
-            <span className="font-mono text-zinc-200">{totalRecords}</span>
+            <span className="font-mono text-foreground">{totalRecords}</span>
             <span>tasks</span>
           </div>
 
           <div className="flex items-center gap-6">
             {/* Configurable page size */}
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+              <span className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
                 Per Page:
               </span>
               <select
@@ -493,10 +525,10 @@ export default function ProjectListPage() {
                   setPageSize(Number(e.target.value))
                   setCurrentPage(1)
                 }}
-                className="cursor-pointer rounded-md border border-border/30 bg-[#1C1B1F] px-2 py-0.5 text-xs font-semibold text-foreground outline-none"
+                className="cursor-pointer rounded-md border border-border bg-muted px-2.5 py-1 text-sm font-semibold text-foreground outline-none"
               >
                 {[10, 25, 50, 100].map((size) => (
-                  <option key={size} value={size} className="bg-zinc-900">
+                  <option key={size} value={size} className="bg-background text-foreground">
                     {size}
                   </option>
                 ))}
@@ -510,7 +542,7 @@ export default function ProjectListPage() {
                 size="sm"
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="h-7 rounded-lg border-border/40 bg-zinc-950/20 px-2.5 text-[11px] font-bold hover:bg-muted"
+                className="h-8 rounded-lg border-border/40 bg-muted/30 px-2.5 text-xs font-bold hover:bg-muted"
               >
                 Prev
               </Button>
@@ -524,10 +556,10 @@ export default function ProjectListPage() {
                       variant={currentPage === page ? "default" : "ghost"}
                       onClick={() => setCurrentPage(page)}
                       className={cn(
-                        "h-7 w-7 rounded-lg font-mono text-xs font-bold",
+                        "h-8 w-8 rounded-lg font-mono text-sm font-bold",
                         currentPage === page
                           ? "bg-primary font-black text-primary-foreground"
-                          : "text-zinc-500 hover:text-white"
+                          : "text-muted-foreground hover:text-foreground"
                       )}
                       style={
                         currentPage === page
@@ -548,7 +580,7 @@ export default function ProjectListPage() {
                   setCurrentPage((prev) => Math.min(totalPages, prev + 1))
                 }
                 disabled={currentPage === totalPages}
-                className="h-7 rounded-lg border-border/40 bg-zinc-950/20 px-2.5 text-[11px] font-bold hover:bg-muted"
+                className="h-8 rounded-lg border-border/40 bg-muted/30 px-2.5 text-xs font-bold hover:bg-muted"
               >
                 Next
               </Button>
@@ -556,6 +588,7 @@ export default function ProjectListPage() {
           </div>
         </div>
       </div>
+    </div>
 
       {/* --- TASK DETAIL SHEET OVERLAY --- */}
       <TaskDetailSheet
