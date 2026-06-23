@@ -10,13 +10,14 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class GithubConnectionRequest {
-
-    @NotBlank(message = "OAuth code is required")
-    private String code;
-
-    private String githubOrgName;
+public class GithubSaveConnectionRequest {
 
     @NotNull(message = "Tenant ID is required")
     private UUID tenantId;
+
+    @NotBlank(message = "GitHub org/account name is required")
+    private String githubOrgName;
+
+    @NotBlank(message = "Token reference is required")
+    private String tokenRef;
 }

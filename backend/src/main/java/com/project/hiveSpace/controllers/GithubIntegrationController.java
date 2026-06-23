@@ -33,8 +33,32 @@ public class GithubIntegrationController {
         ));
     }
 
+    @PostMapping("/connections/init")
+    @PreAuthorize("@rbac.canManageInvite(#request.tenantId)")
+    public ResponseEntity<GithubInitConnectionResponse> initConnection(
+            @Valid @RequestBody GithubConnectionRequest request,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(githubIntegrationService.initConnection(
+                request.getTenantId(),
+                request.getCode()
+        ));
+    }
+
+    @PostMapping("/connections/save")
+    @PreAuthorize("@rbac.canManageInvite(#request.tenantId)")
+    public ResponseEntity<GithubConnectionResponse> saveConnection(
+            @Valid @RequestBody GithubSaveConnectionRequest request,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(githubIntegrationService.saveConnection(
+                request.getTenantId(),
+                user,
+                request.getGithubOrgName(),
+                request.getTokenRef()
+        ));
+    }
+
     @GetMapping("/connections")
-    @PreAuthorize("@rbac.canManageInvite(#tenantId)")
+    @PreAuthorize("@rbac.hasTenantRole(#tenantId, T(com.project.hiveSpace.models.TenantMemberRole).MEMBER)")
     public ResponseEntity<List<GithubConnectionResponse>> getConnectedOrgs(
             @RequestParam UUID tenantId) {
         return ResponseEntity.ok(githubIntegrationService.getConnectedOrgs(tenantId));
@@ -110,6 +134,20 @@ public class GithubIntegrationController {
         return ResponseEntity.ok(githubIntegrationService.getRepositoryIssues(
                 user.getTenant().getId(),
                 repoFullName
+        ));
+    }
+
+    @PostMapping("/repo-links/create")
+    @PreAuthorize("@rbac.canEditProject(#request.projectId)")
+    public ResponseEntity<GithubRepoLinkResponse> createAndLinkRepository(
+            @Valid @RequestBody com.project.hiveSpace.dto.GithubCreateRepoRequest request,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(githubIntegrationService.createAndLinkRepository(
+                request.getProjectId(),
+                user,
+                request.getGithubOrgName(),
+                request.getRepoName(),
+                request.isPrivate()
         ));
     }
 }

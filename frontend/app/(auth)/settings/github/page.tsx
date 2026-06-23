@@ -1,28 +1,33 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useOrgStore } from "@/store/orgStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { useProjectStore } from "@/store/projectStore";
 import { 
   getConnectedOrgs, 
-  connectOrg, 
   disconnectOrg, 
   getLinkedRepos, 
   linkRepository, 
   unlinkRepository,
+  createAndLinkRepository,
+  saveGithubConnection,
   GithubConnectionResponse,
-  GithubRepoLinkResponse 
+  GithubRepoLinkResponse,
+  GithubInitConnectionResponse,
+  GithubOrgInfo
 } from "@/lib/api/github";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  GitGraph as Github, 
+  GitGraph as Github,
+  GitGraph,
   Plus, 
   Trash2, 
   Link as LinkIcon, 
@@ -38,6 +43,7 @@ import {
 
 export default function GithubPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const activeOrg = useOrgStore((state) => state.activeOrg);
   const activeWorkspace = useWorkspaceStore((state) => state.activeWorkspace);
   const projects = useProjectStore((state) => state.projects);
@@ -50,13 +56,20 @@ export default function GithubPage() {
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Connection Dialog State
-  const [isConnectDialogOpen, setIsConnectDialogOpen] = useState(false);
-  const [orgNameInput, setOrgNameInput] = useState("");
+  // Org Select Dialog State (shown after OAuth returns with ?showOrgSelect=true)
+  const [initData, setInitData] = useState<GithubInitConnectionResponse | null>(null);
+  const [isOrgSelectOpen, setIsOrgSelectOpen] = useState(false);
 
   // Linking Form State
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [repoFullNameInput, setRepoFullNameInput] = useState("");
+
+  // Repo Creation State
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [newRepoName, setNewRepoName] = useState("");
+  const [isPrivateRepo, setIsPrivateRepo] = useState(true);
+  const [selectedOrgName, setSelectedOrgName] = useState("");
+  const [repoOwnerMode, setRepoOwnerMode] = useState<"personal" | "org">("personal");
 
   const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || "";
   const isClientIdConfigured = clientId && clientId !== "[your-client-id]";
@@ -115,24 +128,60 @@ export default function GithubPage() {
     fetchAllLinkedRepos();
   }, [projects]);
 
-  // Redirect to GitHub OAuth
-  const startOAuthFlow = () => {
-    if (!orgNameInput.trim()) {
-      toast.error("Please enter a valid organization name");
-      return;
+  // Check on mount if returning from GitHub OAuth with org select data
+  useEffect(() => {
+    const showOrgSelect = searchParams.get("showOrgSelect");
+    if (showOrgSelect === "true") {
+      const raw = localStorage.getItem("hivespace_github_init_data");
+      if (raw) {
+        try {
+          const parsed: GithubInitConnectionResponse = JSON.parse(raw);
+          setInitData(parsed);
+          setIsOrgSelectOpen(true);
+          localStorage.removeItem("hivespace_github_init_data");
+          // Clean URL without reloading
+          router.replace("/settings/github");
+        } catch (e) {
+          console.error("Failed to parse init data", e);
+        }
+      }
     }
+  }, [searchParams]);
+
+  // Start GitHub OAuth — no org name needed, flow=connect
+  const startOAuthFlow = () => {
     if (!isClientIdConfigured) {
       toast.error("GitHub Client ID is not configured in .env");
       return;
     }
+    if (!activeOrg?.id) {
+      toast.error("No active organization found. Please refresh and try again.");
+      return;
+    }
 
-    localStorage.setItem("hivespace_github_connecting_org", orgNameInput.trim());
-    setIsConnectDialogOpen(false);
+    localStorage.setItem("hivespace_github_flow", "connect");
+    localStorage.setItem("hivespace_github_connecting_tenant", activeOrg.id);
 
     const redirectUri = `${window.location.origin}/auth/github/callback`;
-    const oauthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=admin:repo_hook,repo,user&redirect_uri=${encodeURIComponent(redirectUri)}&state=${activeOrg?.id}`;
-    
+    const oauthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=admin:repo_hook,repo,user,read:org&redirect_uri=${encodeURIComponent(redirectUri)}&state=${activeOrg.id}`;
     window.location.href = oauthUrl;
+  };
+
+  // After user picks their account/org in the dialog, save the connection
+  const handleSelectAndSaveOrg = async (githubOrgName: string) => {
+    if (!activeOrg?.id || !initData) return;
+    setActionLoading(`save-${githubOrgName}`);
+    try {
+      await saveGithubConnection(activeOrg.id, githubOrgName, initData.tokenRef);
+      toast.success(`Connected GitHub account: ${githubOrgName}`);
+      setIsOrgSelectOpen(false);
+      setInitData(null);
+      fetchConnections();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save connection");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleDisconnect = async (connectionId: string, orgName: string) => {
@@ -168,6 +217,39 @@ export default function GithubPage() {
       fetchAllLinkedRepos();
     } catch (err: any) {
       toast.error(err.message || "Failed to link repository");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCreateRepo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProjectId) {
+      toast.error("Please select a project");
+      return;
+    }
+    if (!selectedOrgName) {
+      toast.error("Please select a connected GitHub organization");
+      return;
+    }
+    if (!newRepoName.trim()) {
+      toast.error("Please enter a repository name");
+      return;
+    }
+
+    setActionLoading("creating-repo");
+    try {
+      await createAndLinkRepository(
+        selectedProjectId,
+        selectedOrgName,
+        newRepoName.trim(),
+        isPrivateRepo
+      );
+      toast.success(`Repository ${selectedOrgName}/${newRepoName.trim()} created and linked successfully!`);
+      setNewRepoName("");
+      fetchAllLinkedRepos();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create repository");
     } finally {
       setActionLoading(null);
     }
@@ -233,16 +315,12 @@ export default function GithubPage() {
                 </CardDescription>
               </div>
               <Button 
-                onClick={() => setIsConnectDialogOpen(true)}
+                onClick={startOAuthFlow}
                 disabled={!isClientIdConfigured || actionLoading !== null}
                 className="bg-[#7C5CFC] hover:bg-[#6849E2] text-white flex items-center gap-1 h-8 text-xs font-semibold px-3"
               >
-                {actionLoading === "connecting" ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Plus className="h-3.5 w-3.5" />
-                )}
-                Connect Org
+                <Plus className="h-3.5 w-3.5" />
+                Connect Account
               </Button>
             </CardHeader>
 
@@ -408,15 +486,17 @@ export default function GithubPage() {
         {/* Right Column: Repository Linker Panel */}
         <div className="space-y-8">
           
-          {/* Link Repository Form */}
+          {/* Link / Create Repository Form */}
           <Card className="border-white/5 bg-zinc-950/40 backdrop-blur-md">
             <CardHeader>
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Plus className="h-4.5 w-4.5 text-[#7C5CFC]" />
-                Link New Repository
+                {isCreatingNew ? "Create GitHub Repository" : "Link New Repository"}
               </CardTitle>
               <CardDescription className="text-xs text-zinc-400 mt-1">
-                Establish a webhook mapping to sync PRs and issues for a project.
+                {isCreatingNew 
+                  ? "Create a new repo on GitHub and link it to your project."
+                  : "Establish a webhook mapping to sync PRs and issues for a project."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -424,69 +504,229 @@ export default function GithubPage() {
                 <div className="p-4 border border-amber-500/20 bg-amber-500/5 rounded-lg text-center space-y-3">
                   <AlertTriangle className="h-8 w-8 text-amber-400 mx-auto" />
                   <p className="text-xs text-zinc-400">
-                    You must connect a GitHub organization before you can link repositories.
+                    You must connect a GitHub organization before you can link or create repositories.
                   </p>
                   <Button 
-                    onClick={() => setIsConnectDialogOpen(true)}
+                    onClick={startOAuthFlow}
                     className="w-full bg-amber-500/10 text-amber-300 border border-amber-500/20 hover:bg-amber-500/20 text-xs font-semibold h-8"
                   >
-                    Connect Organization
+                    Connect Account
                   </Button>
                 </div>
               ) : (
-                <form onSubmit={handleLinkRepo} className="space-y-4">
-                  
-                  {/* Select Hivespace Project */}
-                  <div className="space-y-2">
-                    <label className="text-xs text-zinc-400 font-semibold block">1. Select Project</label>
-                    <Select 
-                      value={selectedProjectId} 
-                      onValueChange={setSelectedProjectId}
+                <div className="space-y-4">
+                  {/* Mode Selector Tab */}
+                  <div className="flex bg-zinc-900/60 p-0.5 rounded-lg border border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingNew(false)}
+                      className={cn(
+                        "flex-1 py-1.5 text-[11px] font-semibold rounded-md transition-colors",
+                        !isCreatingNew ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-zinc-200"
+                      )}
                     >
-                      <SelectTrigger className="w-full bg-zinc-900 border-white/10 text-xs text-zinc-300 focus:ring-[#7C5CFC]">
-                        <SelectValue placeholder="Choose a project" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-zinc-950 border-white/10 text-zinc-200">
-                        {projects.map((proj) => (
-                          <SelectItem key={proj.id} value={proj.id} className="text-xs hover:bg-zinc-900">
-                            {proj.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      Link Existing
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingNew(true)}
+                      className={cn(
+                        "flex-1 py-1.5 text-[11px] font-semibold rounded-md transition-colors",
+                        isCreatingNew ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-zinc-200"
+                      )}
+                    >
+                      Create New Repo
+                    </button>
                   </div>
 
-                  {/* Repository Name */}
-                  <div className="space-y-2">
-                    <label className="text-xs text-zinc-400 font-semibold block">2. GitHub Repository Name</label>
-                    <Input 
-                      placeholder="e.g. my-org/my-repository"
-                      value={repoFullNameInput}
-                      onChange={(e) => setRepoFullNameInput(e.target.value)}
-                      className="bg-zinc-900 border-white/10 text-xs text-zinc-200 focus:ring-[#7C5CFC]"
-                      required
-                    />
-                    <p className="text-[10px] text-zinc-500">
-                      Must correspond to one of your connected GitHub Organizations.
-                    </p>
-                  </div>
+                  {!isCreatingNew ? (
+                    <form onSubmit={handleLinkRepo} className="space-y-4">
+                      
+                      {/* Select Hivespace Project */}
+                      <div className="space-y-2">
+                        <label className="text-xs text-zinc-400 font-semibold block">1. Select Project</label>
+                        <Select 
+                          value={selectedProjectId} 
+                          onValueChange={setSelectedProjectId}
+                        >
+                          <SelectTrigger className="w-full bg-zinc-900 border-white/10 text-xs text-zinc-300 focus:ring-[#7C5CFC]">
+                            <SelectValue placeholder="Choose a Hivespace project" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-zinc-950 border-white/10 text-zinc-200">
+                            {projects.map((proj) => (
+                              <SelectItem key={proj.id} value={proj.id} className="text-xs hover:bg-zinc-900">
+                                {proj.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    disabled={actionLoading !== null || !selectedProjectId}
-                    className="w-full bg-[#7C5CFC] hover:bg-[#6849E2] text-white flex items-center justify-center gap-1.5 text-xs font-semibold h-8 mt-2"
-                  >
-                    {actionLoading === "linking" ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <>
-                        <LinkIcon className="h-3 w-3" />
-                        Link Repository
-                      </>
-                    )}
-                  </Button>
-                </form>
+                      {/* Repository Name */}
+                      <div className="space-y-2">
+                        <label className="text-xs text-zinc-400 font-semibold block">2. GitHub Repository Name</label>
+                        <Input 
+                          placeholder="e.g. my-org/my-repository"
+                          value={repoFullNameInput}
+                          onChange={(e) => setRepoFullNameInput(e.target.value)}
+                          className="bg-zinc-900 border-white/10 text-xs text-zinc-200 focus:ring-[#7C5CFC]"
+                          required
+                        />
+                        <p className="text-[10px] text-zinc-500">
+                          Must correspond to one of your connected GitHub Organizations.
+                        </p>
+                      </div>
+
+                      {/* Submit Button */}
+                      <Button
+                        type="submit"
+                        disabled={actionLoading !== null || !selectedProjectId}
+                        className="w-full bg-[#7C5CFC] hover:bg-[#6849E2] text-white flex items-center justify-center gap-1.5 text-xs font-semibold h-8 mt-2"
+                      >
+                        {actionLoading === "linking" ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <>
+                            <LinkIcon className="h-3 w-3" />
+                            Link Repository
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleCreateRepo} className="space-y-4">
+                      
+                      {/* Select Hivespace Project */}
+                      <div className="space-y-2">
+                        <label className="text-xs text-zinc-400 font-semibold block">1. Select Project</label>
+                        <Select 
+                          value={selectedProjectId} 
+                          onValueChange={setSelectedProjectId}
+                        >
+                          <SelectTrigger className="w-full bg-zinc-900 border-white/10 text-xs text-zinc-300 focus:ring-[#7C5CFC]">
+                            <SelectValue placeholder="Choose a Hivespace project" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-zinc-950 border-white/10 text-zinc-200">
+                            {projects.map((proj) => (
+                              <SelectItem key={proj.id} value={proj.id} className="text-xs hover:bg-zinc-900">
+                                {proj.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Owner Type Selector */}
+                      <div className="space-y-2">
+                        <label className="text-xs text-zinc-400 font-semibold block">2. Create under</label>
+                        <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-900/60 rounded-lg border border-white/5">
+                          <button
+                            type="button"
+                            onClick={() => { setRepoOwnerMode("personal"); setSelectedOrgName(""); }}
+                            className={cn(
+                              "flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-medium transition-all",
+                              repoOwnerMode === "personal"
+                                ? "bg-[#7C5CFC] text-white shadow"
+                                : "text-zinc-400 hover:text-zinc-200"
+                            )}
+                          >
+                            <GitGraph className="h-3 w-3" />
+                            My Account
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setRepoOwnerMode("org"); setSelectedOrgName(connections[0]?.githubOrgName || ""); }}
+                            className={cn(
+                              "flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-medium transition-all",
+                              repoOwnerMode === "org"
+                                ? "bg-[#7C5CFC] text-white shadow"
+                                : connections.length === 0 ? "text-zinc-600 cursor-not-allowed" : "text-zinc-400 hover:text-zinc-200"
+                            )}
+                            disabled={connections.length === 0}
+                          >
+                            <GitFork className="h-3 w-3" />
+                            Organization
+                            {connections.length === 0 && <span className="text-[9px]">(none connected)</span>}
+                          </button>
+                        </div>
+
+                        {repoOwnerMode === "personal" ? (
+                          <>
+                            <Input
+                              placeholder="Your GitHub username, e.g. ayan15888"
+                              value={selectedOrgName}
+                              onChange={(e) => setSelectedOrgName(e.target.value)}
+                              className="bg-zinc-900 border-white/10 text-xs text-zinc-200 focus:ring-[#7C5CFC]"
+                              required
+                            />
+                            <p className="text-[10px] text-zinc-500">Repo will be created under your personal GitHub account.</p>
+                          </>
+                        ) : (
+                          <>
+                            <Select value={selectedOrgName} onValueChange={setSelectedOrgName}>
+                              <SelectTrigger className="w-full bg-zinc-900 border-white/10 text-xs text-zinc-300 focus:ring-[#7C5CFC]">
+                                <SelectValue placeholder="Choose a connected organization" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-zinc-950 border-white/10 text-zinc-200">
+                                {connections.map((conn) => (
+                                  <SelectItem key={conn.id} value={conn.githubOrgName} className="text-xs hover:bg-zinc-900">
+                                    <span className="flex items-center gap-1.5">
+                                      <GitFork className="h-3 w-3 text-[#7C5CFC]" />
+                                      {conn.githubOrgName}
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-[10px] text-zinc-500">Repo will be created under the selected GitHub Organization.</p>
+                          </>
+                        )}
+                      </div>
+
+                      {/* New Repository Name */}
+                      <div className="space-y-2">
+                        <label className="text-xs text-zinc-400 font-semibold block">3. New Repository Name</label>
+                        <Input 
+                          placeholder="e.g. new-sprint-repo"
+                          value={newRepoName}
+                          onChange={(e) => setNewRepoName(e.target.value)}
+                          className="bg-zinc-900 border-white/10 text-xs text-zinc-200 focus:ring-[#7C5CFC]"
+                          required
+                        />
+                      </div>
+
+                      {/* Visibility Option */}
+                      <div className="flex items-center justify-between p-2.5 rounded-lg border border-white/5 bg-zinc-900/40">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs font-semibold text-zinc-300">Private Repository</span>
+                          <span className="text-[10px] text-zinc-500">Only visible to authorized members</span>
+                        </div>
+                        <input 
+                          type="checkbox"
+                          checked={isPrivateRepo}
+                          onChange={(e) => setIsPrivateRepo(e.target.checked)}
+                          className="h-4 w-4 rounded border-white/10 bg-zinc-900 text-[#7C5CFC] focus:ring-[#7C5CFC]"
+                        />
+                      </div>
+
+                      {/* Submit Button */}
+                      <Button
+                        type="submit"
+                        disabled={actionLoading !== null || !selectedProjectId || !selectedOrgName || !newRepoName.trim()}
+                        className="w-full bg-[#7C5CFC] hover:bg-[#6849E2] text-white flex items-center justify-center gap-1.5 text-xs font-semibold h-8 mt-2"
+                      >
+                        {actionLoading === "creating-repo" ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <>
+                            <Plus className="h-3.5 w-3.5" />
+                            Create & Link Repo
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -515,46 +755,93 @@ export default function GithubPage() {
 
       </div>
 
-      {/* Connect Organization Dialog */}
-      <Dialog open={isConnectDialogOpen} onOpenChange={setIsConnectDialogOpen}>
-        <DialogContent className="bg-zinc-950 border border-white/10 text-white max-w-sm p-6">
+      {/* Org Select Dialog — shown after GitHub OAuth returns */}
+      <Dialog open={isOrgSelectOpen} onOpenChange={setIsOrgSelectOpen}>
+        <DialogContent className="bg-zinc-950 border border-white/10 text-white max-w-md p-6">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold flex items-center gap-2">
               <Github className="h-5 w-5" />
-              Connect GitHub Organization
+              Select GitHub Account or Organization
             </DialogTitle>
             <DialogDescription className="text-zinc-400 text-xs mt-1">
-              Enter the name of your GitHub Organization. This must match your organization slug on GitHub.
+              Choose which GitHub account or organization you'd like to connect to HiveSpace.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 my-2">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-zinc-400">GitHub Organization Name</label>
-              <Input 
-                placeholder="e.g. google-deepmind"
-                value={orgNameInput}
-                onChange={(e) => setOrgNameInput(e.target.value)}
-                className="bg-zinc-900 border-white/10 text-xs text-zinc-200"
-              />
-            </div>
+          <div className="space-y-2 my-2 max-h-80 overflow-y-auto pr-1">
+            {/* Personal Account */}
+            {initData?.personalLogin && (
+              <button
+                type="button"
+                onClick={() => handleSelectAndSaveOrg(initData.personalLogin)}
+                disabled={actionLoading !== null}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border border-white/10 bg-zinc-900/60 hover:bg-zinc-900 hover:border-[#7C5CFC]/40 transition-all group"
+              >
+                {initData.personalAvatarUrl ? (
+                  <img src={initData.personalAvatarUrl} alt={initData.personalLogin} className="h-9 w-9 rounded-full ring-1 ring-white/10" />
+                ) : (
+                  <div className="h-9 w-9 rounded-full bg-zinc-800 flex items-center justify-center">
+                    <GitGraph className="h-4 w-4 text-zinc-400" />
+                  </div>
+                )}
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-semibold text-white">{initData.personalLogin}</span>
+                  <span className="text-[10px] text-zinc-500">Personal Account</span>
+                </div>
+                {actionLoading === `save-${initData.personalLogin}` ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin ml-auto text-[#7C5CFC]" />
+                ) : (
+                  <ArrowRight className="h-3.5 w-3.5 ml-auto text-zinc-600 group-hover:text-[#7C5CFC] transition-colors" />
+                )}
+              </button>
+            )}
+
+            {/* Separator if both personal and orgs exist */}
+            {initData?.orgs && initData.orgs.length > 0 && (
+              <div className="flex items-center gap-2 py-1">
+                <div className="flex-1 h-px bg-white/5" />
+                <span className="text-[10px] text-zinc-500">Organizations</span>
+                <div className="flex-1 h-px bg-white/5" />
+              </div>
+            )}
+
+            {/* Org List */}
+            {initData?.orgs?.map((org) => (
+              <button
+                key={org.login}
+                type="button"
+                onClick={() => handleSelectAndSaveOrg(org.login)}
+                disabled={actionLoading !== null}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border border-white/10 bg-zinc-900/60 hover:bg-zinc-900 hover:border-[#7C5CFC]/40 transition-all group"
+              >
+                {org.avatarUrl ? (
+                  <img src={org.avatarUrl} alt={org.login} className="h-9 w-9 rounded-lg ring-1 ring-white/10" />
+                ) : (
+                  <div className="h-9 w-9 rounded-lg bg-zinc-800 flex items-center justify-center">
+                    <GitFork className="h-4 w-4 text-zinc-400" />
+                  </div>
+                )}
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-semibold text-white">{org.login}</span>
+                  {org.description && <span className="text-[10px] text-zinc-500 truncate max-w-[200px]">{org.description}</span>}
+                  <span className="text-[10px] text-zinc-600">Organization</span>
+                </div>
+                {actionLoading === `save-${org.login}` ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin ml-auto text-[#7C5CFC]" />
+                ) : (
+                  <ArrowRight className="h-3.5 w-3.5 ml-auto text-zinc-600 group-hover:text-[#7C5CFC] transition-colors" />
+                )}
+              </button>
+            ))}
+
+            {!initData?.personalLogin && (!initData?.orgs || initData.orgs.length === 0) && (
+              <p className="text-xs text-zinc-500 text-center py-4">No accounts found. Please try again.</p>
+            )}
           </div>
 
-          <DialogFooter className="flex sm:flex-row gap-2 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsConnectDialogOpen(false)}
-              className="text-xs h-8"
-            >
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => { setIsOrgSelectOpen(false); setInitData(null); }} className="text-xs h-8">
               Cancel
-            </Button>
-            <Button
-              onClick={startOAuthFlow}
-              disabled={!orgNameInput.trim()}
-              className="bg-[#7C5CFC] hover:bg-[#6849E2] text-white text-xs h-8"
-            >
-              Authorize & Connect
-              <ArrowRight className="h-3 w-3 ml-1.5" />
             </Button>
           </DialogFooter>
         </DialogContent>
