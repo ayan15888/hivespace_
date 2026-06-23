@@ -716,30 +716,6 @@ CREATE TABLE github_sync_log (
   created_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
--- SHAREABLE LINKS (stakeholder progress sharing)
-CREATE TABLE shareable_links (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  token VARCHAR NOT NULL UNIQUE,
-  scope_type VARCHAR NOT NULL
-    CHECK (scope_type IN ('PROJECT', 'WORKSPACE', 'TEAM')),
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-  workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
-  team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
-  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  scope JSONB,
-  password_hash VARCHAR,
-  expires_at TIMESTAMP,
-  last_accessed_at TIMESTAMP,
-  access_count INTEGER NOT NULL DEFAULT 0,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMP NOT NULL DEFAULT now(),
-  CONSTRAINT check_exactly_one_scope CHECK (
-    (CASE WHEN project_id IS NOT NULL THEN 1 ELSE 0 END +
-     CASE WHEN workspace_id IS NOT NULL THEN 1 ELSE 0 END +
-     CASE WHEN team_id IS NOT NULL THEN 1 ELSE 0 END) = 1
-  )
-);
-
 -- FILE UPLOADS
 CREATE TABLE file_uploads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
