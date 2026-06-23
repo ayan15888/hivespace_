@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginWithGithub } from "@/lib/api/auth";
+import { connectOrg } from "@/lib/api/github";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { Loader2 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -14,6 +16,17 @@ function GitHubCallbackContent() {
 
   const handleGitHubLogin = useCallback(async (code: string) => {
     try {
+      const state = searchParams.get("state");
+      const storedOrg = localStorage.getItem("hivespace_github_connecting_org");
+
+      if (storedOrg && state) {
+        localStorage.removeItem("hivespace_github_connecting_org");
+        await connectOrg(code, storedOrg, state);
+        toast.success(`Successfully connected GitHub Organization: ${storedOrg}`);
+        router.push("/settings/github");
+        return;
+      }
+
       const response = await loginWithGithub(code);
       
       login(response.token, response);
@@ -27,7 +40,7 @@ function GitHubCallbackContent() {
       const message = (err as Error).message || "Failed to authenticate with GitHub";
       queueMicrotask(() => setError(message));
     }
-  }, [router, login]);
+  }, [router, login, searchParams]);
 
   useEffect(() => {
     const code = searchParams.get("code");

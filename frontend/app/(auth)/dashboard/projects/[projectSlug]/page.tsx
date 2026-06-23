@@ -58,6 +58,7 @@ import {
   DocumentResponse 
 } from "@/lib/api/documents";
 import { CreateTaskModal } from "@/components/features/tasks/CreateTaskModal";
+import { getLinkedRepos, GithubRepoLinkResponse } from "@/lib/api/github";
 
 interface ActivityWithTask extends TaskActivityResponse {
   taskTitle: string;
@@ -165,6 +166,13 @@ export default function ProjectOverviewPage() {
     queryFn: () => getProjectTeams(projectId),
     enabled: !!projectId && isTeamsDialogOpen,
     staleTime: 15_000,
+  });
+
+  const { data: repoLinks = [], isLoading: loadingRepoLinks } = useQuery<GithubRepoLinkResponse[], Error>({
+    queryKey: ["projectRepoLinks", projectId],
+    queryFn: () => getLinkedRepos(projectId),
+    enabled: !!projectId && isUuid(projectId),
+    staleTime: 20_000,
   });
 
   const { data: allWorkspaceTeams = [], isLoading: loadingWorkspaceTeams } = useQuery<TeamResponse[], Error>({
@@ -692,18 +700,49 @@ export default function ProjectOverviewPage() {
                  <Link href="/dashboard/github" className="text-[10px] font-bold text-zinc-500 hover:text-white transition-colors tracking-wider">VISIT GITHUB</Link>
               </div>
               <div className="flex flex-col items-center text-center py-6 px-4 bg-zinc-950/40 border border-dashed border-white/[0.06] rounded-2xl group-hover:border-white/[0.12] transition-colors">
-                 <Github className="h-8 w-8 text-zinc-600 mb-2.5 transition-transform duration-500 group-hover:rotate-12" strokeWidth={1} />
-                 <p className="text-xs text-zinc-300 font-semibold mb-1">No Repository Connected</p>
-                 <p className="text-[11px] text-zinc-500 mb-4 leading-relaxed max-w-[200px]">Link a GitHub repository to track PRs, commits, and automate workflows.</p>
-                 <Link href="/dashboard/github" className="w-full">
-                   <Button 
-                     variant="outline" 
-                     className="w-full h-8 text-[11px] font-bold border-white/[0.08] hover:border-white/20 bg-transparent hover:bg-white/[0.02] text-zinc-300 rounded-lg transition-all"
-                     style={{ color: themeColor }}
-                   >
-                     Connect GitHub
-                   </Button>
-                 </Link>
+                 {loadingRepoLinks ? (
+                   <div className="flex flex-col items-center py-4">
+                     <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                     <p className="text-xs text-zinc-500 mt-2">Checking repository links...</p>
+                   </div>
+                 ) : repoLinks.length > 0 ? (
+                   <>
+                     <Github className="h-8 w-8 text-emerald-400 mb-2.5 transition-transform duration-500 group-hover:rotate-12" strokeWidth={1} />
+                     <p className="text-xs text-emerald-400 font-semibold mb-1">Repository Linked</p>
+                     <a 
+                       href={`https://github.com/${repoLinks[0].githubRepoFullName}`}
+                       target="_blank"
+                       rel="noreferrer"
+                       className="text-xs font-bold text-white hover:underline mb-4 truncate max-w-[220px]"
+                     >
+                       {repoLinks[0].githubRepoFullName}
+                     </a>
+                     <Link href="/dashboard/github" className="w-full">
+                       <Button 
+                         variant="outline" 
+                         className="w-full h-8 text-[11px] font-bold border-white/[0.08] hover:border-white/20 bg-transparent hover:bg-white/[0.02] text-zinc-300 rounded-lg transition-all"
+                         style={{ color: themeColor }}
+                       >
+                         Manage GitHub
+                       </Button>
+                     </Link>
+                   </>
+                 ) : (
+                   <>
+                     <Github className="h-8 w-8 text-zinc-600 mb-2.5 transition-transform duration-500 group-hover:rotate-12" strokeWidth={1} />
+                     <p className="text-xs text-zinc-300 font-semibold mb-1">No Repository Connected</p>
+                     <p className="text-[11px] text-zinc-500 mb-4 leading-relaxed max-w-[200px]">Link a GitHub repository to track PRs, commits, and automate workflows.</p>
+                     <Link href="/dashboard/github" className="w-full">
+                       <Button 
+                         variant="outline" 
+                         className="w-full h-8 text-[11px] font-bold border-white/[0.08] hover:border-white/20 bg-transparent hover:bg-white/[0.02] text-zinc-300 rounded-lg transition-all"
+                         style={{ color: themeColor }}
+                       >
+                         Connect GitHub
+                       </Button>
+                     </Link>
+                   </>
+                 )}
               </div>
             </section>
 
