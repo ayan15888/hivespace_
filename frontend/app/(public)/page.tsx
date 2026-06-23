@@ -327,7 +327,7 @@ export default function LandingPage() {
           <ScrollReveal delay={0}>
             <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 bg-primary/10 border border-primary/20 text-primary font-mono text-[10px] uppercase tracking-widest mb-6">
               <span className="size-1.5 rounded-full bg-primary animate-ping" />
-              Unified Team Spaces: Stable v1.0.2
+              Unified Team Spaces: Stable v1.0.2 · devloper first build
             </div>
           </ScrollReveal>
 
