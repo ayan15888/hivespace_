@@ -27,10 +27,13 @@ RUN ./gradlew bootJar -x test --no-daemon
 # ==============================================================================
 # PHASE 2: Lightweight Runtime Stage
 # ==============================================================================
-FROM eclipse-temurin:17-jre-jammy
+FROM amazoncorretto:17-al2023-headless
+
+# Install curl using dnf (Amazon Linux 2023 package manager)
+RUN dnf update -y && dnf install -y --allowerasing curl && dnf clean all
 
 # Set up a secure, non-privileged system user and group
-RUN groupadd -r spring && useradd -r -g spring spring
+RUN useradd -r -s /bin/false spring
 
 # Define working directory and ensure permissions are correct
 WORKDIR /app
