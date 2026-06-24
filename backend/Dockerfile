@@ -29,11 +29,17 @@ RUN ./gradlew bootJar -x test --no-daemon
 # ==============================================================================
 FROM amazoncorretto:17-al2023-headless
 
-# Install curl using dnf (Amazon Linux 2023 package manager)
-RUN dnf update -y && dnf install -y --allowerasing curl && dnf clean all
+# Install required tools:
+# - shadow-utils: provides useradd/groupadd (missing from headless image)
+# - curl: used for container health checks
+# --allowerasing resolves curl-minimal vs curl conflicts on AL2023
+RUN dnf update -y && \
+    dnf install -y --allowerasing shadow-utils curl && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf
 
 # Set up a secure, non-privileged system user and group
-RUN useradd -r -s /bin/false spring
+RUN groupadd -r spring && useradd -r -g spring -s /bin/false spring
 
 # Define working directory and ensure permissions are correct
 WORKDIR /app
