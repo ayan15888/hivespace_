@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useOrgStore } from "@/store/orgStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
@@ -41,7 +41,7 @@ import {
   GitPullRequest
 } from "lucide-react";
 
-export default function GithubPage() {
+function GithubPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const activeOrg = useOrgStore((state) => state.activeOrg);
@@ -847,5 +847,17 @@ export default function GithubPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function GithubPage() {
+  return (
+    <Suspense fallback={
+      <div className="container max-w-5xl py-8 px-6 space-y-8 text-[#E5E1E4] flex justify-center items-center h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#7C5CFC]" />
+      </div>
+    }>
+      <GithubPageContent />
+    </Suspense>
   );
 }
