@@ -17,7 +17,7 @@ import { cn, getAvatarColorClass } from "@/lib/utils";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -126,6 +126,7 @@ export function TaskDetailSheet({
   return (
     <Sheet open={!!selectedTask} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="right" className="w-[380px] p-0 bg-hs-nav border-l border-border/50 shadow-2xl flex flex-col gap-0 outline-none">
+        <SheetTitle className="sr-only">Task Details</SheetTitle>
         <ScrollArea className="flex-1">
           <div className="p-6 flex flex-col gap-6">
             

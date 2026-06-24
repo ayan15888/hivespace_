@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { useAuthStore } from "@/store/authStore";
+import { Turnstile } from "@/components/ui/turnstile";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -123,10 +125,15 @@ export default function SignInPage() {
               </button>
             </div>
             {error && <p className="text-xs text-red-500 text-left">{error}</p>}
+            <Turnstile 
+              onVerify={(token) => setCaptchaToken(token)} 
+              onExpire={() => setCaptchaToken(null)}
+              onError={() => setCaptchaToken(null)}
+            />
             <Button 
               type="submit" 
-              disabled={loading}
-              className="h-11 bg-[#7C5CFC] hover:bg-[#6D4EE0] text-white"
+              disabled={loading || !captchaToken}
+              className="h-11 bg-[#7C5CFC] hover:bg-[#6D4EE0] text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign In"}
             </Button>

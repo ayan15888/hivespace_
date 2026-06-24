@@ -56,5 +56,15 @@ export function usePermission() {
     // Team
     canManageTeam: (teamRole: string | null) =>
       TeamPerms.canManageTeamMembers({ ...ctx, teamRole: teamRole as any }),
+
+    // Document
+    canCreateDocument: (projectRole: string | null) =>
+      ProjectPerms.canCreateDocument({ ...ctx, projectRole: projectRole as any }),
+    canEditDocument: (projectRole: string | null) =>
+      ProjectPerms.canEditDocument({ ...ctx, projectRole: projectRole as any }),
+    canPublishDocument: (projectRole: string | null) =>
+      ProjectPerms.canPublishDocument({ ...ctx, projectRole: projectRole as any }),
+    canDeleteDocument: (projectRole: string | null) =>
+      ProjectPerms.canDeleteDocument({ ...ctx, projectRole: projectRole as any }),
   };
 }

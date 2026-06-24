@@ -52,6 +52,14 @@ async function proxy(request: NextRequest, pathSegments: string[]) {
   const resHeaders = new Headers(upstream.headers);
   resHeaders.delete("transfer-encoding");
 
+  if (upstream.headers.get("content-type")?.includes("text/event-stream")) {
+    return new NextResponse(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: resHeaders,
+    });
+  }
+
   const resBody = await upstream.arrayBuffer();
   return new NextResponse(resBody, {
     status: upstream.status,

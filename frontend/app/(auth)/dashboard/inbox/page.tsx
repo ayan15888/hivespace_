@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationResponse } from "@/lib/api/notifications";
 
 // Mock Data
 const NOTIFICATIONS = [
@@ -169,10 +170,53 @@ const NOTIFICATIONS = [
 ];
 
 export default function InboxPage() {
-  const [selectedNotification, setSelectedNotification] = useState(NOTIFICATIONS[2]); // PR Review #82 by default
+  const [realNotifications, setRealNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedNotification, setSelectedNotification] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("All");
 
-  const filteredNotifications = NOTIFICATIONS.filter(n => {
+  React.useEffect(() => {
+    getNotifications().then(data => {
+      const mapped = data.content.map((n: NotificationResponse) => ({
+        id: n.id,
+        type: n.type.toLowerCase(),
+        unread: !n.isRead,
+        sender: n.actor ? (n.actor.fullName || n.actor.id) : "System",
+        action: n.type === "MENTION" ? "mentioned you" : "sent a notification",
+        time: new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        content: n.content,
+        project: "Chat",
+        workspace: null,
+        icon: AtSign,
+        iconColor: "text-violet-400",
+        iconBg: "bg-violet-500/20"
+      }));
+      setRealNotifications(mapped);
+      if (mapped.length > 0) {
+        setSelectedNotification(mapped[0]);
+      } else {
+        setSelectedNotification(NOTIFICATIONS[2]);
+      }
+    }).catch(err => {
+      console.error("Failed to load notifications", err);
+      setSelectedNotification(NOTIFICATIONS[2]);
+    }).finally(() => {
+      setLoading(false);
+    });
+  }, []);
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsAsRead();
+      setRealNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const allNotifications = [...realNotifications, ...NOTIFICATIONS];
+
+  const filteredNotifications = allNotifications.filter(n => {
     if (activeTab === "All") return true;
     if (activeTab === "Unread") return n.unread;
     if (activeTab === "Mentions") return n.type === "mention";
@@ -188,7 +232,7 @@ export default function InboxPage() {
         <div className="p-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <h1 className="text-lg font-semibold text-foreground">Inbox</h1>
-            <span className="text-xs text-muted-foreground">4 unread</span>
+            <span className="text-xs text-muted-foreground">{allNotifications.filter(n => n.unread).length} unread</span>
           </div>
           
           <div className="mt-4 flex items-center justify-between border-b border-zinc-800/50 -mx-4 px-4 overflow-x-auto scrollbar-none">
@@ -209,7 +253,7 @@ export default function InboxPage() {
                 </button>
               ))}
             </div>
-            <button className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors py-2 whitespace-nowrap ml-2">
+            <button onClick={handleMarkAllRead} className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors py-2 whitespace-nowrap ml-2">
               <CheckCheck className="h-3 w-3" />
               Mark all read
             </button>
@@ -308,9 +352,20 @@ export default function InboxPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="text-xs font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 transition-colors">
-                    Mark as read
-                  </button>
+                  {selectedNotification.unread && (
+                    <button 
+                      onClick={async () => {
+                        if (typeof selectedNotification.id === 'string') {
+                          await markNotificationAsRead(selectedNotification.id);
+                          setRealNotifications(prev => prev.map(n => n.id === selectedNotification.id ? { ...n, unread: false } : n));
+                          setSelectedNotification({ ...selectedNotification, unread: false });
+                        }
+                      }}
+                      className="text-xs font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 transition-colors"
+                    >
+                      Mark as read
+                    </button>
+                  )}
                   <button className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 transition-colors">
                     <Archive className="h-4 w-4" />
                     Archive

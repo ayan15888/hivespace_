@@ -3,6 +3,7 @@
 import { ChevronRight, Users, Settings, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ManageTeamSheet } from "./ManageTeamSheet";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
 export function TeamBreadcrumbs({ 
   teamName, 
@@ -17,12 +18,13 @@ export function TeamBreadcrumbs({
   teamDescription?: string;
   refresh?: () => void;
 }) {
+  const { activeWorkspace } = useWorkspaceStore();
   return (
-    <div className="sticky top-0 z-30 flex h-[44px] w-full items-center justify-between border-b border-border/50 bg-hs-nav/80 px-6 backdrop-blur-sm">
+    <div className="sticky top-0 z-30 flex h-[44px] w-full items-center justify-between border-b border-border/50 bg-hs-nav px-6">
       <div className="flex items-center gap-2">
         <span className="text-xs text-zinc-400">Hivespace</span>
         <ChevronRight className="h-3 w-3 text-zinc-600" />
-        <span className="text-xs text-zinc-400">Engineering</span>
+        <span className="text-xs text-zinc-400">{activeWorkspace?.name || "Workspace"}</span>
         <ChevronRight className="h-3 w-3 text-zinc-600" />
         <div className="flex items-center gap-1.5 ml-0.5">
           <Users className="h-3.5 w-3.5 text-zinc-500" />

@@ -29,7 +29,10 @@ public class RbacService {
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
     private final ProjectTeamRepository projectTeamRepository;
+    private final DocumentRepository documentRepository;
+    private final SprintRepository sprintRepository;
     // private final TenantRepository tenantRepository;
+
 
     public User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -218,7 +221,19 @@ public class RbacService {
                 .orElse(false);
     }
 
+    public boolean canEditProject(UUID projectId) {
+        return isProjectLead(projectId);
+    }
+
+    public boolean canEditSprint(UUID sprintId) {
+        if (sprintId == null) return false;
+        return sprintRepository.findById(sprintId)
+                .map(sprint -> isProjectLead(sprint.getProject().getId()))
+                .orElse(false);
+    }
+
     public boolean canCreateTask(UUID projectId) {
+
         if (hasProjectRole(projectId, ProjectMemberRole.MEMBER)) return true;
         User user = getCurrentUser();
         return user != null && isUserInTeamAssignedToProject(user.getId(), projectId);
@@ -274,6 +289,80 @@ public class RbacService {
         if (user == null || taskId == null || targetUserId == null) return false;
         if (user.getId().equals(targetUserId)) return true;
         return canAddTaskAssignee(taskId);
+    }
+
+    // --- DOCUMENT LEVEL ---
+
+    /**
+     * Project MEMBER+ or team member assigned to the project can create docs.
+     */
+    public boolean canCreateDocument(UUID projectId) {
+        User user = getCurrentUser();
+        if (user == null || projectId == null) return false;
+        if (hasProjectRole(projectId, ProjectMemberRole.MEMBER)) return true;
+        if (isUserInTeamAssignedToProject(user.getId(), projectId)) return true;
+        return projectRepository.findById(projectId)
+                .map(project -> canAdminWorkspace(project.getWorkspace().getId()))
+                .orElse(false);
+    }
+
+    /**
+     * Project MEMBER+ or team member assigned to the project can edit docs.
+     */
+    public boolean canEditDocument(UUID documentId) {
+        User user = getCurrentUser();
+        if (user == null || documentId == null) return false;
+        return documentRepository.findById(documentId)
+                .map(doc -> {
+                    UUID projectId = doc.getProject().getId();
+                    if (hasProjectRole(projectId, ProjectMemberRole.MEMBER)) return true;
+                    if (isUserInTeamAssignedToProject(user.getId(), projectId)) return true;
+                    return canAdminWorkspace(doc.getWorkspace().getId());
+                })
+                .orElse(false);
+    }
+
+    /**
+     * Project VIEWER+ can view docs.
+     */
+    public boolean canViewDocument(UUID documentId) {
+        User user = getCurrentUser();
+        if (user == null || documentId == null) return false;
+        return documentRepository.findById(documentId)
+                .map(doc -> canViewProject(doc.getProject().getId()))
+                .orElse(false);
+    }
+
+    /**
+     * Only Workspace ADMIN or Project LEAD can publish/unpublish docs.
+     */
+    public boolean canPublishDocument(UUID documentId) {
+        User user = getCurrentUser();
+        if (user == null || documentId == null) return false;
+        return documentRepository.findById(documentId)
+                .map(doc -> {
+                    UUID projectId = doc.getProject().getId();
+                    if (hasProjectRole(projectId, ProjectMemberRole.LEAD)) return true;
+                    return canAdminWorkspace(doc.getWorkspace().getId());
+                })
+                .orElse(false);
+    }
+
+    /**
+     * Workspace ADMIN, Project LEAD, or the doc creator can delete.
+     */
+    public boolean canDeleteDocument(UUID documentId) {
+        User user = getCurrentUser();
+        if (user == null || documentId == null) return false;
+        return documentRepository.findById(documentId)
+                .map(doc -> {
+                    // Creator can delete their own doc
+                    if (doc.getCreatedBy() != null && doc.getCreatedBy().getId().equals(user.getId())) return true;
+                    UUID projectId = doc.getProject().getId();
+                    if (hasProjectRole(projectId, ProjectMemberRole.LEAD)) return true;
+                    return canAdminWorkspace(doc.getWorkspace().getId());
+                })
+                .orElse(false);
     }
 
     public boolean canManageInvite(UUID tenantId) {
@@ -378,7 +467,18 @@ public class RbacService {
                         .map(task -> task.getProject() != null && task.getProject().getWorkspace() != null && task.getProject().getWorkspace().getTenant() != null && task.getProject().getWorkspace().getTenant().getId().equals(tenantId))
                         .orElse(false);
             }
+            case DOCUMENT -> {
+                belongs = documentRepository.findById(resourceId)
+                        .map(doc -> doc.getWorkspace() != null && doc.getWorkspace().getTenant() != null && doc.getWorkspace().getTenant().getId().equals(tenantId))
+                        .orElse(false);
+            }
+            case SPRINT -> {
+                belongs = sprintRepository.findById(resourceId)
+                        .map(s -> s.getProject() != null && s.getProject().getWorkspace() != null && s.getProject().getWorkspace().getTenant() != null && s.getProject().getWorkspace().getTenant().getId().equals(tenantId))
+                        .orElse(false);
+            }
         }
+
 
         if (!belongs) {
             throw new ForbiddenException("Resource does not belong to the caller's organization");

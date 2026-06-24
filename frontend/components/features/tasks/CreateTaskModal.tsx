@@ -21,9 +21,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
-import { createTask, TaskRequest } from "@/lib/api/tasks";
+import { createTask, TaskRequest, detectDuplicates, DuplicateCheckResult } from "@/lib/api/tasks";
 import { getProjectMembers, getProjectTeamMembers, ProjectMemberResponse, getProjectTeams, addProjectMember } from "@/lib/api/projects";
-import { getTeamMembers, TeamResponse } from "@/lib/api/teams";
+import { getTeamMembers, TeamResponse, TeamMemberResponse } from "@/lib/api/teams";
 import { columnNameToStatus, priorityToBackend } from "@/lib/taskUtils";
 import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { motion, AnimatePresence } from "framer-motion";
@@ -60,8 +60,11 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
   // Teams-related state
   const [projectTeams, setProjectTeams] = useState<TeamResponse[]>([]);
   const [teamId, setTeamId] = useState("");
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([]);
   const [addingTeamMembers, setAddingTeamMembers] = useState(false);
+  const [similarTasks, setSimilarTasks] = useState<DuplicateCheckResult[]>([]);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+
 
   useEffect(() => {
     if (!isOpen || !projectId) {
@@ -110,6 +113,28 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
         setProjectTeams([]);
       });
   }, [isOpen, projectId]);
+
+  useEffect(() => {
+    if (!title.trim() || !projectId) {
+      setSimilarTasks([]);
+      return;
+    }
+
+    const handler = setTimeout(async () => {
+      setCheckingDuplicates(true);
+      try {
+        const results = await detectDuplicates(projectId, title, description);
+        setSimilarTasks(results);
+      } catch (err) {
+        console.error("Failed to check similar tasks:", err);
+      } finally {
+        setCheckingDuplicates(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(handler);
+  }, [title, description, projectId]);
+
 
   useEffect(() => {
     if (!teamId) {
@@ -163,7 +188,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
         const parsed = JSON.parse(saved);
         const projectMatrix = parsed?.project?.matrix;
         if (projectMatrix) {
-          const createRow = projectMatrix.find((row: any) => row.action === "Create & Dispatch Tasks");
+          const createRow = projectMatrix.find((row: { action: string; rolesGranted: string[] }) => row.action === "Create & Dispatch Tasks");
           if (createRow) {
             allowedRoles = createRow.rolesGranted;
           }
@@ -229,6 +254,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       
       setTitle("");
       setDescription("");
+      setSimilarTasks([]);
       setStatus(defaultStatus || "Todo");
       setPriority("normal");
       setDueDate("");
@@ -239,7 +265,7 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
       setTeamMembers([]);
       onSuccess?.();
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to create task:", error);
       toast.error(error instanceof Error ? error.message : "Failed to create task. Please try again.");
     } finally {
@@ -251,127 +277,220 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <AnimatePresence>
         {isOpen && (
-          <DialogContent className="sm:max-w-[425px] bg-hs-main border-border/50 text-foreground rounded-[28px] overflow-hidden p-0">
+          <DialogContent className="sm:max-w-[620px] w-full max-h-[90vh] bg-hs-main border-border/50 text-foreground rounded-[28px] overflow-hidden p-0 flex flex-col">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
+              className="flex flex-col h-full"
             >
-              <form onSubmit={handleSubmit}>
-                <DialogHeader className="p-6 pb-0">
+              <form onSubmit={handleSubmit} className="flex flex-col h-full">
+                <DialogHeader className="p-6 pb-2">
                   <DialogTitle className="text-xl font-semibold tracking-tight text-foreground">New Task</DialogTitle>
                   <DialogDescription className="text-muted-foreground text-xs">
                     Create a new task for this project.
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-4 p-6">
-                  {!canCreate && (
-                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl flex items-center gap-2 mb-2 animate-pulse">
-                      <span>⚠️ You do not have permission to create tasks in this project.</span>
-                    </div>
-                  )}
-                  {!initialProjectId && (
+                {/* Two-Column Scrollable Field Area */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 p-6 overflow-y-auto max-h-[58vh]">
+                  {/* Left Column: Context, Title, Description */}
+                  <div className="flex flex-col gap-4">
+                    {!canCreate && (
+                      <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl flex items-center gap-2 animate-pulse">
+                        <span>⚠️ You do not have permission to create tasks in this project.</span>
+                      </div>
+                    )}
+                    {!initialProjectId && (
+                      <div className="grid gap-2">
+                        <Label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Project</Label>
+                        <Select value={projectId} onValueChange={setProjectId} disabled={loading}>
+                          <SelectTrigger className="bg-[#000000]/30 border-zinc-800/50 focus:ring-0 rounded-xl text-white">
+                            <SelectValue placeholder="Select a project" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1C1B1F] border-zinc-800 text-[#E5E1E4]">
+                            {projects.map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <div className="grid gap-2">
-                      <Label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Project</Label>
-                      <Select value={projectId} onValueChange={setProjectId} disabled={loading}>
-                        <SelectTrigger className="bg-[#000000]/30 border-zinc-800/50 focus:ring-0 rounded-xl text-white">
-                          <SelectValue placeholder="Select a project" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#1C1B1F] border-zinc-800 text-[#E5E1E4]">
-                          {projects.map(p => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      <Label htmlFor="title" className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex justify-between items-center">
+                        <span>Title</span>
+                        {checkingDuplicates && <span className="text-[10px] text-zinc-500 animate-pulse normal-case font-normal">Checking duplicates...</span>}
+                      </Label>
+                      <Input
+                         id="title"
+                         value={title}
+                         onChange={(e) => setTitle(e.target.value)}
+                         placeholder="What needs to be done?"
+                         className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground"
+                         disabled={loading}
+                      />
+                    </div>
+                    {similarTasks.length > 0 && (
+                      <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs p-3 rounded-xl flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <span className="font-semibold flex items-center gap-1.5">
+                          ⚠️ Similar task(s) already exist:
+                        </span>
+                        <div className="flex flex-col gap-1.5 max-h-[100px] overflow-y-auto pr-1">
+                          {similarTasks.map((t) => (
+                            <div key={t.id} className="bg-black/20 p-2 rounded-lg flex items-center justify-between gap-2 border border-zinc-800/40">
+                              <span className="truncate font-medium">{t.title}</span>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {t.assigneeName && (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {t.assigneeName}
+                                  </span>
+                                )}
+                                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded uppercase font-semibold">
+                                  {t.status}
+                                </span>
+                              </div>
+                            </div>
                           ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  <div className="grid gap-2">
-                    <Label htmlFor="title" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Title</Label>
-                    <Input
-                      id="title"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="What needs to be done?"
-                      className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="description" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Add more details..."
-                      className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl min-h-[100px] resize-none text-foreground"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Status</Label>
-                      <Select value={status} onValueChange={setStatus} disabled={loading}>
-                        <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-hs-main border-border text-foreground">
-                          <SelectItem value="Backlog">Backlog</SelectItem>
-                          <SelectItem value="Todo">Todo</SelectItem>
-                          <SelectItem value="In Progress">In Progress</SelectItem>
-                          <SelectItem value="Review">Review</SelectItem>
-                          <SelectItem value="Done">Done</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Priority</Label>
-                      <Select value={priority} onValueChange={setPriority} disabled={loading}>
-                        <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
-                          <SelectValue placeholder="Select priority" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-hs-main border-border text-foreground">
-                          <SelectItem value="normal">Normal</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="dueDate" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Due Date</Label>
-                    <Input
-                      id="dueDate"
-                      type="date"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground [color-scheme:dark]"
-                      disabled={loading}
-                    />
-                  </div>
-                  {projectId && projectTeams.length > 0 && (
-                    <div className="grid gap-2">
-                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Team (optional)</Label>
-                      <Select value={teamId || "default"} onValueChange={(v) => setTeamId(v === "default" ? "" : v)} disabled={loading}>
-                        <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
-                          <SelectValue placeholder="Select team label" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-hs-main border-border text-foreground">
-                          <SelectItem value="default">No team</SelectItem>
-                          {projectTeams.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {t.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                        </div>
+                      </div>
+                    )}
 
+                    <div className="grid gap-2 flex-1">
+                      <Label htmlFor="description" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Description</Label>
+                      <Textarea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Add more details..."
+                        className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl min-h-[140px] md:min-h-[160px] h-full resize-none text-foreground"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Right Column: Status, Priority, Due Date, Points, Team, Owner, Labels */}
+                  <div className="flex flex-col gap-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Status</Label>
+                        <Select value={status} onValueChange={setStatus} disabled={loading}>
+                          <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-hs-main border-border text-foreground">
+                            <SelectItem value="Backlog">Backlog</SelectItem>
+                            <SelectItem value="Todo">Todo</SelectItem>
+                            <SelectItem value="In Progress">In Progress</SelectItem>
+                            <SelectItem value="Review">Review</SelectItem>
+                            <SelectItem value="Done">Done</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Priority</Label>
+                        <Select value={priority} onValueChange={setPriority} disabled={loading}>
+                          <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-hs-main border-border text-foreground">
+                            <SelectItem value="normal">Normal</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="urgent">Urgent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="dueDate" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Due Date</Label>
+                        <Input
+                          id="dueDate"
+                          type="date"
+                          value={dueDate}
+                          onChange={(e) => setDueDate(e.target.value)}
+                          className="bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-0 rounded-xl text-foreground [color-scheme:dark]"
+                          disabled={loading}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="points" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Points</Label>
+                        <Input
+                          id="points"
+                          type="number"
+                          min={0}
+                          value={points}
+                          onChange={(e) => setPoints(e.target.value)}
+                          placeholder="3"
+                          className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground"
+                          disabled={loading}
+                        />
+                      </div>
+                    </div>
+
+                    {projectId && projectTeams.length > 0 && (
+                      <div className="grid gap-2">
+                        <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Team (optional)</Label>
+                        <Select value={teamId || "default"} onValueChange={(v) => setTeamId(v === "default" ? "" : v)} disabled={loading}>
+                          <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
+                            <SelectValue placeholder="Select team label" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-hs-main border-border text-foreground">
+                            <SelectItem value="default">No team</SelectItem>
+                            {projectTeams.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {projectId && projectMembers.length > 0 && (
+                      <div className="grid gap-2">
+                        <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Owner (optional)</Label>
+                        <Select value={assigneeId || "default"} onValueChange={(v) => setAssigneeId(v === "default" ? "" : v)} disabled={loading}>
+                          <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
+                            <SelectValue placeholder="Assign to yourself" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-hs-main border-border text-foreground">
+                            <SelectItem value="default">Me (creator)</SelectItem>
+                            {[...projectMembers]
+                              .sort((a, b) => a.belongsToAssignedTeam === b.belongsToAssignedTeam ? 0 : a.belongsToAssignedTeam ? -1 : 1)
+                              .map((m) => (
+                                <SelectItem key={m.userId} value={m.userId}>
+                                  <div className="flex items-center justify-between w-full gap-2">
+                                    <span>{m.fullName}</span>
+                                    {m.belongsToAssignedTeam && (
+                                      <span className="text-[8px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider ml-2">Team</span>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="labels" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Labels</Label>
+                      <Input
+                        id="labels"
+                        value={labels}
+                        onChange={(e) => setLabels(e.target.value)}
+                        placeholder="frontend, bug"
+                        className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Non-project team members alert (if any) */}
                   {teamId && nonProjectTeamMembers.length > 0 && (
-                    <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs p-3 rounded-xl flex flex-col gap-2 animate-fade-in">
+                    <div className="col-span-1 md:col-span-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs p-3 rounded-xl flex flex-col gap-2 animate-fade-in mt-1">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">
+                        <span className="font-medium font-semibold text-amber-400">
                           {projectTeams.find(t => t.id === teamId)?.name} is assigned to this project.
                         </span>
                       </div>
@@ -396,61 +515,9 @@ export function CreateTaskModal({ isOpen, onClose, projectId: initialProjectId, 
                       </Button>
                     </div>
                   )}
-
-                  {projectId && projectMembers.length > 0 && (
-                    <div className="grid gap-2">
-                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Owner (optional)</Label>
-                      <Select value={assigneeId || "default"} onValueChange={(v) => setAssigneeId(v === "default" ? "" : v)} disabled={loading}>
-                        <SelectTrigger className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground">
-                          <SelectValue placeholder="Assign to yourself" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-hs-main border-border text-foreground">
-                          <SelectItem value="default">Me (creator)</SelectItem>
-                          {[...projectMembers]
-                            .sort((a, b) => a.belongsToAssignedTeam === b.belongsToAssignedTeam ? 0 : a.belongsToAssignedTeam ? -1 : 1)
-                            .map((m) => (
-                              <SelectItem key={m.userId} value={m.userId}>
-                                <div className="flex items-center justify-between w-full gap-2">
-                                  <span>{m.fullName}</span>
-                                  {m.belongsToAssignedTeam && (
-                                    <span className="text-[8px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider ml-2">Team</span>
-                                  )}
-                                </div>
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="labels" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Labels</Label>
-                      <Input
-                        id="labels"
-                        value={labels}
-                        onChange={(e) => setLabels(e.target.value)}
-                        placeholder="frontend, bug"
-                        className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground"
-                        disabled={loading}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="points" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Points</Label>
-                      <Input
-                        id="points"
-                        type="number"
-                        min={0}
-                        value={points}
-                        onChange={(e) => setPoints(e.target.value)}
-                        placeholder="3"
-                        className="bg-muted/30 border-border/50 focus:ring-0 rounded-xl text-foreground"
-                        disabled={loading}
-                      />
-                    </div>
-                  </div>
                 </div>
 
-                <DialogFooter className="p-6 pt-2">
+                <DialogFooter className="p-6 pt-2 border-t border-border/10">
                   <Button
                     type="button"
                     variant="ghost"

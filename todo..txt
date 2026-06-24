@@ -50,3 +50,7 @@ D:\project\hiveSpace_final\frontend\app\(auth)\onboarding\page.tsx (371)
 D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\github\page.tsx (339)
 D:\project\hiveSpace_final\frontend\app\(auth)\dashboard\mail\page.tsx (324)
 D:\project\hiveSpace_final\frontend\app\(auth)\settings\subscription\page.tsx (305)
+
+
+TODO: Add answer-level caching in Upstash Redis to bypass generation + validation latency for identical queries.
+        // Cache key format: rag-answer:{projectId}:{normalized-question-hash}

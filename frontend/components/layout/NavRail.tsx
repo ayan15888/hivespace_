@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
 import { cn, getAvatarColorClass } from "@/lib/utils"
 import { motion } from "framer-motion"
+// import { useUiStore } from "@/store/uiStore"
 
 export function NavRail() {
   const pathname = usePathname()
@@ -49,6 +50,7 @@ export function NavRail() {
   const { activeOrg, setActiveOrg } = useOrgStore()
   const { switchTenant } = useAuthStore()
   const { theme, setTheme } = useTheme()
+  // const { isAiSidebarOpen, toggleAiSidebar } = useUiStore()
 
   const handleSwitchTenant = async (org: any) => {
     try {
@@ -61,10 +63,9 @@ export function NavRail() {
   };
 
   const cycleTheme = () => {
-    if (theme === "light") setTheme("dark")
-    else if (theme === "dark") setTheme("dark-blue")
+    if (theme === "dark") setTheme("dark-blue")
     else if (theme === "dark-blue") setTheme("claude")
-    else setTheme("light")
+    else setTheme("dark")
   }
 
   useEffect(() => {
@@ -77,7 +78,7 @@ export function NavRail() {
     { name: "Home", href: "/dashboard", icon: Home },
     { name: "Inbox", href: "/dashboard/inbox", icon: Inbox, badge: "4" },
     { name: "Tasks", href: "/dashboard/tasks", icon: KanbanSquare },
-    { name: "Chat", href: "/dashboard/chat/backend-ops", icon: MessageSquare },
+    { name: "Chat", href: "/dashboard/chat", icon: MessageSquare },
     { name: "Docs", href: "/dashboard/docs", icon: BookOpen },
     { name: "GitHub", href: "/dashboard/github", icon: GitGraph },
     { name: "Mail", href: "/dashboard/mail", icon: Mail },
@@ -172,8 +173,10 @@ export function NavRail() {
           variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.05 } } }}
         >
           {items.map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const isAiItem = item.name === "AI Assistant";
+            const isActive = item.href === "/dashboard"
+              ? pathname === "/dashboard" || pathname === "/dashboard/"
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
 
             return (
@@ -187,6 +190,38 @@ export function NavRail() {
                       <div className="relative flex items-center justify-center">
                         <Icon strokeWidth={1.5} className="h-[18px] w-[18px] text-zinc-600" />
                       </div>
+                    </motion.div>
+                  ) : isAiItem ? (
+                    <motion.div
+                      variants={{ hidden: { opacity: 0, x: -8 }, visible: { opacity: 1, x: 0, transition: { duration: 0.25 } } }}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.93 }}
+                    >
+                      <Link
+                        href={item.href}
+                        className={`group flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
+                          isActive
+                            ? "bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-md"
+                            : "hover:bg-zinc-800"
+                        }`}
+                        aria-label="Hex AI Assistant"
+                      >
+                        <div className="relative flex items-center justify-center">
+                          <Icon
+                            strokeWidth={1.5}
+                            className={`h-[18px] w-[18px] transition-colors ${
+                              isActive
+                                ? "text-white"
+                                : "text-zinc-500 group-hover:text-zinc-400"
+                            }`}
+                          />
+                          {isActive && (
+                            <span className="absolute -top-1 -right-1 flex h-2 w-2 items-center justify-center rounded-full bg-violet-300">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+                            </span>
+                          )}
+                        </div>
+                      </Link>
                     </motion.div>
                   ) : (
                     <motion.div
@@ -255,7 +290,7 @@ export function NavRail() {
               side="right"
               className="ml-2 border border-[#484555]/15 bg-background/70 text-foreground backdrop-blur-[20px] rounded-md"
             >
-              <span className="capitalize">Theme: {theme === "system" ? "light" : theme}</span>
+              <span className="capitalize">Theme: {theme}</span>
             </TooltipContent>
           </Tooltip>
 

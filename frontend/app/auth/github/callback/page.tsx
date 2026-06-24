@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginWithGithub } from "@/lib/api/auth";
+import { connectOrg, initGithubConnection } from "@/lib/api/github";
+import { gooeyToast as toast } from "@/components/ui/goey-toaster";
 import { Loader2 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -14,20 +16,47 @@ function GitHubCallbackContent() {
 
   const handleGitHubLogin = useCallback(async (code: string) => {
     try {
+      // ── New flow: "connect" mode ──────────────────────────────────────
+      const flow = localStorage.getItem("hivespace_github_flow");
+      const storedTenant = localStorage.getItem("hivespace_github_connecting_tenant");
+      const urlState = searchParams.get("state");
+      const tenantId = storedTenant || urlState;
+
+      if (flow === "connect" && tenantId && tenantId !== "undefined" && tenantId !== "null") {
+        localStorage.removeItem("hivespace_github_flow");
+        localStorage.removeItem("hivespace_github_connecting_tenant");
+        // Exchange code → get personal account + org list from GitHub
+        const initData = await initGithubConnection(code, tenantId);
+        // Store init data so the settings page can show the org picker
+        localStorage.setItem("hivespace_github_init_data", JSON.stringify(initData));
+        router.push("/settings/github?showOrgSelect=true");
+        return;
+      }
+
+      // ── Legacy flow: org name was pre-stored ──────────────────────────
+      const storedOrg = localStorage.getItem("hivespace_github_connecting_org");
+      if (storedOrg && tenantId && tenantId !== "undefined" && tenantId !== "null") {
+        localStorage.removeItem("hivespace_github_connecting_org");
+        localStorage.removeItem("hivespace_github_connecting_tenant");
+        await connectOrg(code, storedOrg, tenantId);
+        toast.success(`Successfully connected GitHub Organization: ${storedOrg}`);
+        router.push("/settings/github");
+        return;
+      }
+
+      // ── Login flow ────────────────────────────────────────────────────
       const response = await loginWithGithub(code);
-      
       login(response.token, response);
-      
       if (response.hasTenants) {
         router.push("/dashboard");
       } else {
         router.push("/onboarding");
       }
     } catch (err: unknown) {
-      const message = (err as Error).message || "Failed to authenticate with GitHub";
+      const message = (err as any)?.message || "Failed to authenticate with GitHub";
       queueMicrotask(() => setError(message));
     }
-  }, [router, login]);
+  }, [router, login, searchParams]);
 
   useEffect(() => {
     const code = searchParams.get("code");

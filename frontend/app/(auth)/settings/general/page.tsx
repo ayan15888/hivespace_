@@ -7,13 +7,18 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CTAButton } from "@/components/common/CTAButton"
 import { cn } from "@/lib/utils"
+import { useWorkspaceStore } from "@/store/workspaceStore"
 
 export default function GeneralSettings() {
+  const { activeWorkspace } = useWorkspaceStore();
+  const workspaceName = activeWorkspace?.name || "Workspace";
+  const workspaceSlug = workspaceName.toLowerCase().replace(/\s+/g, "-");
+
   return (
     <div className="max-w-2xl px-8 py-6">
       <header className="mb-6">
         <h1 className="text-xl font-semibold text-[#E5E1E4]">General Settings</h1>
-        <p className="text-sm text-zinc-400 mt-1">Manage your Engineering workspace settings</p>
+        <p className="text-sm text-zinc-400 mt-1">Manage your {workspaceName} workspace settings</p>
       </header>
 
       {/* SECTION: WORKSPACE IDENTITY */}
@@ -28,7 +33,7 @@ export default function GeneralSettings() {
                 Workspace Name
               </Label>
               <Input
-                defaultValue="Engineering"
+                defaultValue={workspaceName}
                 className="bg-zinc-800 border-zinc-700 h-9 text-sm text-[#E5E1E4] focus-visible:ring-1 focus-visible:ring-hs-accent/50 focus-visible:border-hs-accent/50"
               />
             </div>
@@ -38,7 +43,8 @@ export default function GeneralSettings() {
                 Workspace Description
               </Label>
               <Textarea
-                defaultValue="Engineering department workspace for backend, frontend, and infrastructure teams."
+                defaultValue={activeWorkspace?.description || ""}
+                placeholder="Describe what this workspace is used for..."
                 className="bg-zinc-800 border-zinc-700 text-sm text-zinc-300 min-h-[80px] focus-visible:ring-1 focus-visible:ring-hs-accent/50 focus-visible:border-hs-accent/50"
               />
             </div>
@@ -52,7 +58,7 @@ export default function GeneralSettings() {
                   {process.env.NEXT_PUBLIC_APP_DOMAIN || "hivespace.app"}/acme/
                 </div>
                 <Input
-                  defaultValue="engineering"
+                  defaultValue={workspaceSlug}
                   className="bg-zinc-800 border-zinc-700 rounded-l-none text-sm text-[#E5E1E4] h-full focus-visible:ring-1 focus-visible:ring-hs-accent/50 focus-visible:border-hs-accent/50"
                 />
               </div>

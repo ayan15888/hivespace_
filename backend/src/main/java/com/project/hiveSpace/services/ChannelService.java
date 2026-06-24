@@ -1,0 +1,450 @@
+package com.project.hiveSpace.services;
+
+import com.project.hiveSpace.dto.ChannelResponse;
+import com.project.hiveSpace.dto.CreateChannelRequest;
+import com.project.hiveSpace.dto.OpenDmRequest;
+import com.project.hiveSpace.exceptions.ForbiddenException;
+import com.project.hiveSpace.exceptions.NotFoundException;
+import com.project.hiveSpace.models.*;
+import com.project.hiveSpace.repository.*;
+import com.project.hiveSpace.dto.ChannelMemberResponse;
+import com.project.hiveSpace.security.RbacService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class ChannelService {
+
+    private final ChannelRepository channelRepository;
+    private final ChannelMemberRepository channelMemberRepository;
+    private final WorkspaceRepository workspaceRepository;
+    private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectTeamRepository projectTeamRepository;
+    private final TeamRepository teamRepository;
+    private final TeamMemberRepository teamMemberRepository;
+    private final UserRepository userRepository;
+    private final RbacService rbacService;
+
+    // POST /api/channels
+    public ChannelResponse createChannel(CreateChannelRequest req, UUID currentUserId) {
+        // 1. Verify currentUser is a MEMBER or above in req.workspaceId
+        if (!rbacService.hasWorkspaceRole(req.workspaceId(), WorkspaceMemberRole.MEMBER)) {
+            throw new ForbiddenException("Access denied: Must be a member of the workspace to create channels");
+        }
+
+        // 2. If type == PRIVATE, verify user is ADMIN or workspace owner (can admin workspace)
+        if (req.type() == ChannelType.PRIVATE && !rbacService.canAdminWorkspace(req.workspaceId())) {
+            throw new ForbiddenException("Access denied: Only workspace administrators can create private channels");
+        }
+
+        Workspace workspace = workspaceRepository.findById(req.workspaceId())
+                .orElseThrow(() -> new NotFoundException("Workspace not found"));
+
+        Project project = null;
+        if (req.projectId() != null) {
+            project = projectRepository.findById(req.projectId())
+                    .orElseThrow(() -> new NotFoundException("Project not found"));
+        }
+
+        Team team = null;
+        if (req.teamId() != null) {
+            team = teamRepository.findById(req.teamId())
+                    .orElseThrow(() -> new NotFoundException("Team not found"));
+        }
+
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new NotFoundException("Current user not found"));
+
+        // 3. Build and save Channel entity
+        Channel channel = Channel.builder()
+                .name(req.name())
+                .type(req.type())
+                .workspace(workspace)
+                .project(project)
+                .team(team)
+                .createdBy(currentUser)
+                .build();
+
+        Channel savedChannel = channelRepository.save(channel);
+
+        // 4. Add creator as first channel member
+        ChannelMemberId memberId = ChannelMemberId.builder()
+                .channelId(savedChannel.getId())
+                .userId(currentUserId)
+                .build();
+
+        ChannelMember member = ChannelMember.builder()
+                .id(memberId)
+                .channel(savedChannel)
+                .user(currentUser)
+                .joinedAt(Instant.now())
+                .build();
+
+        channelMemberRepository.save(member);
+
+        // 5. Return ChannelResponse (unreadCount = 0 for new channel)
+        return new ChannelResponse(
+                savedChannel.getId(),
+                savedChannel.getName(),
+                savedChannel.getType(),
+                savedChannel.getWorkspace().getId(),
+                savedChannel.getProject() != null ? savedChannel.getProject().getId() : null,
+                savedChannel.getTeam() != null ? savedChannel.getTeam().getId() : null,
+                0L,
+                false
+        );
+    }
+
+    // GET /api/workspaces/{workspaceId}/channels
+    @Transactional(readOnly = true)
+    public List<ChannelResponse> getChannelsForUser(UUID workspaceId, UUID currentUserId) {
+        if (!rbacService.hasWorkspaceRole(workspaceId, WorkspaceMemberRole.MEMBER)) {
+            throw new ForbiddenException("Access denied: Must be a member of the workspace to list channels");
+        }
+
+        List<Channel> channels = channelRepository.findByWorkspaceAndMember(workspaceId, currentUserId);
+
+        return channels.stream().map(channel -> {
+            ChannelMember member = channelMemberRepository.findByIdChannelIdAndIdUserId(channel.getId(), currentUserId)
+                    .orElse(null);
+            Instant lastReadAt = member != null ? member.getLastReadAt() : null;
+            Instant resolvedLastReadAt = lastReadAt != null ? lastReadAt : Instant.EPOCH;
+            long unreadCount = channelMemberRepository.countUnread(channel.getId(), currentUserId, resolvedLastReadAt);
+            boolean pinned = member != null && Boolean.TRUE.equals(member.getPinned());
+
+            String channelName = channel.getName();
+            if (channel.getType() == ChannelType.DM) {
+                List<ChannelMember> members = channelMemberRepository.findByIdChannelId(channel.getId());
+                User otherUser = members.stream()
+                        .map(ChannelMember::getUser)
+                        .filter(u -> !u.getId().equals(currentUserId))
+                        .findFirst()
+                        .orElse(null);
+                if (otherUser != null) {
+                    channelName = otherUser.getFullName() != null && !otherUser.getFullName().isEmpty()
+                            ? otherUser.getFullName() : otherUser.getUsername();
+                }
+            }
+
+            return new ChannelResponse(
+                    channel.getId(),
+                    channelName,
+                    channel.getType(),
+                    channel.getWorkspace().getId(),
+                    channel.getProject() != null ? channel.getProject().getId() : null,
+                    channel.getTeam() != null ? channel.getTeam().getId() : null,
+                    unreadCount,
+                    pinned
+            );
+        }).collect(Collectors.toList());
+    }
+
+    // POST /api/channels/dm
+    public ChannelResponse openDm(OpenDmRequest req, UUID currentUserId) {
+        if (!rbacService.hasWorkspaceRole(req.workspaceId(), WorkspaceMemberRole.MEMBER)) {
+            throw new ForbiddenException("Access denied: Must be a member of the workspace to open DMs");
+        }
+
+        // 1. Run dedup: channelRepository.findExistingDmChannel(req.workspaceId, currentUserId, req.targetUserId)
+        UUID existingChannelId = channelRepository.findExistingDmChannel(req.workspaceId(), currentUserId, req.targetUserId())
+                .orElse(null);
+
+        if (existingChannelId != null) {
+            // 2. If found: load that Channel and return ChannelResponse (unreadCount computed normally)
+            Channel channel = channelRepository.findById(existingChannelId)
+                    .orElseThrow(() -> new NotFoundException("Channel not found"));
+
+            ChannelMember member = channelMemberRepository.findByIdChannelIdAndIdUserId(channel.getId(), currentUserId)
+                    .orElse(null);
+            Instant lastReadAt = member != null ? member.getLastReadAt() : null;
+            Instant resolvedLastReadAt = lastReadAt != null ? lastReadAt : Instant.EPOCH;
+            long unreadCount = channelMemberRepository.countUnread(channel.getId(), currentUserId, resolvedLastReadAt);
+
+            String channelName = channel.getName();
+            if (channel.getType() == ChannelType.DM) {
+                List<ChannelMember> members = channelMemberRepository.findByIdChannelId(channel.getId());
+                User otherUser = members.stream()
+                        .map(ChannelMember::getUser)
+                        .filter(u -> !u.getId().equals(currentUserId))
+                        .findFirst()
+                        .orElse(null);
+                if (otherUser != null) {
+                    channelName = otherUser.getFullName() != null && !otherUser.getFullName().isEmpty()
+                            ? otherUser.getFullName() : otherUser.getUsername();
+                }
+            }
+
+            boolean pinned = member != null && Boolean.TRUE.equals(member.getPinned());
+
+            return new ChannelResponse(
+                    channel.getId(),
+                    channelName,
+                    channel.getType(),
+                    channel.getWorkspace().getId(),
+                    channel.getProject() != null ? channel.getProject().getId() : null,
+                    channel.getTeam() != null ? channel.getTeam().getId() : null,
+                    unreadCount,
+                    pinned
+            );
+        } else {
+            // 3. If not found:
+            Workspace workspace = workspaceRepository.findById(req.workspaceId())
+                    .orElseThrow(() -> new NotFoundException("Workspace not found"));
+
+            User currentUser = userRepository.findById(currentUserId)
+                    .orElseThrow(() -> new NotFoundException("Current user not found"));
+
+            User targetUser = userRepository.findById(req.targetUserId())
+                    .orElseThrow(() -> new NotFoundException("Target user not found"));
+
+            // a. INSERT Channel (type=DM, name=null, workspaceId=req.workspaceId)
+            Channel channel = Channel.builder()
+                    .name(null)
+                    .type(ChannelType.DM)
+                    .workspace(workspace)
+                    .createdBy(currentUser)
+                    .build();
+
+            Channel savedChannel = channelRepository.save(channel);
+
+            // b. INSERT ChannelMember for currentUserId
+            ChannelMember memberSelf = ChannelMember.builder()
+                    .id(new ChannelMemberId(savedChannel.getId(), currentUserId))
+                    .channel(savedChannel)
+                    .user(currentUser)
+                    .joinedAt(Instant.now())
+                    .build();
+            channelMemberRepository.save(memberSelf);
+
+            // c. INSERT ChannelMember for targetUserId
+            ChannelMember memberTarget = ChannelMember.builder()
+                    .id(new ChannelMemberId(savedChannel.getId(), req.targetUserId()))
+                    .channel(savedChannel)
+                    .user(targetUser)
+                    .joinedAt(Instant.now())
+                    .build();
+            channelMemberRepository.save(memberTarget);
+
+            // d. Return ChannelResponse (unreadCount = 0)
+            String targetName = targetUser.getFullName() != null && !targetUser.getFullName().isEmpty()
+                    ? targetUser.getFullName() : targetUser.getUsername();
+
+            return new ChannelResponse(
+                    savedChannel.getId(),
+                    targetName,
+                    ChannelType.DM,
+                    savedChannel.getWorkspace().getId(),
+                    null,
+                    null,
+                    0L,
+                    false
+            );
+        }
+    }
+
+    // POST /api/channels/{channelId}/read
+    public void markRead(UUID channelId, UUID currentUserId) {
+        ChannelMember member = channelMemberRepository.findByIdChannelIdAndIdUserId(channelId, currentUserId)
+                .orElseThrow(() -> new NotFoundException("Channel membership not found"));
+
+        member.setLastReadAt(Instant.now());
+        channelMemberRepository.save(member);
+    }
+
+    // GET /api/channels/{channelId}/members
+    @Transactional(readOnly = true)
+    public List<ChannelMemberResponse> getChannelMembers(UUID channelId, UUID currentUserId) {
+        Channel channel = channelRepository.findById(channelId)
+                .orElseThrow(() -> new NotFoundException("Channel not found"));
+
+        // For project-linked channels: live-aggregate from project_members + team_members
+        if (channel.getProject() != null) {
+            UUID projectId = channel.getProject().getId();
+
+            // Access check: must be a direct project member OR a team member of an assigned team
+            boolean canView = projectMemberRepository.existsByProjectIdAndUserId(projectId, currentUserId)
+                    || channelMemberRepository.existsByIdChannelIdAndIdUserId(channelId, currentUserId)
+                    || projectTeamRepository.findByProjectId(projectId).stream()
+                        .anyMatch(pt -> teamMemberRepository.findAllByTeamId(pt.getTeam().getId())
+                                .stream().anyMatch(tm -> tm.getUser().getId().equals(currentUserId)));
+            if (!canView) {
+                throw new ForbiddenException("Access denied: Not a member of this project or its teams");
+            }
+
+            // Deduplicate by userId
+            java.util.LinkedHashMap<UUID, ChannelMemberResponse> memberMap = new java.util.LinkedHashMap<>();
+
+            // 1. Direct project members
+            projectMemberRepository.findAllByProjectId(projectId).forEach(pm -> {
+                User u = pm.getUser();
+                memberMap.put(u.getId(), new ChannelMemberResponse(
+                        u.getId(),
+                        u.getActualUsername(),
+                        u.getFullName(),
+                        u.getAvatarUrl(),
+                        u.getAvatarColor(),
+                        pm.getJoinedAt().toInstant()
+                ));
+            });
+
+            // 2. Team members via project_teams
+            projectTeamRepository.findByProjectId(projectId).forEach(pt ->
+                    teamMemberRepository.findAllByTeamId(pt.getTeam().getId()).forEach(tm -> {
+                        User u = tm.getUser();
+                        memberMap.putIfAbsent(u.getId(), new ChannelMemberResponse(
+                                u.getId(),
+                                u.getActualUsername(),
+                                u.getFullName(),
+                                u.getAvatarUrl(),
+                                u.getAvatarColor(),
+                                tm.getJoinedAt().toInstant()
+                        ));
+                    })
+            );
+
+            return new java.util.ArrayList<>(memberMap.values());
+        }
+
+        // For non-project channels: use channel_members table
+        if (!channelMemberRepository.existsByIdChannelIdAndIdUserId(channelId, currentUserId)) {
+            throw new ForbiddenException("Access denied: Not a member of this channel");
+        }
+
+        return channelMemberRepository.findByIdChannelId(channelId).stream()
+                .map(cm -> new ChannelMemberResponse(
+                        cm.getUser().getId(),
+                        cm.getUser().getActualUsername(),
+                        cm.getUser().getFullName(),
+                        cm.getUser().getAvatarUrl(),
+                        cm.getUser().getAvatarColor(),
+                        cm.getJoinedAt()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    // POST /api/projects/{projectId}/ensure-channel
+    public ChannelResponse ensureProjectChannel(UUID projectId, UUID currentUserId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new NotFoundException("Project not found"));
+
+        boolean isDirectMember = projectMemberRepository.existsByProjectIdAndUserId(projectId, currentUserId);
+        boolean isTeamMember = projectTeamRepository.findByProjectId(projectId).stream()
+                .anyMatch(pt -> teamMemberRepository.findAllByTeamId(pt.getTeam().getId())
+                        .stream().anyMatch(tm -> tm.getUser().getId().equals(currentUserId)));
+        if (!isDirectMember && !isTeamMember) {
+            throw new ForbiddenException("Access denied: Must be a project or team member");
+        }
+
+        java.util.function.BiConsumer<Channel, User> addIfAbsent = (ch, u) -> {
+            if (!channelMemberRepository.existsByIdChannelIdAndIdUserId(ch.getId(), u.getId())) {
+                ChannelMember cm = ChannelMember.builder()
+                        .id(new ChannelMemberId(ch.getId(), u.getId()))
+                        .channel(ch)
+                        .user(u)
+                        .joinedAt(Instant.now())
+                        .build();
+                channelMemberRepository.save(cm);
+            }
+        };
+
+        Channel existing = channelRepository.findByProjectIdAndType(projectId, ChannelType.PRIVATE).orElse(null);
+        if (existing != null) {
+            projectMemberRepository.findAllByProjectId(projectId)
+                    .forEach(pm -> addIfAbsent.accept(existing, pm.getUser()));
+            projectTeamRepository.findByProjectId(projectId).forEach(pt ->
+                    teamMemberRepository.findAllByTeamId(pt.getTeam().getId())
+                            .forEach(tm -> addIfAbsent.accept(existing, tm.getUser())));
+
+            long unread = channelMemberRepository.findByIdChannelIdAndIdUserId(existing.getId(), currentUserId)
+                    .map(cm -> channelMemberRepository.countUnread(existing.getId(), currentUserId, cm.getLastReadAt()))
+                    .orElse(0L);
+            boolean pinned = channelMemberRepository.findByIdChannelIdAndIdUserId(existing.getId(), currentUserId)
+                    .map(cm -> Boolean.TRUE.equals(cm.getPinned()))
+                    .orElse(false);
+            return new ChannelResponse(
+                    existing.getId(), existing.getName(), existing.getType(),
+                    existing.getWorkspace().getId(), existing.getProject().getId(),
+                    null, unread, pinned);
+        }
+
+        User creator = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        Channel channel = Channel.builder()
+                .name(project.getName().toLowerCase().replaceAll("\\s+", "-"))
+                .type(ChannelType.PRIVATE)
+                .workspace(project.getWorkspace())
+                .project(project)
+                .createdBy(creator)
+                .build();
+        Channel saved = channelRepository.save(channel);
+
+        projectMemberRepository.findAllByProjectId(projectId)
+                .forEach(pm -> addIfAbsent.accept(saved, pm.getUser()));
+
+        projectTeamRepository.findByProjectId(projectId).forEach(pt ->
+                teamMemberRepository.findAllByTeamId(pt.getTeam().getId())
+                        .forEach(tm -> addIfAbsent.accept(saved, tm.getUser())));
+
+        return new ChannelResponse(
+                saved.getId(), saved.getName(), saved.getType(),
+                saved.getWorkspace().getId(), saved.getProject().getId(),
+                null, 0L, false);
+    }
+
+    public ChannelResponse setChannelPinned(UUID channelId, UUID currentUserId, boolean pinned) {
+        ChannelMember member = channelMemberRepository.findByIdChannelIdAndIdUserId(channelId, currentUserId)
+                .orElseThrow(() -> new NotFoundException("Channel membership not found"));
+
+        if (pinned) {
+            Channel channel = channelRepository.findById(channelId)
+                    .orElseThrow(() -> new NotFoundException("Channel not found"));
+
+            long count = channelMemberRepository.countPinnedChannelsInWorkspace(channel.getWorkspace().getId(), currentUserId);
+            if (!Boolean.TRUE.equals(member.getPinned()) && count >= 3) {
+                throw new ForbiddenException("You can only pin up to 3 channels.");
+            }
+        }
+
+        member.setPinned(pinned);
+        channelMemberRepository.save(member);
+
+        Instant lastReadAt = member.getLastReadAt() != null ? member.getLastReadAt() : Instant.EPOCH;
+        long unreadCount = channelMemberRepository.countUnread(channelId, currentUserId, lastReadAt);
+
+        Channel channel = member.getChannel();
+        String channelName = channel.getName();
+        if (channel.getType() == ChannelType.DM) {
+            List<ChannelMember> members = channelMemberRepository.findByIdChannelId(channel.getId());
+            User otherUser = members.stream()
+                    .map(ChannelMember::getUser)
+                    .filter(u -> !u.getId().equals(currentUserId))
+                    .findFirst()
+                    .orElse(null);
+            if (otherUser != null) {
+                channelName = otherUser.getFullName() != null && !otherUser.getFullName().isEmpty()
+                        ? otherUser.getFullName() : otherUser.getUsername();
+            }
+        }
+
+        return new ChannelResponse(
+                channel.getId(),
+                channelName,
+                channel.getType(),
+                channel.getWorkspace().getId(),
+                channel.getProject() != null ? channel.getProject().getId() : null,
+                channel.getTeam() != null ? channel.getTeam().getId() : null,
+                unreadCount,
+                pinned
+        );
+    }
+}

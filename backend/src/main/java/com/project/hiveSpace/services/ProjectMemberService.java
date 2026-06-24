@@ -42,6 +42,7 @@ public class ProjectMemberService {
     private final RbacService rbacService;
     private final ProjectTeamRepository projectTeamRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final RedisService redisService;
 
     @Transactional(readOnly = true)
     public List<ProjectMemberResponse> getMembersByProject(UUID projectId) {
@@ -136,6 +137,8 @@ public class ProjectMemberService {
 
         ProjectMember saved = projectMemberRepository.save(projectMember);
 
+        redisService.deleteKey("workspace:" + workspaceId + ":projects");
+
         return mapToResponse(saved);
     }
 
@@ -192,6 +195,7 @@ public class ProjectMemberService {
                 .orElseThrow(() -> new NotFoundException("Membership not found"));
 
         projectMemberRepository.delete(projectMember);
+        redisService.deleteKey("workspace:" + workspaceId + ":projects");
     }
 
     private boolean isLastLead(UUID projectId, UUID userId) {
