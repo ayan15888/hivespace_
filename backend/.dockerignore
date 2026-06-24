@@ -1,0 +1,14 @@
+.gradle
+build
+!build/libs/*.jar
+out
+.idea
+.vscode
+*.log
+.git
+.gitignore
+bin/
+obj/
+# Keep environment files out of the image by default if they are sensitive
+# .env
+# .env.*

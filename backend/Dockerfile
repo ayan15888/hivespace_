@@ -27,10 +27,19 @@ RUN ./gradlew bootJar -x test --no-daemon
 # ==============================================================================
 # PHASE 2: Lightweight Runtime Stage
 # ==============================================================================
-FROM eclipse-temurin:17-jre-jammy
+FROM amazoncorretto:17-al2023-headless
+
+# Install required tools:
+# - shadow-utils: provides useradd/groupadd (missing from headless image)
+# - curl: used for container health checks
+# --allowerasing resolves curl-minimal vs curl conflicts on AL2023
+RUN dnf update -y && \
+    dnf install -y --allowerasing shadow-utils curl && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf
 
 # Set up a secure, non-privileged system user and group
-RUN groupadd -r spring && useradd -r -g spring spring
+RUN groupadd -r spring && useradd -r -g spring -s /bin/false spring
 
 # Define working directory and ensure permissions are correct
 WORKDIR /app

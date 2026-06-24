@@ -52,3 +52,4 @@ bin/
 
 # Google OAuth Credentials
 *client_secret.json
+.vercel
