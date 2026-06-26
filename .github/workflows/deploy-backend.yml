@@ -1,0 +1,59 @@
+name: Build and Deploy hiveSpace Backend to Amazon Linux
+
+on:
+  push:
+    branches:
+      - main # 📍 Change this if your main branch has a different name (e.g. master)
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # --- 1. SET UP JAVA 17 ---
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      # --- 2. BUILD THE RUNNABLE JAR ---
+      - name: Build Backend bootJar
+        run: |
+          cd backend
+          chmod +x gradlew
+          ./gradlew bootJar -x test --no-daemon
+
+      # --- 3. COPY JAR TO AMAZON LINUX EC2 ---
+      - name: Copy JAR to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          source: "backend/build/libs/*.jar"
+          target: "/home/ec2-user/hivespace"
+          strip_components: 0 # Retains the folder hierarchy (backend/build/libs/...)
+
+      # --- 4. RESTART BACKEND SERVICE OVER SSH ---
+      - name: Restart Backend Service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            echo "⚙️ Renaming JAR to app.jar..."
+            # Rename the jar file to standard app.jar used by systemd
+            mv -f /home/ec2-user/hivespace/backend/build/libs/*.jar /home/ec2-user/hivespace/backend/build/libs/app.jar
+            
+            echo "🔄 Restarting hivespace-backend systemd service..."
+            sudo systemctl restart hivespace-backend
+            
+            echo "✅ Deployment successful!"
