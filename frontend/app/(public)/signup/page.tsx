@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GitGraph as Github, Loader2, Eye, EyeOff } from "lucide-react";
+import { GitGraph as Github, Loader2, Eye, EyeOff, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -126,11 +126,19 @@ export default function SignUpPage() {
               </button>
             </div>
             {error && <p className="text-xs text-red-500 text-left">{error}</p>}
-            <Turnstile 
-              onVerify={(token) => setCaptchaToken(token)} 
-              onExpire={() => setCaptchaToken(null)}
-              onError={() => setCaptchaToken(null)}
-            />
+             <div className="flex flex-col gap-2">
+              <Turnstile 
+                onVerify={(token) => setCaptchaToken(token)} 
+                onExpire={() => setCaptchaToken(null)}
+                onError={() => setCaptchaToken(null)}
+              />
+              {captchaToken && (
+                <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-500 font-medium animate-fade-in py-1">
+                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                  <span>Verified Human</span>
+                </div>
+              )}
+            </div>
             <Button 
               type="submit" 
               disabled={loading || !captchaToken}
