@@ -84,7 +84,12 @@ export function ChatComposeBar({
     inputValue.startsWith("/") && 
     filteredSuggestions.length > 0
 
-  const isAiMode = inputValue.toLowerCase().startsWith("/ai")
+  const valLower = inputValue.toLowerCase()
+  const isAiMode = valLower.startsWith("/ai") ||
+                    valLower.startsWith("/todo") ||
+                    valLower.startsWith("/task") ||
+                    valLower.startsWith("/update") ||
+                    valLower.startsWith("/edit")
   const canSend = inputValue.trim().length > 0
 
   return (

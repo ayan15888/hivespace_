@@ -107,7 +107,12 @@ export function useChatChannelComposer({
       clearTimeout(typingTimeoutRef.current);
     }
 
-    const isAi = content.toLowerCase().startsWith("/ai");
+    const contentLower = content.toLowerCase();
+    const isAi = contentLower.startsWith("/ai") ||
+                 contentLower.startsWith("/todo") ||
+                 contentLower.startsWith("/task") ||
+                 contentLower.startsWith("/update") ||
+                 contentLower.startsWith("/edit");
     if (isAi) {
       setAiLoading(channelId, true);
       // Immediately scroll to bottom so user sees the thinking placeholder
