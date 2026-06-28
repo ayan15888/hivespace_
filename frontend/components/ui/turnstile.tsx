@@ -1,7 +1,7 @@
 "use client";
 
 import Script from "next/script";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface TurnstileProps {
   onVerify: (token: string) => void;
@@ -12,57 +12,70 @@ interface TurnstileProps {
 export function Turnstile({ onVerify, onExpire, onError }: TurnstileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+
+  // Detect if window.turnstile is already loaded on mount (e.g. from page navigation)
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.turnstile) {
+      setScriptLoaded(true);
+    }
+  }, []);
 
   useEffect(() => {
+    if (!scriptLoaded || !containerRef.current) return;
+
     const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
 
-    const renderWidget = () => {
-      if (containerRef.current && window.turnstile) {
-        // Clean up previous widget if it exists
-        if (widgetIdRef.current) {
-          window.turnstile.remove(widgetIdRef.current);
-        }
-
-        try {
-          const id = window.turnstile.render(containerRef.current, {
-            sitekey: siteKey,
-            theme: "dark",
-            callback: (token: string) => {
-              onVerify(token);
-            },
-            "expired-callback": () => {
-              onExpire?.();
-            },
-            "error-callback": () => {
-              onError?.();
-            },
-          });
-          widgetIdRef.current = id;
-        } catch (err) {
-          console.error("Error rendering Turnstile:", err);
-        }
+    // Clean up any existing widget instance before rendering
+    if (widgetIdRef.current && window.turnstile) {
+      try {
+        window.turnstile.remove(widgetIdRef.current);
+      } catch (err) {
+        console.error("Error removing Turnstile widget:", err);
       }
-    };
+      widgetIdRef.current = null;
+    }
 
-    if (window.turnstile) {
-      renderWidget();
-    } else {
-      // If turnstile script is loaded but window.turnstile isn't ready immediately
-      const checkInterval = setInterval(() => {
-        if (window.turnstile) {
-          clearInterval(checkInterval);
-          renderWidget();
-        }
-      }, 100);
-      return () => clearInterval(checkInterval);
+    // Ensure the container is empty
+    if (containerRef.current) {
+      containerRef.current.innerHTML = "";
+    }
+
+    let active = true;
+
+    try {
+      if (window.turnstile) {
+        const id = window.turnstile.render(containerRef.current, {
+          sitekey: siteKey,
+          theme: "dark",
+          callback: (token: string) => {
+            if (active) onVerify(token);
+          },
+          "expired-callback": () => {
+            if (active) onExpire?.();
+          },
+          "error-callback": () => {
+            if (active) onError?.();
+          },
+        });
+        widgetIdRef.current = id;
+      }
+    } catch (err) {
+      console.error("Error rendering Turnstile:", err);
     }
 
     return () => {
+      active = false;
       if (widgetIdRef.current && window.turnstile) {
-        window.turnstile.remove(widgetIdRef.current);
+        try {
+          window.turnstile.remove(widgetIdRef.current);
+        } catch (err) {
+          // ignore
+        }
+        widgetIdRef.current = null;
       }
     };
-  }, [onVerify, onExpire, onError]);
+  }, [scriptLoaded, onVerify, onExpire, onError]);
 
   return (
     <>
@@ -70,24 +83,10 @@ export function Turnstile({ onVerify, onExpire, onError }: TurnstileProps) {
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         strategy="afterInteractive"
         onLoad={() => {
-          if (window.turnstile && containerRef.current && !widgetIdRef.current) {
-            const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
-            try {
-              const id = window.turnstile.render(containerRef.current, {
-                sitekey: siteKey,
-                theme: "dark",
-                callback: onVerify,
-                "expired-callback": onExpire,
-                "error-callback": onError,
-              });
-              widgetIdRef.current = id;
-            } catch (err) {
-              console.error("Error rendering Turnstile on load:", err);
-            }
-          }
+          setScriptLoaded(true);
         }}
       />
-      <div ref={containerRef} className="flex justify-center my-2" />
+      <div ref={containerRef} className="flex justify-center my-2 min-h-[65px]" />
     </>
   );
 }
@@ -110,3 +109,4 @@ declare global {
     };
   }
 }
+
