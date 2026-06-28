@@ -7,6 +7,7 @@ import com.project.hiveSpace.services.GmailService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +27,9 @@ public class GoogleOAuthController {
     private final GmailService gmailService;
     private final JwtService jwtService;
     private final UserRepository userRepository;
+
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
 
     // 1. Get Auth URL
     @GetMapping("/url")
@@ -53,10 +57,10 @@ public class GoogleOAuthController {
             gmailService.handleCallback(code, user);
 
             // Redirect back to frontend mail page with success query
-            response.sendRedirect("http://localhost:3000/dashboard/mail?success=true");
+            response.sendRedirect(frontendUrl + "/dashboard/mail?success=true");
         } catch (Exception e) {
             log.error("Google OAuth callback failed", e);
-            response.sendRedirect("http://localhost:3000/dashboard/mail?error=oauth_failed");
+            response.sendRedirect(frontendUrl + "/dashboard/mail?error=oauth_failed");
         }
     }
 }
